@@ -207,8 +207,15 @@ def _is_meaningful_chip_distribution(chip: Any) -> bool:
     )
 
 
+def _is_sg_market(code: str) -> bool:
+    """判定是否为新加坡（SGX）代码（yfinance-native .SI 后缀）。"""
+    return (code or "").strip().upper().endswith(".SI")
+
+
 def _market_tag(code: str) -> str:
-    """返回市场标签: cn/us/hk."""
+    """返回市场标签: cn/us/hk/sg."""
+    if _is_sg_market(code):
+        return "sg"
     if _is_us_market(code):
         return "us"
     if _is_hk_market(code):

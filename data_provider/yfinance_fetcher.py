@@ -122,6 +122,11 @@ class YfinanceFetcher(BaseFetcher):
             logger.debug(f"转换港股代码: {stock_code} -> {hk_code}.HK")
             return f"{hk_code}.HK"
 
+        # 新加坡（SGX）：.SI 后缀，yfinance 原生格式，原样返回
+        if code.endswith('.SI'):
+            logger.debug(f"识别为新加坡代码: {code}")
+            return code
+
         # 已经包含后缀的情况
         if '.SS' in code or '.SZ' in code or '.HK' in code or '.BJ' in code:
             return code
