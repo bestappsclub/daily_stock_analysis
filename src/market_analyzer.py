@@ -135,7 +135,7 @@ class MarketAnalyzer:
         self.search_service = search_service
         self.analyzer = analyzer
         self.data_manager = DataFetcherManager()
-        self.region = region if region in ("cn", "us", "hk") else "cn"
+        self.region = region if region in ("cn", "us", "hk", "sg") else "cn"
         self.profile: MarketProfile = get_profile(self.region)
         self.strategy = get_market_strategy_blueprint(self.region)
 
@@ -155,6 +155,8 @@ class MarketAnalyzer:
             return "US market" if review_language == "en" else "美股市场"
         if self.region == "hk":
             return "Hong Kong market" if review_language == "en" else "港股市场"
+        if self.region == "sg":
+            return "Singapore market" if review_language == "en" else "新加坡市场"
         if review_language == "en":
             return "A-share market"
         return "A股市场"
@@ -165,13 +167,15 @@ class MarketAnalyzer:
             return "USD bn" if self._get_review_language() == "en" else "十亿美元"
         if self.region == "hk":
             return "HKD bn" if self._get_review_language() == "en" else "十亿港元"
+        if self.region == "sg":
+            return "SGD bn" if self._get_review_language() == "en" else "十亿新元"
         return "CNY 100m" if self._get_review_language() == "en" else "亿"
 
     def _format_turnover_value(self, amount_raw: float) -> str:
         """Format raw turnover according to market-specific units."""
         if amount_raw == 0.0:
             return "N/A"
-        if self.region in ("us", "hk"):
+        if self.region in ("us", "hk", "sg"):
             return f"{amount_raw / 1e9:.2f}"
         if amount_raw > 1e6:
             return f"{amount_raw / 1e8:.0f}"
@@ -187,7 +191,7 @@ class MarketAnalyzer:
 
     def _get_review_title(self, date: str) -> str:
         if self._get_review_language() == "en":
-            market_names = {"us": "US Market Recap", "hk": "HK Market Recap"}
+            market_names = {"us": "US Market Recap", "hk": "HK Market Recap", "sg": "SG Market Recap"}
             market_name = market_names.get(self.region, "A-share Market Recap")
             return f"## {date} {market_name}"
         return f"## {date} 大盘复盘"
@@ -198,6 +202,8 @@ class MarketAnalyzer:
                 return "Analyze the key moves in the S&P 500, Nasdaq, Dow, and other major indices."
             if self.region == "hk":
                 return "Analyze the key moves in the HSI, Hang Seng Tech, HSCEI, and other major indices."
+            if self.region == "sg":
+                return "Analyze the key moves in the Straits Times Index (STI) and other major Singapore indices."
             return "Analyze the price action in the SSE, SZSE, ChiNext, and other major indices."
         return self.profile.prompt_index_hint
 
@@ -1316,7 +1322,7 @@ Output the report content directly, no extra commentary.
 - **Leaders**: {top_text or "N/A"}
 - **Laggards**: {bottom_text or "N/A"}
 """
-            market_names = {"us": "US Market Recap", "hk": "HK Market Recap"}
+            market_names = {"us": "US Market Recap", "hk": "HK Market Recap", "sg": "SG Market Recap"}
             market_name = market_names.get(self.region, "A-share Market Recap")
             report = f"""## {overview.date} {market_name}
 

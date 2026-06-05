@@ -122,6 +122,11 @@ class YfinanceFetcher(BaseFetcher):
             logger.debug(f"转换港股代码: {stock_code} -> {hk_code}.HK")
             return f"{hk_code}.HK"
 
+        # 新加坡（SGX）：.SI 后缀，yfinance 原生格式，原样返回
+        if code.endswith('.SI'):
+            logger.debug(f"识别为新加坡代码: {code}")
+            return code
+
         # 已经包含后缀的情况
         if '.SS' in code or '.SZ' in code or '.HK' in code or '.BJ' in code:
             return code
@@ -329,6 +334,8 @@ class YfinanceFetcher(BaseFetcher):
             return self._get_us_main_indices(yf)
         if region == "hk":
             return self._get_hk_main_indices(yf)
+        if region == "sg":
+            return self._get_sg_main_indices(yf)
 
         # A 股指数：akshare 代码 -> (yfinance 代码, 显示名称)
         yf_mapping = {
@@ -384,6 +391,34 @@ class YfinanceFetcher(BaseFetcher):
 
         except Exception as e:
             logger.error(f"[Yfinance] 获取美股指数行情失败: {e}")
+
+        return None
+
+    def _get_sg_main_indices(self, yf) -> Optional[List[Dict[str, Any]]]:
+        """获取新加坡主要指数行情（STI 海峡时报指数），复用 _fetch_yf_ticker_data。
+
+        Yahoo Finance 新加坡指数符号：STI -> ^STI。
+        """
+        sg_indices = {
+            'STI': ('^STI', '海峡时报指数'),
+        }
+        results = []
+        try:
+            for code, (yf_symbol, name) in sg_indices.items():
+                try:
+                    item = self._fetch_yf_ticker_data(yf, yf_symbol, name, code)
+                    if item:
+                        results.append(item)
+                        logger.debug(f"[Yfinance] 获取新加坡指数 {name} 成功")
+                except Exception as e:
+                    logger.warning(f"[Yfinance] 获取新加坡指数 {name} 失败: {e}")
+
+            if results:
+                logger.info(f"[Yfinance] 成功获取 {len(results)} 个新加坡指数行情")
+                return results
+
+        except Exception as e:
+            logger.error(f"[Yfinance] 获取新加坡指数行情失败: {e}")
 
         return None
 

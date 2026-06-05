@@ -11,13 +11,15 @@ from pydantic import BaseModel, Field
 from api.deps import get_config_dep
 from src.config import Config
 from src.services.alphasift_service import AlphaSiftService
-from src.services.us_screener_service import USScreenerService
+from src.services.us_screener_service import MarketScreenerService, SUPPORTED_MARKETS
 
 router = APIRouter()
 
 
-def _is_us_market(market: str) -> bool:
-    return (market or "").strip().lower() == "us"
+def _native_screen_market(market: str) -> str:
+    """返回原生选股市场（us/sg），非原生市场返回空串（走 AlphaSift）。"""
+    m = (market or "").strip().lower()
+    return m if m in SUPPORTED_MARKETS else ""
 
 
 class AlphaSiftScreenRequest(BaseModel):
@@ -47,8 +49,9 @@ def alphasift_status(
     market: str = "cn",
     config: Config = Depends(get_config_dep),
 ) -> Dict[str, Any]:
-    if _is_us_market(market):
-        return USScreenerService(config=config).status()
+    native = _native_screen_market(market)
+    if native:
+        return MarketScreenerService(native, config=config).status()
     return _service(config).status()
 
 
@@ -58,8 +61,9 @@ def alphasift_strategies(
     market: str = "cn",
     config: Config = Depends(get_config_dep),
 ) -> Dict[str, Any]:
-    if _is_us_market(market):
-        return USScreenerService(config=config).strategies()
+    native = _native_screen_market(market)
+    if native:
+        return MarketScreenerService(native, config=config).strategies()
     return _service(config).strategies()
 
 
@@ -78,8 +82,9 @@ def alphasift_screen(
     http_request: Request,
     config: Config = Depends(get_config_dep),
 ) -> Dict[str, Any]:
-    if _is_us_market(request.market):
-        return USScreenerService(config=config).screen(
+    native = _native_screen_market(request.market)
+    if native:
+        return MarketScreenerService(native, config=config).screen(
             strategy=request.strategy,
             market=request.market,
             max_results=request.max_results,

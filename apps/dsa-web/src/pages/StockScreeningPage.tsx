@@ -12,6 +12,7 @@ import { AppPage, Button, InlineAlert } from '../components/common';
 const MARKETS = [
   { id: 'cn', label: 'A 股' },
   { id: 'us', label: '美股' },
+  { id: 'sg', label: '新加坡' },
 ];
 
 const formatScore = (score: AlphaSiftCandidate['score']) => {
@@ -208,7 +209,7 @@ const StockScreeningPage: React.FC = () => {
   const [market, setMarket] = useState('cn');
   const [strategy, setStrategy] = useState('dual_low');
   const [strategies, setStrategies] = useState<AlphaSiftStrategy[]>([]);
-  const [maxResults, setMaxResults] = useState(3);
+  const [maxResults, setMaxResults] = useState(20);
   const [candidates, setCandidates] = useState<AlphaSiftCandidate[]>([]);
   const [screenMeta, setScreenMeta] = useState<AlphaSiftScreenResponse | null>(null);
   const [expandedCode, setExpandedCode] = useState<string | null>(null);

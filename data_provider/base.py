@@ -91,6 +91,10 @@ def normalize_stock_code(stock_code: str) -> str:
     code = stock_code.strip()
     upper = code.upper()
 
+    # Singapore (SGX): keep the yfinance-native .SI form, uppercased (e.g. d05.si -> D05.SI)
+    if upper.endswith('.SI'):
+        return upper
+
     # Normalize HK prefix to a canonical 5-digit form (e.g. hk1810 -> HK01810)
     if upper.startswith('HK') and not upper.startswith('HK.'):
         candidate = upper[2:]
@@ -203,8 +207,15 @@ def _is_meaningful_chip_distribution(chip: Any) -> bool:
     )
 
 
+def _is_sg_market(code: str) -> bool:
+    """判定是否为新加坡（SGX）代码（yfinance-native .SI 后缀）。"""
+    return (code or "").strip().upper().endswith(".SI")
+
+
 def _market_tag(code: str) -> str:
-    """返回市场标签: cn/us/hk."""
+    """返回市场标签: cn/us/hk/sg."""
+    if _is_sg_market(code):
+        return "sg"
     if _is_us_market(code):
         return "us"
     if _is_hk_market(code):
@@ -569,7 +580,7 @@ class DataFetcherManager:
         "TushareFetcher": {"cn", "hk"},
         "PytdxFetcher": {"cn"},
         "BaostockFetcher": {"cn"},
-        "YfinanceFetcher": {"cn", "hk", "us"},
+        "YfinanceFetcher": {"cn", "hk", "us", "sg"},
         "LongbridgeFetcher": {"hk", "us"},
         "FinnhubFetcher": {"us"},
         "AlphaVantageFetcher": {"us"},
@@ -695,7 +706,7 @@ class DataFetcherManager:
         market: str,
     ) -> List[BaseFetcher]:
         """Skip built-in daily fetchers that are known not to support a market."""
-        if market not in {"cn", "hk", "us"}:
+        if market not in {"cn", "hk", "us", "sg"}:
             return fetchers
 
         kept: List[BaseFetcher] = []
