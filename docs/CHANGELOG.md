@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] 新增原生美股选股：Web「选股」页可选「美股」，扫描有界股票池（默认标普 Composite 1500）并复用趋势评分引擎给出候选股 + 可选 LLM 推荐理由；详见 `docs/us-screening.md`。
 - [新功能] 新增新加坡(SGX)市场完整支持：选股（默认 STI 成分股）、个股分析与大盘复盘（STI 指数）；SG 代码采用 yfinance 风格 `.SI` 后缀（如 `D05.SI`），`MARKET_REVIEW_REGION` 新增 `sg`。
 - [新功能] 新增道氏摆动结构指标（头头高底底高=多头 / 头头低底底低=空头）：趋势分析输出 `structure` 字段，并新增 `*_structure_bull` / `*_structure_bear` 选股策略（美股/新加坡）。
+- [改进] 新加坡选股默认股票池由 STI 成分股(约 30)扩展为 SGX 全主板(普通股+REITs+商业信托，约 615 只)，新增 `scripts/fetch_sg_universe.py` 从 SGX 官方列表生成 `src/data/sg_universe.txt`；`SG_SCREEN_MAX_UNIVERSE` 默认上限由 200 提升至 700。
 - [改进] 选股「返回数量」前端默认由 3 调整为 20，与后端默认一致。
 - [修复] Web 个股栏和历史卡片在窄布局下不再让市场阶段标签遮挡股票名称。
 - [修复] 问股自由文本追问不再将 TTM、PE、YOY 等金融缩写误识别为新股票代码。

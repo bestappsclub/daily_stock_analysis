@@ -53,7 +53,7 @@ _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 # 每个市场的配置（env 前缀、默认股票池文件、最大默认上限）
 _MARKETS: Dict[str, Dict[str, Any]] = {
     "us": {"env_prefix": "US_SCREEN", "universe_file": "us_universe.txt", "default_max": 1500, "label": "美股"},
-    "sg": {"env_prefix": "SG_SCREEN", "universe_file": "sg_universe.txt", "default_max": 200, "label": "新加坡"},
+    "sg": {"env_prefix": "SG_SCREEN", "universe_file": "sg_universe.txt", "default_max": 700, "label": "新加坡"},
 }
 SUPPORTED_MARKETS = tuple(_MARKETS.keys())
 
