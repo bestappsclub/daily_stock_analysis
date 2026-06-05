@@ -18,6 +18,33 @@ export interface IndexLoadResult {
   fallback: boolean;
 }
 
+/** Module-level copy of the most recently loaded index, for non-React lookups. */
+let _cachedIndex: StockIndexItem[] = [];
+
+/**
+ * Resolve a typed code/name to a known canonical code using the cached index.
+ *
+ * Used so a user typing a bare market code that the backend cannot disambiguate
+ * (e.g. SG "BS6", which is not a valid stand-alone market code) still submits the
+ * canonical form ("BS6.SI"). Matches active entries by exact displayCode /
+ * canonicalCode / nameZh (case-insensitive). Returns null when no unambiguous
+ * match exists (caller then falls back to regex validation).
+ */
+export function resolveQueryToCanonicalCode(query: string): string | null {
+  const q = query.trim().toUpperCase();
+  if (!q || _cachedIndex.length === 0) return null;
+  const active = _cachedIndex.filter(item => item.active);
+  const byDisplay = active.filter(item => (item.displayCode || '').toUpperCase() === q);
+  if (byDisplay.length === 1) return byDisplay[0].canonicalCode;
+  const byCanonical = active.find(item => (item.canonicalCode || '').toUpperCase() === q);
+  if (byCanonical) return byCanonical.canonicalCode;
+  const byName = active.filter(item => (item.nameZh || '').toUpperCase() === q);
+  if (byName.length === 1) return byName[0].canonicalCode;
+  // displayCode collision across markets: prefer a single match if any, else give up
+  if (byDisplay.length > 1) return null;
+  return null;
+}
+
 /**
  * Load stock index
  *
@@ -38,6 +65,8 @@ export async function loadStockIndex(): Promise<IndexLoadResult> {
     const items = isCompressedFormat(data)
       ? unpackTuples(data as StockIndexTuple[])
       : data as StockIndexItem[];
+
+    _cachedIndex = items; // keep a module-level copy for code resolution outside React
 
     return {
       data: items,

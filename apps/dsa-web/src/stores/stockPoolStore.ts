@@ -6,6 +6,7 @@ import { historyApi } from '../api/history';
 import type { AnalysisReport, HistoryItem, HistoryListResponse, StockBarItem, StockHistoryFilters, StockHistoryRange, TaskInfo } from '../types/analysis';
 import { getRecentStartDate, getTodayInShanghai } from '../utils/format';
 import { isObviouslyInvalidStockQuery, looksLikeStockCode, validateStockCode } from '../utils/validation';
+import { resolveQueryToCanonicalCode } from '../utils/stockIndexLoader';
 
 const PAGE_SIZE = 20;
 const STOCK_HISTORY_PAGE_SIZE = 20;
@@ -737,19 +738,27 @@ export const useStockPoolStore = create<StockPoolState>((set, get) => ({
       return;
     }
 
-    if (selectionSource !== 'autocomplete' && isObviouslyInvalidStockQuery(stockCodeInput)) {
-      set({ inputError: '请输入有效的股票代码或股票名称', duplicateError: null });
-      return;
-    }
+    // Resolve a typed code/name against the loaded index first, so codes the backend
+    // cannot disambiguate on their own (e.g. SG "BS6" -> "BS6.SI") still work without
+    // the user having to pick the suffixed entry from the dropdown.
+    const resolvedCanonical = resolveQueryToCanonicalCode(stockCodeInput);
 
     let normalizedStockCode = stockCodeInput;
-    if (selectionSource === 'autocomplete' || looksLikeStockCode(stockCodeInput)) {
-      const { valid, message, normalized } = validateStockCode(stockCodeInput);
-      if (!valid) {
-        set({ inputError: message, duplicateError: null });
+    if (resolvedCanonical) {
+      normalizedStockCode = resolvedCanonical;
+    } else {
+      if (selectionSource !== 'autocomplete' && isObviouslyInvalidStockQuery(stockCodeInput)) {
+        set({ inputError: '请输入有效的股票代码或股票名称', duplicateError: null });
         return;
       }
-      normalizedStockCode = normalized;
+      if (selectionSource === 'autocomplete' || looksLikeStockCode(stockCodeInput)) {
+        const { valid, message, normalized } = validateStockCode(stockCodeInput);
+        if (!valid) {
+          set({ inputError: message, duplicateError: null });
+          return;
+        }
+        normalizedStockCode = normalized;
+      }
     }
 
     set({

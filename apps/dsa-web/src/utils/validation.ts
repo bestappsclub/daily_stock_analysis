@@ -13,6 +13,7 @@ const STOCK_CODE_PATTERNS = [
   /^\d{5}$/, // HK code without prefix
   /^HK\d{1,5}$/, // HK-prefixed code, for example HK00700
   /^\d{1,5}\.HK$/, // HK suffix format, for example 00700.HK
+  /^[A-Z0-9]{1,5}\.SI$/, // SG (SGX) suffix format, for example D05.SI / BS6.SI / 9CI.SI
   /^[A-Z]{1,5}(?:\.(?:US|[A-Z]))?$/, // Common US ticker format
 ];
 
