@@ -91,6 +91,10 @@ def normalize_stock_code(stock_code: str) -> str:
     code = stock_code.strip()
     upper = code.upper()
 
+    # Singapore (SGX): keep the yfinance-native .SI form, uppercased (e.g. d05.si -> D05.SI)
+    if upper.endswith('.SI'):
+        return upper
+
     # Normalize HK prefix to a canonical 5-digit form (e.g. hk1810 -> HK01810)
     if upper.startswith('HK') and not upper.startswith('HK.'):
         candidate = upper[2:]
@@ -569,7 +573,7 @@ class DataFetcherManager:
         "TushareFetcher": {"cn", "hk"},
         "PytdxFetcher": {"cn"},
         "BaostockFetcher": {"cn"},
-        "YfinanceFetcher": {"cn", "hk", "us"},
+        "YfinanceFetcher": {"cn", "hk", "us", "sg"},
         "LongbridgeFetcher": {"hk", "us"},
         "FinnhubFetcher": {"us"},
         "AlphaVantageFetcher": {"us"},
