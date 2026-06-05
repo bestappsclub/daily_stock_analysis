@@ -52,6 +52,7 @@
 | 文档 | 内容 |
 | --- | --- |
 | [部署指南](DEPLOY.md) | 服务器部署、Docker、systemd、Supervisor 等部署方式 |
+| [本地常驻运行](run-local-service.md) | macOS 登录自启 + 保活（LaunchAgent）让本地 Web 服务一直运行 |
 | [云端 WebUI 部署](deploy-webui-cloud.md) | 云服务器访问 WebUI 的部署说明 |
 | [Zeabur 部署](docker/zeabur-deployment.md) | Zeabur 平台部署说明 |
 | [桌面端打包说明](desktop-package.md) | Electron 桌面端和 Web 构建产物打包说明 |
