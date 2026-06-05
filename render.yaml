@@ -39,4 +39,3 @@ services:
       # 容器内数据库路径（免费档无持久化，重启重置）
       - key: DATABASE_PATH
         value: /app/data/stock_analysis.db
-</content>
