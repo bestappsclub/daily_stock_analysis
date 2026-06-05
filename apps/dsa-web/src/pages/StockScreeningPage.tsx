@@ -15,6 +15,25 @@ const MARKETS = [
   { id: 'sg', label: '新加坡' },
 ];
 
+// StockScreener（姊妹项目）详情页地址；可用 VITE_STOCKSCREENER_URL 覆盖
+const STOCKSCREENER_BASE =
+  (import.meta.env.VITE_STOCKSCREENER_URL as string | undefined)?.replace(/\/+$/, '') ||
+  'https://stockscreener-ashen.vercel.app';
+
+// Stock Codex（Streamlit 个股分析）地址；可用 VITE_STOCK_CODEX_URL 覆盖
+const STOCK_CODEX_BASE =
+  (import.meta.env.VITE_STOCK_CODEX_URL as string | undefined)?.replace(/\/+$/, '') ||
+  'https://stock-codex.onrender.com';
+
+// DSA 代码 -> StockScreener 详情页 symbol：US/HK/SG 同形；A股 6 位数字补 .SS/.SZ 后缀
+function toScreenerSymbol(code: string): string {
+  const c = (code || '').trim().toUpperCase();
+  if (/^\d{6}$/.test(c)) {
+    return c.startsWith('6') || c.startsWith('9') ? `${c}.SS` : `${c}.SZ`;
+  }
+  return c;
+}
+
 const formatScore = (score: AlphaSiftCandidate['score']) => {
   if (score == null || Number.isNaN(Number(score))) {
     return '-';
@@ -589,7 +608,28 @@ const StockScreeningPage: React.FC = () => {
                     <Fragment key={`${item.rank}-${item.code}`}>
                       <tr className="border-t border-border align-top transition-colors hover:bg-hover/50">
                         <td className="px-4 py-3 text-secondary-text">{item.rank}</td>
-                        <td className="px-4 py-3 font-mono font-semibold text-foreground">{item.code}</td>
+                        <td className="px-4 py-3 font-mono font-semibold text-foreground">
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={`${STOCKSCREENER_BASE}/screener/${encodeURIComponent(toScreenerSymbol(item.code))}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-foreground hover:text-cyan hover:underline"
+                              title="在 StockScreener 查看个股详情"
+                            >
+                              {item.code}
+                            </a>
+                            <a
+                              href={`${STOCK_CODEX_BASE}/?symbol=${encodeURIComponent(toScreenerSymbol(item.code))}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-normal text-secondary-text hover:text-cyan hover:underline"
+                              title="在 Stock Codex 分析个股"
+                            >
+                              分析↗
+                            </a>
+                          </div>
+                        </td>
                         <td className="px-4 py-3 font-semibold text-foreground">{item.name || '-'}</td>
                         <td className="px-4 py-3 text-secondary-text">{item.industry || '-'}</td>
                         <td className="px-4 py-3 text-secondary-text">{formatNumber(item.price)}</td>
