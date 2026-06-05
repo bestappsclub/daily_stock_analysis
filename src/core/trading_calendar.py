@@ -517,10 +517,10 @@ def get_open_markets_today() -> Set[str]:
     Get markets that are open today (by each market's local timezone).
 
     Returns:
-        Set of market keys ('cn', 'hk', 'us') that are trading today
+        Set of market keys ('cn', 'hk', 'us', 'sg') that are trading today
     """
     if not _XCALS_AVAILABLE:
-        return {"cn", "hk", "us"}
+        return {"cn", "hk", "us", "sg"}
     result: Set[str] = set()
     for mkt, tz_name in MARKET_TIMEZONE.items():
         try:
@@ -541,20 +541,20 @@ def compute_effective_region(
     Compute effective market review region given config and open markets.
 
     Args:
-        config_region: From MARKET_REVIEW_REGION ('cn' | 'hk' | 'us' | 'both')
+        config_region: From MARKET_REVIEW_REGION ('cn' | 'hk' | 'us' | 'sg' | 'both')
         open_markets: Markets open today
 
     Returns:
         None: caller uses config default (check disabled)
         '': all relevant markets closed, skip market review
-        'cn' | 'hk' | 'us' | 'both': effective subset for today
+        'cn' | 'hk' | 'us' | 'sg' | 'both': effective subset for today
     """
-    if config_region not in ("cn", "hk", "us", "both"):
+    if config_region not in ("cn", "hk", "us", "sg", "both"):
         config_region = "cn"
-    if config_region in ("cn", "hk", "us"):
+    if config_region in ("cn", "hk", "us", "sg"):
         return config_region if config_region in open_markets else ""
     # both: return only the markets that are actually open today
-    parts = [m for m in ("cn", "hk", "us") if m in open_markets]
+    parts = [m for m in ("cn", "hk", "us", "sg") if m in open_markets]
     if not parts:
         return ""
     if len(parts) == 1:
