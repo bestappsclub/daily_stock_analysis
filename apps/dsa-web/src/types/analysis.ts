@@ -25,6 +25,8 @@ export interface AnalysisRequest {
 
 export interface MarketReviewRequest {
   sendNotification?: boolean;
+  /** 指定复盘市场：cn/hk/us/sg/both。缺省按后端配置 + 交易日自动判定。 */
+  region?: 'cn' | 'hk' | 'us' | 'sg' | 'both';
 }
 
 export interface MarketReviewAccepted {

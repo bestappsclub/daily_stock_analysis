@@ -31,6 +31,7 @@ const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSubmittingMarketReview, setIsSubmittingMarketReview] = useState(false);
+  const [marketReviewRegion, setMarketReviewRegion] = useState<'cn' | 'hk' | 'us' | 'sg' | 'both'>('cn');
   const [marketReviewNotice, setMarketReviewNotice] = useState<MarketReviewNotice>(null);
   const [marketReviewError, setMarketReviewError] = useState<ParsedApiError | null>(null);
   const [marketReviewReport, setMarketReviewReport] = useState<string | null>(null);
@@ -531,7 +532,7 @@ const HomePage: React.FC = () => {
     setMarketReviewPayload(null);
     scrollMarketReviewFeedbackIntoView();
     try {
-      const result = await analysisApi.triggerMarketReview({ sendNotification: notify });
+      const result = await analysisApi.triggerMarketReview({ sendNotification: notify, region: marketReviewRegion });
       setMarketReviewNotice({
         variant: 'success',
         title: '大盘复盘已提交',
@@ -549,7 +550,7 @@ const HomePage: React.FC = () => {
     } finally {
       setIsSubmittingMarketReview(false);
     }
-  }, [notify, pollMarketReviewStatus, scrollMarketReviewFeedbackIntoView]);
+  }, [notify, marketReviewRegion, pollMarketReviewStatus, scrollMarketReviewFeedbackIntoView]);
 
   const sidebarContent = useMemo(
     () => (
@@ -701,6 +702,19 @@ const HomePage: React.FC = () => {
                 />
                 推送通知
               </label>
+              <select
+                value={marketReviewRegion}
+                onChange={(e) => setMarketReviewRegion(e.target.value as 'cn' | 'hk' | 'us' | 'sg' | 'both')}
+                aria-label="大盘复盘市场"
+                title="选择大盘复盘的市场"
+                className="h-10 flex-shrink-0 cursor-pointer rounded-xl border border-subtle bg-surface/60 px-2.5 text-xs text-secondary-text transition-colors hover:border-subtle-hover hover:text-foreground focus:outline-none"
+              >
+                <option value="cn">A股</option>
+                <option value="hk">港股</option>
+                <option value="us">美股</option>
+                <option value="sg">新加坡</option>
+                <option value="both">全部</option>
+              </select>
               <Button
                 type="button"
                 variant="secondary"

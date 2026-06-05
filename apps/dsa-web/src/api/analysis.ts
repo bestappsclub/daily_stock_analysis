@@ -101,6 +101,7 @@ export const analysisApi = {
       '/api/v1/analysis/market-review',
       {
         send_notification: data.sendNotification ?? true,
+        ...(data.region ? { region: data.region } : {}),
       },
       {
         validateStatus: (status) => status === 202 || status === 409,
