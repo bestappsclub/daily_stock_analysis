@@ -36,13 +36,14 @@ except ImportError:
     )
 
 # Market -> exchange code (exchange-calendars)
-MARKET_EXCHANGE = {"cn": "XSHG", "hk": "XHKG", "us": "XNYS"}
+MARKET_EXCHANGE = {"cn": "XSHG", "hk": "XHKG", "us": "XNYS", "sg": "XSES"}
 
 # Market -> IANA timezone for "today"
 MARKET_TIMEZONE = {
     "cn": "Asia/Shanghai",
     "hk": "Asia/Hong_Kong",
     "us": "America/New_York",
+    "sg": "Asia/Singapore",
 }
 
 # P0 market phase baseline (Issue #1386). This is an intentionally small
@@ -111,11 +112,16 @@ def get_market_for_stock(code: str) -> Optional[str]:
     Infer market region for a stock code.
 
     Returns:
-        'cn' | 'hk' | 'us' | None (None = unrecognized, fail-open: treat as open)
+        'cn' | 'hk' | 'us' | 'sg' | None (None = unrecognized, fail-open: treat as open)
     """
     if not code or not isinstance(code, str):
         return None
     code = (code or "").strip().upper()
+
+    # Singapore (SGX) carries the .SI suffix (yfinance-native, e.g. D05.SI).
+    # Checked before US to avoid SG codes being misread as US tickers.
+    if code.endswith(".SI"):
+        return "sg"
 
     from data_provider import is_us_stock_code, is_us_index_code, is_hk_stock_code
 
