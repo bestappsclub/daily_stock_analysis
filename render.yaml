@@ -27,13 +27,16 @@ services:
     region: singapore                       # 离 A 股/港股数据源较近；可改 oregon/frankfurt 等
     dockerfilePath: ./docker/Dockerfile
     dockerContext: .                         # 构建上下文为仓库根目录（Dockerfile 从根目录 COPY）
-    dockerCommand: python main.py --serve-only --host 0.0.0.0 --port $PORT
+    # 启动时把只读 Secret File 复制到可写目录 /app/data,再让应用读写该副本
+    # （Render Secret File 只读，否则网页保存配置/开关会失败）
+    dockerCommand: cp /etc/secrets/.env /app/data/.env 2>/dev/null || true; python main.py --serve-only --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
-      # 指向 Render Secret File 挂载路径；完整配置放在该 .env 文件里
+      # 指向可写副本（由 dockerCommand 从 /etc/secrets/.env 复制而来）
+      # 这样网页保存配置/开关能写入；重启后会从 Secret File 重新复制（免费档无持久化）
       - key: ENV_FILE
-        value: /etc/secrets/.env
+        value: /app/data/.env
       - key: TZ
         value: Asia/Shanghai
       # 容器内数据库路径（免费档无持久化，重启重置）
