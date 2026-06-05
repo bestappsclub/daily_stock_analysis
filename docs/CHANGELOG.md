@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [新功能] 新增原生美股选股：Web「选股」页可选「美股」，扫描有界股票池（默认标普 Composite 1500）并复用趋势评分引擎给出候选股 + 可选 LLM 推荐理由；详见 `docs/us-screening.md`。
 - [修复] Web 个股栏和历史卡片在窄布局下不再让市场阶段标签遮挡股票名称。
 - [修复] 问股自由文本追问不再将 TTM、PE、YOY 等金融缩写误识别为新股票代码。
 - [修复] GitHub Actions 每日分析工作流读取 SearXNG 自建实例地址时支持 Variables 优先、Secrets 回退，修复仅配置 Variables 时 URL 不生效的问题。

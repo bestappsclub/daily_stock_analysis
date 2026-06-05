@@ -9,7 +9,10 @@ import {
 } from '../api/alphasift';
 import { AppPage, Button, InlineAlert } from '../components/common';
 
-const MARKETS = [{ id: 'cn', label: 'A 股' }];
+const MARKETS = [
+  { id: 'cn', label: 'A 股' },
+  { id: 'us', label: '美股' },
+];
 
 const formatScore = (score: AlphaSiftCandidate['score']) => {
   if (score == null || Number.isNaN(Number(score))) {
@@ -235,11 +238,11 @@ const StockScreeningPage: React.FC = () => {
     setExpandedCode(null);
   };
 
-  const loadStrategies = useCallback(async () => {
+  const loadStrategies = useCallback(async (targetMarket: string) => {
     setLoadingStrategies(true);
     try {
       setStrategyLoadError('');
-      const result = await alphasiftApi.getStrategies();
+      const result = await alphasiftApi.getStrategies(targetMarket);
       const loadedStrategies = result.strategies || [];
       setStrategies(loadedStrategies);
       if (loadedStrategies.length > 0) {
@@ -258,7 +261,7 @@ const StockScreeningPage: React.FC = () => {
   useEffect(() => {
     let active = true;
     alphasiftApi
-      .getStatus()
+      .getStatus(market)
       .then((status) => {
         if (!active) {
           return;
@@ -266,7 +269,7 @@ const StockScreeningPage: React.FC = () => {
         setEnabled(status.enabled);
         setAvailable(status.available);
         if (status.enabled && status.available) {
-          void loadStrategies();
+          void loadStrategies(market);
         }
       })
       .catch(() => {
@@ -278,7 +281,7 @@ const StockScreeningPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [loadStrategies]);
+  }, [loadStrategies, market]);
 
   const handleEnable = async () => {
     setEnabling(true);
@@ -287,10 +290,10 @@ const StockScreeningPage: React.FC = () => {
       await alphasiftApi.enable();
       setEnabled(true);
       setAvailable(true);
-      await loadStrategies();
+      await loadStrategies(market);
     } catch (err) {
       try {
-        const status = await alphasiftApi.getStatus();
+        const status = await alphasiftApi.getStatus(market);
         setEnabled(status.enabled);
         setAvailable(status.available);
       } catch {

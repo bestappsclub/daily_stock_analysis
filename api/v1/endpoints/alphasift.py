@@ -11,8 +11,13 @@ from pydantic import BaseModel, Field
 from api.deps import get_config_dep
 from src.config import Config
 from src.services.alphasift_service import AlphaSiftService
+from src.services.us_screener_service import USScreenerService
 
 router = APIRouter()
+
+
+def _is_us_market(market: str) -> bool:
+    return (market or "").strip().lower() == "us"
 
 
 class AlphaSiftScreenRequest(BaseModel):
@@ -38,15 +43,23 @@ def _service(config: Config) -> AlphaSiftService:
 
 
 @router.get("/status")
-def alphasift_status(config: Config = Depends(get_config_dep)) -> Dict[str, Any]:
+def alphasift_status(
+    market: str = "cn",
+    config: Config = Depends(get_config_dep),
+) -> Dict[str, Any]:
+    if _is_us_market(market):
+        return USScreenerService(config=config).status()
     return _service(config).status()
 
 
 @router.get("/strategies")
 def alphasift_strategies(
     request: Request,
+    market: str = "cn",
     config: Config = Depends(get_config_dep),
 ) -> Dict[str, Any]:
+    if _is_us_market(market):
+        return USScreenerService(config=config).strategies()
     return _service(config).strategies()
 
 
@@ -55,6 +68,7 @@ def alphasift_install(
     request: Request,
     config: Config = Depends(get_config_dep),
 ) -> Dict[str, Any]:
+    # 安装仅适用于 A 股 AlphaSift 引擎；美股为原生能力，无需安装。
     return _service(config).install(request=request)
 
 
@@ -64,6 +78,12 @@ def alphasift_screen(
     http_request: Request,
     config: Config = Depends(get_config_dep),
 ) -> Dict[str, Any]:
+    if _is_us_market(request.market):
+        return USScreenerService(config=config).screen(
+            strategy=request.strategy,
+            market=request.market,
+            max_results=request.max_results,
+        )
     return _service(config).screen(
         strategy=request.strategy,
         market=request.market,

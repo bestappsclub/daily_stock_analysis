@@ -780,6 +780,101 @@ class YfinanceFetcher(BaseFetcher):
             return self._get_us_stock_quote_from_stooq(stock_code)
 
 
+def batch_download_us_daily(
+    symbols: List[str],
+    days: int = 150,
+    chunk_size: int = 150,
+) -> Dict[str, pd.DataFrame]:
+    """批量下载美股日线（用于全市场选股扫描）。
+
+    一次 yfinance.download 拉取一批 ticker，比逐只请求快得多；按 chunk 分批
+    避免单次请求过大。单只失败/无数据时跳过，不影响其余（fail-open）。
+
+    Args:
+        symbols: 美股代码列表（yfinance 风格，如 AAPL、BRK-B）
+        days: 回看自然日数（约 150 自然日 ≈ 100 交易日，够算 MA60）
+        chunk_size: 每批下载的标的数
+
+    Returns:
+        {symbol: DataFrame}，DataFrame 含 STANDARD_COLUMNS（date/open/high/low/
+        close/volume/amount/pct_chg）。无数据的标的不出现在结果中。
+    """
+    import yfinance as yf
+
+    cleaned = [str(s).strip().upper() for s in symbols if str(s).strip()]
+    # 去重并保持顺序
+    seen: set = set()
+    ordered = [s for s in cleaned if not (s in seen or seen.add(s))]
+    if not ordered:
+        return {}
+
+    period = f"{max(days, 30)}d"
+    result: Dict[str, pd.DataFrame] = {}
+
+    for start in range(0, len(ordered), max(chunk_size, 1)):
+        chunk = ordered[start:start + max(chunk_size, 1)]
+        try:
+            raw = yf.download(
+                tickers=chunk,
+                period=period,
+                interval="1d",
+                group_by="ticker",
+                auto_adjust=True,
+                threads=True,
+                progress=False,
+            )
+        except Exception as exc:  # noqa: BLE001 - 单批失败不应中断整体扫描
+            logger.warning("yfinance 批量下载失败（chunk %s 起 %d 只）: %s", start, len(chunk), exc)
+            continue
+
+        if raw is None or getattr(raw, "empty", True):
+            continue
+
+        for symbol in chunk:
+            try:
+                if isinstance(raw.columns, pd.MultiIndex):
+                    if symbol not in raw.columns.get_level_values(0):
+                        continue
+                    sub = raw[symbol].copy()
+                else:
+                    # 单只 ticker 时列名不带 ticker 层级
+                    sub = raw.copy()
+                sub = sub.dropna(how="all")
+                if sub.empty:
+                    continue
+                norm = _normalize_us_batch_frame(sub, symbol)
+                if norm is not None and not norm.empty:
+                    result[symbol] = norm
+            except Exception as exc:  # noqa: BLE001 - 单只标准化失败跳过
+                logger.debug("yfinance 批量标准化失败 %s: %s", symbol, exc)
+                continue
+
+    return result
+
+
+def _normalize_us_batch_frame(df: pd.DataFrame, symbol: str) -> Optional[pd.DataFrame]:
+    """把 yfinance 批量返回的单只子表标准化为 STANDARD_COLUMNS 结构。"""
+    df = df.reset_index()
+    column_mapping = {
+        "Date": "date", "Datetime": "date", "datetime": "date",
+        "Open": "open", "High": "high", "Low": "low",
+        "Close": "close", "Volume": "volume",
+    }
+    df = df.rename(columns=column_mapping)
+    if "date" not in df.columns or "close" not in df.columns:
+        return None
+    df["pct_chg"] = (df["close"].pct_change() * 100).fillna(0).round(2)
+    if "volume" in df.columns:
+        df["amount"] = df["volume"] * df["close"]
+    else:
+        df["amount"] = 0
+    df["code"] = symbol
+    keep = ["code"] + STANDARD_COLUMNS
+    existing = [c for c in keep if c in df.columns]
+    out = df[existing].dropna(subset=["close"]).reset_index(drop=True)
+    return out
+
+
 if __name__ == "__main__":
     # 测试代码
     logging.basicConfig(level=logging.DEBUG)

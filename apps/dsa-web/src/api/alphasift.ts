@@ -140,8 +140,10 @@ async function setAlphaSiftEnabled(value: 'true' | 'false'): Promise<void> {
 }
 
 export const alphasiftApi = {
-  async getStatus(): Promise<AlphaSiftStatus> {
-    const response = await apiClient.get<Record<string, unknown>>('/api/v1/alphasift/status');
+  async getStatus(market: string = 'cn'): Promise<AlphaSiftStatus> {
+    const response = await apiClient.get<Record<string, unknown>>('/api/v1/alphasift/status', {
+      params: { market },
+    });
     return toCamelCase<AlphaSiftStatus>(response.data);
   },
 
@@ -154,8 +156,11 @@ export const alphasiftApi = {
     return toCamelCase<AlphaSiftScreenResponse>(response.data);
   },
 
-  async getStrategies(): Promise<AlphaSiftStrategiesResponse> {
-    const response = await apiClient.get<Record<string, unknown>>('/api/v1/alphasift/strategies', { timeout: ALPHASIFT_INSTALL_TIMEOUT_MS });
+  async getStrategies(market: string = 'cn'): Promise<AlphaSiftStrategiesResponse> {
+    const response = await apiClient.get<Record<string, unknown>>('/api/v1/alphasift/strategies', {
+      params: { market },
+      timeout: ALPHASIFT_INSTALL_TIMEOUT_MS,
+    });
     return toCamelCase<AlphaSiftStrategiesResponse>(response.data);
   },
 
