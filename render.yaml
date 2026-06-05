@@ -27,17 +27,15 @@ services:
     region: singapore                       # 离 A 股/港股数据源较近；可改 oregon/frankfurt 等
     dockerfilePath: ./docker/Dockerfile
     dockerContext: .                         # 构建上下文为仓库根目录（Dockerfile 从根目录 COPY）
-    # 启动时把只读 Secret File 复制到可写目录 /app/data，再让应用读写该副本
-    # （Render Secret File 只读，否则网页保存配置/开关会失败）
-    # 入口脚本用 exec 直接运行命令、不经过 shell，故显式用 sh -c 包裹以支持复制/管道
-    dockerCommand: sh -c 'cp /etc/secrets/.env /app/data/.env 2>/dev/null || cp /app/.env /app/data/.env 2>/dev/null || true; exec python main.py --serve-only --host 0.0.0.0 --port $PORT'
+    dockerCommand: python main.py --serve-only --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
-      # 指向可写副本（由 dockerCommand 从 /etc/secrets/.env 复制而来）
-      # 这样网页保存配置/开关能写入；重启后会从 Secret File 重新复制（免费档无持久化）
+      # 指向 Render Secret File 挂载路径（只读）。应用读取配置正常；
+      # 注意：网页"保存配置/开启选股"会失败（文件只读），请改 Secret File 本身。
+      # AlphaSift 选股已由 .env 里 ALPHASIFT_ENABLED=true 启用，无需网页开关。
       - key: ENV_FILE
-        value: /app/data/.env
+        value: /etc/secrets/.env
       - key: TZ
         value: Asia/Shanghai
       # 容器内数据库路径（免费档无持久化，重启重置）
