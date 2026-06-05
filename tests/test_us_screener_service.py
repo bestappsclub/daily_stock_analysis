@@ -212,5 +212,63 @@ class LLMRerankPathTest(unittest.TestCase):
         self.assertEqual(aaa["llm_thesis"], "强趋势")
 
 
+def _zigzag_df(pivots, leg: int = 6) -> pd.DataFrame:
+    """Build an OHLC df tracing the given swing pivots (for structure tests)."""
+    closes: list = []
+    for i in range(len(pivots) - 1):
+        step = (pivots[i + 1] - pivots[i]) / leg
+        closes += [pivots[i] + step * k for k in range(leg)]
+    closes.append(pivots[-1])
+    n = len(closes)
+    return pd.DataFrame(
+        {
+            "date": [date(2025, 1, 1) + timedelta(days=i) for i in range(n)],
+            "open": closes,
+            "high": [c * 1.005 for c in closes],
+            "low": [c * 0.995 for c in closes],
+            "close": closes,
+            "volume": [1_000_000] * n,
+            "amount": [c * 1_000_000 for c in closes],
+            "pct_chg": [0.0] * n,
+        }
+    )
+
+
+class SwingStructureTest(unittest.TestCase):
+    def test_detect_bull_and_bear_structure(self) -> None:
+        from src.stock_analyzer import StockTrendAnalyzer
+
+        analyzer = StockTrendAnalyzer()
+        bull = analyzer.analyze(_zigzag_df([100, 120, 110, 135, 125, 150, 140, 165]), "B")
+        bear = analyzer.analyze(_zigzag_df([200, 180, 190, 165, 175, 150, 160, 135]), "S")
+        self.assertEqual(bull.structure, "bull")
+        self.assertEqual(bear.structure, "bear")
+
+
+class StructureStrategyTest(unittest.TestCase):
+    @patch.dict(
+        "os.environ",
+        {**_DETERMINISTIC_ENV, "US_SCREEN_UNIVERSE": "BULL,BEARX"},
+        clear=False,
+    )
+    def test_structure_bull_filters_to_bull_only(self) -> None:
+        frames = {
+            "BULL": _zigzag_df([100, 120, 110, 135, 125, 150, 140, 165]),
+            "BEARX": _zigzag_df([200, 180, 190, 165, 175, 150, 160, 135]),
+        }
+        with patch.object(uss, "batch_download_us_daily", return_value=frames):
+            result = USScreenerService(config=SimpleNamespace()).screen(
+                strategy="us_structure_bull", market="us", max_results=5
+            )
+        codes = {c["code"] for c in result["candidates"]}
+        self.assertIn("BULL", codes)
+        self.assertNotIn("BEARX", codes)
+
+    def test_structure_strategies_listed(self) -> None:
+        ids = {s["id"] for s in MarketScreenerService("us", config=SimpleNamespace()).strategies()["strategies"]}
+        self.assertIn("us_structure_bull", ids)
+        self.assertIn("us_structure_bear", ids)
+
+
 if __name__ == "__main__":
     unittest.main()

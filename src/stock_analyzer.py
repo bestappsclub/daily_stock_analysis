@@ -17,6 +17,7 @@
 """
 
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Dict, Any, List
 from enum import Enum
@@ -131,7 +132,11 @@ class TrendAnalysisResult:
     signal_score: int = 0            # 综合评分 0-100
     signal_reasons: List[str] = field(default_factory=list)
     risk_factors: List[str] = field(default_factory=list)
-    
+
+    # 摆动结构（道氏理论：头头高底底高=多头 / 头头低底底低=空头）
+    structure: str = "unknown"       # "bull" | "bear" | "range" | "unknown"
+    structure_desc: str = ""         # 人类可读描述
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             'code': self.code,
@@ -165,6 +170,8 @@ class TrendAnalysisResult:
             'rsi_24': self.rsi_24,
             'rsi_status': self.rsi_status.value,
             'rsi_signal': self.rsi_signal,
+            'structure': self.structure,
+            'structure_desc': self.structure_desc,
         }
 
 
@@ -197,6 +204,9 @@ class StockTrendAnalyzer:
     RSI_LONG = 24              # 长期RSI周期
     RSI_OVERBOUGHT = 70        # 超买阈值
     RSI_OVERSOLD = 30          # 超卖阈值
+
+    # 摆动结构识别窗口 N：某点比左右各 N 根都高/低才算摆动高/低点（可经 SWING_PIVOT_WINDOW 覆盖）
+    SWING_WINDOW = int(os.getenv("SWING_PIVOT_WINDOW", "3") or 3)
     
     def __init__(self):
         """初始化分析器"""
@@ -259,8 +269,63 @@ class StockTrendAnalyzer:
         # 7. 生成买入信号
         self._generate_signal(result)
 
+        # 8. 摆动结构分析（头头高底底高 / 头头低底底低）
+        try:
+            self._analyze_swing_structure(df, result)
+        except Exception as exc:  # noqa: BLE001 - 结构分析失败不应影响主趋势结果
+            logger.debug(f"{code} 摆动结构分析失败: {exc}")
+
         return result
-    
+
+    def _analyze_swing_structure(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """道氏摆动结构识别（头头高底底高 / 头头低底底低）。
+
+        用 fractal 法找摆动高/低点：某根比左右各 N 根都高 -> 摆动高点(头)，
+        都低 -> 摆动低点(底)。比较最近两个高点与最近两个低点：
+        - 头头高 + 底底高 -> bull（多头结构）
+        - 头头低 + 底底低 -> bear（空头结构）
+        - 其余 -> range（震荡/背离）
+        """
+        n = max(int(self.SWING_WINDOW), 1)
+        length = len(df)
+        if length < (2 * n + 1) * 2:
+            result.structure = "unknown"
+            result.structure_desc = "数据不足以识别摆动结构"
+            return
+
+        highs = (df['high'] if 'high' in df.columns else df['close']).to_numpy()
+        lows = (df['low'] if 'low' in df.columns else df['close']).to_numpy()
+
+        swing_high_idx: List[int] = []
+        swing_low_idx: List[int] = []
+        for i in range(n, length - n):
+            wh = highs[i - n:i + n + 1]
+            wl = lows[i - n:i + n + 1]
+            if highs[i] == wh.max() and int(wh.argmax()) == n:
+                swing_high_idx.append(i)
+            if lows[i] == wl.min() and int(wl.argmin()) == n:
+                swing_low_idx.append(i)
+
+        if len(swing_high_idx) < 2 or len(swing_low_idx) < 2:
+            result.structure = "range"
+            result.structure_desc = "摆动高/低点不足，结构未明"
+            return
+
+        higher_high = highs[swing_high_idx[-1]] > highs[swing_high_idx[-2]]
+        higher_low = lows[swing_low_idx[-1]] > lows[swing_low_idx[-2]]
+
+        if higher_high and higher_low:
+            result.structure = "bull"
+            result.structure_desc = "头头高 + 底底高（多头结构）"
+        elif (not higher_high) and (not higher_low):
+            result.structure = "bear"
+            result.structure_desc = "头头低 + 底底低（空头结构）"
+        else:
+            result.structure = "range"
+            result.structure_desc = (
+                "头头高但底底低（背离/震荡）" if higher_high else "头头低但底底高（收敛/震荡）"
+            )
+
     def _calculate_mas(self, df: pd.DataFrame) -> pd.DataFrame:
         """计算均线"""
         df = df.copy()

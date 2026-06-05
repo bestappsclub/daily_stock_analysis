@@ -63,6 +63,8 @@ _STRATEGY_TEMPLATES: List[Dict[str, Any]] = [
     {"suffix": "breakout", "name": "放量突破", "description": "放量上涨且出现买入信号的突破型标的。", "category": "breakout", "tags": ["放量", "突破"]},
     {"suffix": "oversold", "name": "超跌反转", "description": "RSI 超卖、具备反转潜力的标的。", "category": "reversal", "tags": ["超跌", "反转"]},
     {"suffix": "trend_quality", "name": "多头趋势", "description": "MA5>MA10>MA20 多头排列、趋势质量高的标的。", "category": "trend", "tags": ["多头", "趋势质量"]},
+    {"suffix": "structure_bull", "name": "多头结构", "description": "道氏摆动结构：头头高 + 底底高（多头结构）。", "category": "structure", "tags": ["结构", "多头", "头头高底底高"]},
+    {"suffix": "structure_bear", "name": "空头结构", "description": "道氏摆动结构：头头低 + 底底低（空头结构）。", "category": "structure", "tags": ["结构", "空头", "头头低底底低"]},
 ]
 
 
@@ -275,7 +277,14 @@ class MarketScreenerService:
         bullish = {TrendStatus.STRONG_BULL, TrendStatus.BULL, TrendStatus.WEAK_BULL}
         buy_signals = {BuySignal.BUY, BuySignal.STRONG_BUY}
 
-        if suffix == "breakout":
+        if suffix == "structure_bull":
+            filtered = [t for t in scored if getattr(t, "structure", "") == "bull"]
+            key = lambda t: (t.signal_score, t.trend_strength)  # noqa: E731
+        elif suffix == "structure_bear":
+            filtered = [t for t in scored if getattr(t, "structure", "") == "bear"]
+            # 最弱/最空在前
+            key = lambda t: (-t.signal_score, -t.trend_strength)  # noqa: E731
+        elif suffix == "breakout":
             filtered = [
                 t for t in scored
                 if t.volume_status == VolumeStatus.HEAVY_VOLUME_UP and t.buy_signal in buy_signals
@@ -300,6 +309,9 @@ class MarketScreenerService:
     def _to_candidate_dict(tr: TrendAnalysisResult, rank: int) -> Dict[str, Any]:
         reasons = list(tr.signal_reasons or [])
         reason = f"{tr.trend_status.value} ｜ 评分 {tr.signal_score} ｜ {tr.buy_signal.value}"
+        structure_desc = getattr(tr, "structure_desc", "")
+        if getattr(tr, "structure", "") in ("bull", "bear") and structure_desc:
+            reason += f" ｜ {structure_desc}"
         if reasons:
             reason += "：" + "；".join(reasons[:3])
         return {
