@@ -1,0 +1,42 @@
+# ==========================================================================
+# Render Blueprint — DSA Web 工作台（免费档，仅 Web 界面）
+# ==========================================================================
+# 用法：
+#   1. 把本文件提交到仓库根目录。
+#   2. Render Dashboard → New → Blueprint → 选择本仓库 → Apply。
+#   3. 在该服务的 "Environment" → "Secret Files" 新增一个名为 `.env` 的
+#      Secret File，内容粘贴你的完整配置（见仓库 .env.example）。
+#      Render 会把它挂载到 /etc/secrets/.env，下面 ENV_FILE 已指向该路径。
+#
+# 为什么用 Secret File 而不是环境变量面板：
+#   本项目的登录认证开关 ADMIN_AUTH_ENABLED 只从 .env 文件读取
+#   （见 src/auth.py），用环境变量面板设置不会生效。Render 给的是公开
+#   URL，务必在 .env 里设置 ADMIN_AUTH_ENABLED=true 开启登录保护。
+#
+# 免费档限制（已知，可接受）：
+#   - 闲置 ~15 分钟自动休眠，下次访问需冷启动几十秒。
+#   - 无持久化磁盘：重启/重新部署后 /app/data 下的数据库与历史会重置
+#     （首次登录会重新设置密码）。需要保留历史请升级付费档并挂 Disk。
+# ==========================================================================
+
+services:
+  - type: web
+    name: dsa-web
+    runtime: docker
+    plan: free
+    region: singapore                       # 离 A 股/港股数据源较近；可改 oregon/frankfurt 等
+    dockerfilePath: ./docker/Dockerfile
+    dockerContext: .                         # 构建上下文为仓库根目录（Dockerfile 从根目录 COPY）
+    dockerCommand: python main.py --serve-only --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # 指向 Render Secret File 挂载路径；完整配置放在该 .env 文件里
+      - key: ENV_FILE
+        value: /etc/secrets/.env
+      - key: TZ
+        value: Asia/Shanghai
+      # 容器内数据库路径（免费档无持久化，重启重置）
+      - key: DATABASE_PATH
+        value: /app/data/stock_analysis.db
+</content>
