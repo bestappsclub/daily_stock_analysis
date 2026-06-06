@@ -270,5 +270,39 @@ class StructureStrategyTest(unittest.TestCase):
         self.assertIn("us_structure_bear", ids)
 
 
+class DkIndicatorTest(unittest.TestCase):
+    def test_dk_state_hold_on_uptrend_cash_on_downtrend(self) -> None:
+        from src.stock_analyzer import StockTrendAnalyzer
+
+        analyzer = StockTrendAnalyzer()
+        up = analyzer.analyze(_make_df(100, "up"), "UP")
+        down = analyzer.analyze(_make_df(100, "down"), "DOWN")
+        self.assertEqual(up.dk_state, "hold")
+        self.assertEqual(down.dk_state, "cash")
+
+
+class DkStrategyTest(unittest.TestCase):
+    @patch.dict(
+        "os.environ",
+        {**_DETERMINISTIC_ENV, "US_SCREEN_UNIVERSE": "UP,DOWN"},
+        clear=False,
+    )
+    def test_dk_buy_filters_to_hold_only(self) -> None:
+        frames = {"UP": _make_df(100, "up"), "DOWN": _make_df(100, "down")}
+        with patch.object(uss, "batch_download_us_daily", return_value=frames):
+            result = USScreenerService(config=SimpleNamespace()).screen(
+                strategy="us_dk_buy", market="us", max_results=5
+            )
+        codes = {c["code"] for c in result["candidates"]}
+        self.assertIn("UP", codes)
+        self.assertNotIn("DOWN", codes)
+
+    def test_dk_strategy_listed_per_market(self) -> None:
+        us_ids = {s["id"] for s in MarketScreenerService("us", config=SimpleNamespace()).strategies()["strategies"]}
+        sg_ids = {s["id"] for s in MarketScreenerService("sg", config=SimpleNamespace()).strategies()["strategies"]}
+        self.assertIn("us_dk_buy", us_ids)
+        self.assertIn("sg_dk_buy", sg_ids)
+
+
 if __name__ == "__main__":
     unittest.main()

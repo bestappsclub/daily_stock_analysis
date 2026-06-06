@@ -137,6 +137,11 @@ class TrendAnalysisResult:
     structure: str = "unknown"       # "bull" | "bear" | "range" | "unknown"
     structure_desc: str = ""         # 人类可读描述
 
+    # 东财式 DK 买卖点状态（价格突破 + 放量折扣状态机，详见 _analyze_dk）
+    dk_state: str = "unknown"        # "hold"(持股/多) | "cash"(持币/空) | "unknown"
+    dk_signal: str = ""              # "D"(刚转持股=买点) | "K"(刚转持币=卖点) | ""
+    dk_desc: str = ""                # 人类可读描述
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             'code': self.code,
@@ -172,6 +177,9 @@ class TrendAnalysisResult:
             'rsi_signal': self.rsi_signal,
             'structure': self.structure,
             'structure_desc': self.structure_desc,
+            'dk_state': self.dk_state,
+            'dk_signal': self.dk_signal,
+            'dk_desc': self.dk_desc,
         }
 
 
@@ -207,6 +215,12 @@ class StockTrendAnalyzer:
 
     # 摆动结构识别窗口 N：某点比左右各 N 根都高/低才算摆动高/低点（可经 SWING_PIVOT_WINDOW 覆盖）
     SWING_WINDOW = int(os.getenv("SWING_PIVOT_WINDOW", "3") or 3)
+
+    # 东财式 DK 买卖点参数（与 stockscreener technical.py:_dk_buysell_state 保持一致）
+    DK_NUP = int(os.getenv("DK_NUP", "20") or 20)        # 硬突破位窗口（N日最高，不含当日）
+    DK_NDN = int(os.getenv("DK_NDN", "10") or 10)        # 破位窗口（N日最低，不含当日）
+    DK_VASSIST = float(os.getenv("DK_VASSIST", "0.96") or 0.96)  # 放量突破折扣
+    DK_VWIN = int(os.getenv("DK_VWIN", "20") or 20)      # 放量阈值均量窗口
     
     def __init__(self):
         """初始化分析器"""
@@ -275,7 +289,68 @@ class StockTrendAnalyzer:
         except Exception as exc:  # noqa: BLE001 - 结构分析失败不应影响主趋势结果
             logger.debug(f"{code} 摆动结构分析失败: {exc}")
 
+        # 9. 东财式 DK 买卖点（价格突破 + 放量折扣状态机）
+        try:
+            self._analyze_dk(df, result)
+        except Exception as exc:  # noqa: BLE001 - DK 分析失败不应影响主趋势结果
+            logger.debug(f"{code} DK 买卖点分析失败: {exc}")
+
         return result
+
+    def _analyze_dk(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """东财式 DK 买卖点状态机（价格突破 + 放量折扣，带滞后带 → 信号稀疏）。
+
+        镜像 stockscreener ``technical.py:_dk_buysell_state``，同参数：
+            持股(D点) ← 持币 且 (收盘 > 硬突破位 N日最高)
+                              或 (收盘 > 放量突破位=硬突破×0.96 且 放量)
+            持币(K点) ← 持股 且 (收盘 < 破位 N日最低)
+        硬突破位与破位之间形成滞后带，避免来回打脸。设置最后一根的
+        ``dk_state``（hold/cash）与发生状态翻转时的 ``dk_signal``（D/K）。
+
+        注意：要与东财对齐应使用前复权数据（本仓库 yfinance 抓取默认前复权）。
+        """
+        n_up, n_dn, v_win = max(self.DK_NUP, 1), max(self.DK_NDN, 1), max(self.DK_VWIN, 1)
+        length = len(df)
+        if length < n_up + 1:
+            result.dk_state = "unknown"
+            result.dk_desc = "数据不足以计算 DK 买卖点"
+            return
+
+        close = df['close'].to_numpy(dtype=float)
+        high = (df['high'] if 'high' in df.columns else df['close']).to_numpy(dtype=float)
+        low = (df['low'] if 'low' in df.columns else df['close']).to_numpy(dtype=float)
+        has_vol = 'volume' in df.columns
+        vol = df['volume'].to_numpy(dtype=float) if has_vol else None
+
+        bull = False
+        prev_bull = False
+        for i in range(length):
+            if i >= n_up:
+                hard_up = high[i - n_up:i].max()
+                hard_dn = low[i - n_dn:i].min() if i >= n_dn else low[:i].min()
+                vt = float('nan')
+                if has_vol and i >= v_win - 1:
+                    vt = vol[i - v_win + 1:i + 1].mean()
+                c = close[i]
+                prev_bull = bull
+                if not bull:
+                    if c > hard_up or (
+                        c > hard_up * self.DK_VASSIST and vt == vt and vol[i] > vt
+                    ):
+                        bull = True
+                elif c < hard_dn:
+                    bull = False
+
+        result.dk_state = "hold" if bull else "cash"
+        if bull and not prev_bull:
+            result.dk_signal = "D"
+            result.dk_desc = "刚转持股（D点/买点：价格突破）"
+        elif (not bull) and prev_bull:
+            result.dk_signal = "K"
+            result.dk_desc = "刚转持币（K点/卖点：跌破N日低）"
+        else:
+            result.dk_signal = ""
+            result.dk_desc = "持股（多头持有）" if bull else "持币（空仓观望）"
 
     def _analyze_swing_structure(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
         """道氏摆动结构识别（头头高底底高 / 头头低底底低）。

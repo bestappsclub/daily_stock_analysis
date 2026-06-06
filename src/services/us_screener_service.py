@@ -65,6 +65,7 @@ _STRATEGY_TEMPLATES: List[Dict[str, Any]] = [
     {"suffix": "trend_quality", "name": "多头趋势", "description": "MA5>MA10>MA20 多头排列、趋势质量高的标的。", "category": "trend", "tags": ["多头", "趋势质量"]},
     {"suffix": "structure_bull", "name": "多头结构", "description": "道氏摆动结构：头头高 + 底底高（多头结构）。", "category": "structure", "tags": ["结构", "多头", "头头高底底高"]},
     {"suffix": "structure_bear", "name": "空头结构", "description": "道氏摆动结构：头头低 + 底底低（空头结构）。", "category": "structure", "tags": ["结构", "空头", "头头低底底低"]},
+    {"suffix": "dk_buy", "name": "DK买点", "description": "东财式 DK 买卖点：当前持股态，刚出 D 点（价格突破+放量）优先。", "category": "dk", "tags": ["DK", "买点", "D点", "持股"]},
 ]
 
 
@@ -277,7 +278,11 @@ class MarketScreenerService:
         bullish = {TrendStatus.STRONG_BULL, TrendStatus.BULL, TrendStatus.WEAK_BULL}
         buy_signals = {BuySignal.BUY, BuySignal.STRONG_BUY}
 
-        if suffix == "structure_bull":
+        if suffix == "dk_buy":
+            # 东财式 DK：保留当前持股态(hold)，刚出 D 点者优先，再按评分/趋势强度
+            filtered = [t for t in scored if getattr(t, "dk_state", "") == "hold"]
+            key = lambda t: (1 if getattr(t, "dk_signal", "") == "D" else 0, t.signal_score, t.trend_strength)  # noqa: E731
+        elif suffix == "structure_bull":
             filtered = [t for t in scored if getattr(t, "structure", "") == "bull"]
             key = lambda t: (t.signal_score, t.trend_strength)  # noqa: E731
         elif suffix == "structure_bear":
@@ -312,6 +317,9 @@ class MarketScreenerService:
         structure_desc = getattr(tr, "structure_desc", "")
         if getattr(tr, "structure", "") in ("bull", "bear") and structure_desc:
             reason += f" ｜ {structure_desc}"
+        dk_desc = getattr(tr, "dk_desc", "")
+        if getattr(tr, "dk_state", "") == "hold" and dk_desc:
+            reason += f" ｜ DK：{dk_desc}"
         if reasons:
             reason += "：" + "；".join(reasons[:3])
         return {
