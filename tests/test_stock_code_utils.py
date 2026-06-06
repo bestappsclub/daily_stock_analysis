@@ -52,6 +52,20 @@ class TestIsCodeLike:
     def test_suffix_sh_rejects_5_digit_base(self):
         assert is_code_like("00700.SH") is False
 
+    def test_suffix_sg_alnum(self):
+        # SG (SGX) codes are alphanumeric with a .SI suffix
+        assert is_code_like("D05.SI") is True
+        assert is_code_like("BS6.SI") is True
+        assert is_code_like("9CI.SI") is True
+        assert is_code_like("A17U.SI") is True
+
+    def test_suffix_sg_lowercase(self):
+        assert is_code_like("bs6.si") is True
+
+    def test_bare_sg_base_rejected(self):
+        # bare SG base is ambiguous; must carry the .SI suffix
+        assert is_code_like("BS6") is False
+
     # --- Exchange prefix format (Issue #6 fix) ---
     def test_prefix_sh_upper(self):
         assert is_code_like("SH600519") is True
@@ -133,6 +147,11 @@ class TestNormalizeCode:
 
     def test_suffix_hk_short_code_is_zero_padded(self):
         assert normalize_code("1810.HK") == "01810"
+
+    def test_suffix_sg_keeps_si(self):
+        # SG codes keep their .SI suffix (bare base is ambiguous)
+        assert normalize_code("D05.SI") == "D05.SI"
+        assert normalize_code("bs6.si") == "BS6.SI"
 
     def test_suffix_hk_rejects_6_digit_base(self):
         assert normalize_code("600519.HK") is None
