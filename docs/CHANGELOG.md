@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] 大盘复盘支持按市场选择：Web 首页可选 A股/港股/美股/新加坡/全部，`/analysis/market-review` 接口新增 `region` 参数（显式指定时跳过交易日过滤），`compute_effective_region` 支持 `sg`。
 - [新功能] 主页个股分析支持新加坡股票：自动补全索引纳入 SGX 全主板，输入裸代码/名称（如 `BS6`/`DBS`）自动解析为 `.SI` 规范代码，前后端校验放行 `.SI` 格式。
 - [新功能] 选股本地缓存：新增 `scripts/sync_prices.py` 把美股/新加坡日线灌入本地 `stock_daily`，选股默认优先读缓存、只对缺失/过期标的 live 补抓回写（`<PREFIX>_USE_CACHE`、`SCREEN_CACHE_STALE_DAYS` 可配），重复扫描秒级、可离线、不限流；数据库保持 gitignore 不入库。
+- [文档] 更新 `docs/how-it-works.md` 源码走读：新增「多市场选股/DK/摆动结构、本地行情缓存、大盘复盘选市场、新加坡个股输入、本地常驻与定时」章节；`docs/run-local-service.md` 补充每日行情同步（`com.dsa.pricesync`）配置。
 - [改进] 新加坡选股默认股票池由 STI 成分股(约 30)扩展为 SGX 全主板(普通股+REITs+商业信托，约 615 只)，新增 `scripts/fetch_sg_universe.py` 从 SGX 官方列表生成 `src/data/sg_universe.txt`；`SG_SCREEN_MAX_UNIVERSE` 默认上限由 200 提升至 700。
 - [改进] 选股「返回数量」前端默认由 3 调整为 20，与后端默认一致。
 - [修复] Web 个股栏和历史卡片在窄布局下不再让市场阶段标签遮挡股票名称。

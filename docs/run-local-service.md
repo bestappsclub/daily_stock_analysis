@@ -94,6 +94,46 @@ launchctl unload ~/Library/LaunchAgents/com.dsa.webserver.plist
 rm ~/Library/LaunchAgents/com.dsa.webserver.plist
 ```
 
+## 方式三：每日行情缓存自动刷新（可选）
+
+让本地 `stock_daily` 行情缓存每天自动增量更新（选股全市场扫描秒级、离线、不限流；见 [美股 / 新加坡选股](us-screening.md) 的「本地缓存」节）。
+
+新建 `~/Library/LaunchAgents/com.dsa.pricesync.plist`，每天 06:00（美股隔夜收盘后）和 18:00（SGX 收盘后，本机 UTC+8）跑增量同步：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>com.dsa.pricesync</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/iz/dev/daily_stock_analysis/.venv/bin/python</string>
+        <string>scripts/sync_prices.py</string>
+        <string>--markets</string><string>us,sg</string>
+        <string>--days</string><string>150</string>
+    </array>
+    <key>WorkingDirectory</key><string>/Users/iz/dev/daily_stock_analysis</string>
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>0</integer></dict>
+        <dict><key>Hour</key><integer>18</integer><key>Minute</key><integer>0</integer></dict>
+    </array>
+    <key>RunAtLoad</key><false/>
+    <key>StandardOutPath</key><string>/Users/iz/dev/daily_stock_analysis/logs/launchd_pricesync.out.log</string>
+    <key>StandardErrorPath</key><string>/Users/iz/dev/daily_stock_analysis/logs/launchd_pricesync.err.log</string>
+</dict>
+</plist>
+```
+
+```bash
+launchctl load -w ~/Library/LaunchAgents/com.dsa.pricesync.plist   # 启用
+launchctl kickstart gui/$(id -u)/com.dsa.pricesync                 # 立刻手动跑一次
+tail -f /Users/iz/dev/daily_stock_analysis/logs/launchd_pricesync.out.log
+```
+
+> 一次性任务（跑完退出，不保活）。增量：已新鲜的标的跳过，首次需先全量灌一次 `python scripts/sync_prices.py`。改时间编辑 `StartCalendarInterval` 后重新 `load`。
+
 ## 说明与限制
 
 - **用户级自启**：仅在本机开机且该用户登录时运行；睡眠时进程挂起、唤醒继续。
