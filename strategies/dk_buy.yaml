@@ -1,0 +1,51 @@
+# DK Buy/Sell Strategy / 东财式 DK 买点
+# Donchian-style price breakout + volume discount state machine (matches the
+# *_dk_buy screener strategy and stockscreener technical.py:_dk_buysell_state).
+
+name: dk_buy
+display_name: DK买点
+description: 东财式 DK 买卖点：价格突破 N 日高（或贴近且放量）转持股(D点/买)，跌破 N 日低转持币(K点/卖)，信号稀疏。
+category: trend
+core_rules: [1, 2, 3]
+required_tools:
+  - get_daily_history
+  - analyze_trend
+aliases: [DK买点, DK, D点, 东财DK]
+default_priority: 20
+market_regimes: [trending_up]
+
+instructions: |
+  **DK 买点（东财式 DK 买卖点状态机）**
+
+  DK 是"价格突破 + 放量折扣"的状态机（带滞后带，信号稀疏），不是均线/DKX 金叉。
+  参数：N上=20、N下=10、放量折扣=0.96、量窗=20（与选股 `*_dk_buy` 策略一致）。
+  需前复权数据（本系统 yfinance 抓取默认前复权）。
+
+  信号判定标准：
+
+  1. **读取 DK 状态**（关联理念2：趋势交易）：
+     - 用 `analyze_trend` 读取结果中的 `dk_state`（hold=持股/多，cash=持币/空）
+       与 `dk_signal`（D=刚转持股/买点，K=刚转持币/卖点）。
+     - **D 点（买）**：收盘上破前 20 日最高（硬突破），或收盘 > 硬突破×0.96 且放量。
+     - **K 点（卖）**：收盘跌破前 10 日最低。
+     - 硬突破位与破位之间是滞后带，避免来回打脸。
+
+  2. **量能确认**（关联理念3：效率优先）：
+     - 用 `get_daily_history` 核对：放量突破型 D 点应满足当日量 > 20 日均量。
+     - 硬突破（直接破 20 日高）信号更强，放量折扣突破次之。
+
+  3. **状态背景与时机**：
+     - `dk_signal=D`（刚转持股）：最强买点，趋势突破确认。
+     - `dk_state=hold` 但无新信号：持有/顺势，回踩不破位可继续持有。
+     - `dk_signal=K` 或 `dk_state=cash`：观望/离场，不宜逆势抄底。
+
+  4. **价格位置**（关联理念1：严进策略）：
+     - 优先在硬突破位附近介入，避免在远高于突破位处追高（乖离过大风险）。
+     - 破位（前 10 日最低）即为天然止损参考。
+
+  评分调整：
+  - `dk_signal=D`（硬突破型）：sentiment_score +10
+  - `dk_signal=D`（放量折扣型）：sentiment_score +8
+  - `dk_state=hold` 顺势持有：+5
+  - `dk_signal=K` / `dk_state=cash`：不给买入加分，提示风险。
+  - 在 `buy_reason` 中注明"DK D点/持股态"，止损设在 N 日最低（破位）下方。
