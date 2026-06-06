@@ -93,6 +93,15 @@ export type AlphaSiftStrategiesResponse = {
   strategyCount: number;
 };
 
+export type SyncCacheResponse = {
+  market: string;
+  universe: number;
+  stale: number;
+  refreshed: number;
+  savedRows: number;
+  elapsedMs: number;
+};
+
 export type AlphaSiftScreenResponse = {
   enabled: boolean;
   candidates: AlphaSiftCandidate[];
@@ -154,6 +163,15 @@ export const alphasiftApi = {
       max_results: payload.maxResults,
     }, { timeout: ALPHASIFT_SCREEN_TIMEOUT_MS });
     return toCamelCase<AlphaSiftScreenResponse>(response.data);
+  },
+
+  async syncCache(market: string, full: boolean = false): Promise<SyncCacheResponse> {
+    const response = await apiClient.post<Record<string, unknown>>(
+      '/api/v1/alphasift/sync-cache',
+      { market, full },
+      { timeout: ALPHASIFT_SCREEN_TIMEOUT_MS },
+    );
+    return toCamelCase<SyncCacheResponse>(response.data);
   },
 
   async getStrategies(market: string = 'cn'): Promise<AlphaSiftStrategiesResponse> {

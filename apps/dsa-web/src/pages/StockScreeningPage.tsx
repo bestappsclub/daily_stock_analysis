@@ -1,6 +1,6 @@
 import type React from 'react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, CircleAlert, Play, PlusCircle, Search, SlidersHorizontal } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Play, PlusCircle, RefreshCw, Search, SlidersHorizontal } from 'lucide-react';
 import {
   alphasiftApi,
   type AlphaSiftCandidate,
@@ -237,6 +237,8 @@ const StockScreeningPage: React.FC = () => {
   const [loadingStrategies, setLoadingStrategies] = useState(false);
   const [error, setError] = useState('');
   const [strategyLoadError, setStrategyLoadError] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
 
   const selectedStrategy = useMemo(() => strategies.find((item) => item.id === strategy), [strategies, strategy]);
   const selectedStrategyTitle = selectedStrategy?.name || selectedStrategy?.title || '自定义策略';
@@ -347,10 +349,31 @@ const StockScreeningPage: React.FC = () => {
     setMaxResults(nextMaxResults);
   };
 
+  // 本地行情缓存仅美股/新加坡支持（A股走 AlphaSift，无本地缓存）
+  const supportsCache = market === 'us' || market === 'sg';
+
+  const handleSyncCache = async () => {
+    setSyncing(true);
+    setSyncMessage('');
+    setError('');
+    try {
+      const r = await alphasiftApi.syncCache(market);
+      setSyncMessage(
+        `行情缓存已更新：${r.market} 股票池 ${r.universe} 只，刷新 ${r.refreshed}/${r.stale} 只，` +
+        `新增约 ${r.savedRows} 行（${(r.elapsedMs / 1000).toFixed(1)}s）。`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '同步行情缓存失败');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setLoading(true);
     setError('');
     setScreenMeta(null);
+    setSyncMessage('');
     try {
       const result = await alphasiftApi.screen({ market, strategy, maxResults });
       setScreenMeta(result);
@@ -501,6 +524,21 @@ const StockScreeningPage: React.FC = () => {
             />
           </label>
 
+          {supportsCache && (
+            <Button
+              variant="secondary"
+              className="h-11"
+              isLoading={syncing}
+              loadingText="同步中..."
+              disabled={syncing || loading}
+              title="把该市场全部股票的日线行情拉取/更新到本地缓存（更快、可离线）"
+              onClick={() => void handleSyncCache()}
+            >
+              <RefreshCw className="h-4 w-4" />
+              同步行情缓存
+            </Button>
+          )}
+
           <Button
             className="h-11 min-w-40"
             isLoading={loading}
@@ -512,6 +550,9 @@ const StockScreeningPage: React.FC = () => {
             运行选股
           </Button>
         </div>
+        {syncMessage && (
+          <p className="mt-3 text-xs text-success">{syncMessage}</p>
+        )}
       </section>
 
       <section className="rounded-2xl border border-border bg-card/95 p-4 shadow-soft-card">

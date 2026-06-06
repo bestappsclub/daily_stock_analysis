@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from api.deps import get_config_dep
@@ -26,6 +26,11 @@ class AlphaSiftScreenRequest(BaseModel):
     market: str = Field("cn", min_length=1, max_length=16)
     strategy: str = Field("dual_low", min_length=1, max_length=64)
     max_results: int = Field(20, ge=1, le=100)
+
+
+class SyncCacheRequest(BaseModel):
+    market: str = Field(..., min_length=1, max_length=16)
+    full: bool = Field(False, description="忽略新鲜度全部重抓")
 
 
 class AlphaSiftStrategyResponse(BaseModel):
@@ -94,3 +99,21 @@ def alphasift_screen(
         market=request.market,
         max_results=request.max_results,
     )
+
+
+@router.post("/sync-cache")
+def alphasift_sync_cache(
+    request: SyncCacheRequest,
+    config: Config = Depends(get_config_dep),
+) -> Dict[str, Any]:
+    """同步本地行情缓存（仅原生市场 us/sg；A 股走 AlphaSift，无本地行情缓存）。"""
+    native = _native_screen_market(request.market)
+    if not native:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "sync_unsupported_market",
+                "message": f"仅美股/新加坡支持本地行情缓存同步（market={request.market}）",
+            },
+        )
+    return MarketScreenerService(native, config=config).sync_cache(full=request.full)

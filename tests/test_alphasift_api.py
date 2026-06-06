@@ -1503,5 +1503,29 @@ class AlphaSiftOpportunitiesApiTestCase(unittest.TestCase):
         self.assertEqual(caught.exception.detail["error"], "alphasift_screen_rejected")
 
 
+class AlphaSiftSyncCacheApiTestCase(unittest.TestCase):
+    def test_sync_cache_rejects_non_native_market(self) -> None:
+        with self.assertRaises(HTTPException) as caught:
+            alphasift_endpoint.alphasift_sync_cache(
+                alphasift_endpoint.SyncCacheRequest(market="cn"),
+                config=SimpleNamespace(),
+            )
+        self.assertEqual(caught.exception.status_code, 400)
+        self.assertEqual(caught.exception.detail["error"], "sync_unsupported_market")
+
+    @patch.dict("os.environ", {"US_SCREEN_UNIVERSE": "AAA,BBB"}, clear=False)
+    def test_sync_cache_us_returns_counts(self) -> None:
+        from src.services import us_screener_service as uss
+        with patch.object(uss, "batch_download_us_daily", return_value={}):
+            result = alphasift_endpoint.alphasift_sync_cache(
+                alphasift_endpoint.SyncCacheRequest(market="us", full=True),
+                config=SimpleNamespace(),
+            )
+        self.assertEqual(result["market"], "us")
+        self.assertEqual(result["universe"], 2)
+        self.assertIn("refreshed", result)
+        self.assertIn("saved_rows", result)
+
+
 if __name__ == "__main__":
     unittest.main()

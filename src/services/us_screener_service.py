@@ -321,6 +321,61 @@ class MarketScreenerService:
             warnings.append(f"{len(cached)}/{len(universe)} 只来自本地缓存，{len(fetched)} 只实时补抓。")
         return {**cached, **fetched}
 
+    # --- 主动同步缓存（CLI / Web「立即同步」按钮共用） ---
+    def sync_cache(self, *, days: Optional[int] = None, full: bool = False,
+                   cap: int = 0, chunk: int = 150) -> Dict[str, Any]:
+        """把本市场股票池日线增量同步进本地 `stock_daily`。
+
+        ``full=True`` 忽略新鲜度全部重抓；返回 universe/stale/refreshed/saved_rows 计数。
+        供 ``scripts/sync_prices.py`` 与 ``POST /alphasift/sync-cache`` 共用。
+        """
+        import time
+        history_days = int(days) if days else _env_int(f"{self._prefix}_HISTORY_DAYS", 150)
+        universe = self._load_universe()
+        if cap > 0:
+            universe = universe[:cap]
+        if not universe:
+            return {"market": self.market, "universe": 0, "stale": 0,
+                    "refreshed": 0, "saved_rows": 0, "elapsed_ms": 0}
+
+        from src.repositories.stock_repo import StockRepository
+        repo = StockRepository()
+        today = date.today()
+        start = today - timedelta(days=history_days)
+        fresh_cutoff = today - timedelta(days=_env_int("SCREEN_CACHE_STALE_DAYS", 2))
+
+        stale: List[str] = []
+        for code in universe:
+            if full:
+                stale.append(code)
+                continue
+            try:
+                rows = repo.get_range(code, start, today)
+            except Exception:  # noqa: BLE001
+                rows = []
+            if not (rows and len(rows) >= 20 and max(r.date for r in rows) >= fresh_cutoff):
+                stale.append(code)
+
+        t0 = time.time()
+        saved = 0
+        refreshed = 0
+        for i in range(0, len(stale), chunk):
+            frames = batch_download_us_daily(stale[i:i + chunk], days=history_days)
+            for code, df in frames.items():
+                try:
+                    saved += repo.save_dataframe(df, code, data_source="yfinance")
+                    refreshed += 1
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("sync_cache 保存失败 %s: %s", code, exc)
+        return {
+            "market": self.market,
+            "universe": len(universe),
+            "stale": len(stale),
+            "refreshed": refreshed,
+            "saved_rows": saved,
+            "elapsed_ms": int((time.time() - t0) * 1000),
+        }
+
     # --- 策略排序 ---
     @staticmethod
     def _apply_strategy(suffix: str, scored: List[TrendAnalysisResult]) -> List[TrendAnalysisResult]:

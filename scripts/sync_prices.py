@@ -19,64 +19,30 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import time
-from datetime import date, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from data_provider.yfinance_fetcher import batch_download_us_daily  # noqa: E402
-from src.repositories.stock_repo import StockRepository  # noqa: E402
 from src.services.us_screener_service import MarketScreenerService, SUPPORTED_MARKETS  # noqa: E402
 
 
-def _needs_refresh(repo: StockRepository, code: str, start: date, today: date,
-                   fresh_cutoff: date, full: bool) -> bool:
-    if full:
-        return True
-    try:
-        rows = repo.get_range(code, start, today)
-    except Exception:  # noqa: BLE001
-        return True
-    return not (rows and len(rows) >= 20 and max(r.date for r in rows) >= fresh_cutoff)
-
-
 def sync_market(market: str, *, days: int, stale_days: int, full: bool,
-                cap: int, chunk: int = 150) -> tuple[int, int, int]:
-    """同步单个市场，返回 (universe, refreshed, saved_rows)。"""
-    svc = MarketScreenerService(market)
-    universe = svc._load_universe()
-    if cap > 0:
-        universe = universe[:cap]
-    if not universe:
-        print(f"[{market}] 股票池为空，跳过")
-        return 0, 0, 0
+                cap: int) -> tuple[int, int, int]:
+    """同步单个市场，返回 (universe, refreshed, saved_rows)。
 
-    repo = StockRepository()
-    today = date.today()
-    start = today - timedelta(days=days)
-    fresh_cutoff = today - timedelta(days=max(stale_days, 0))
-
-    stale = [c for c in universe if _needs_refresh(repo, c, start, today, fresh_cutoff, full)]
-    print(f"[{market}] 股票池 {len(universe)} 只；需刷新 {len(stale)} 只（其余缓存已新鲜）")
-
-    saved_rows = 0
-    refreshed = 0
-    for i in range(0, len(stale), chunk):
-        batch = stale[i:i + chunk]
-        frames = batch_download_us_daily(batch, days=days)
-        for code, df in frames.items():
-            try:
-                saved_rows += repo.save_dataframe(df, code, data_source="yfinance")
-                refreshed += 1
-            except Exception as exc:  # noqa: BLE001
-                print(f"  ! 保存失败 {code}: {exc}")
-        print(f"  [{market}] 进度 {min(i + chunk, len(stale))}/{len(stale)}")
-        time.sleep(0.5)  # 轻微限速，礼貌对待数据源
-
-    print(f"[{market}] 完成：刷新 {refreshed}/{len(stale)}，新增约 {saved_rows} 行")
-    return len(universe), refreshed, saved_rows
+    实际逻辑委托给 ``MarketScreenerService.sync_cache``（与 Web「立即同步」按钮同源）。
+    ``stale_days`` 由服务侧读取环境变量 ``SCREEN_CACHE_STALE_DAYS``。
+    """
+    os.environ.setdefault("SCREEN_CACHE_STALE_DAYS", str(stale_days))
+    res = MarketScreenerService(market).sync_cache(days=days, full=full, cap=cap)
+    print(
+        f"[{market}] 股票池 {res['universe']} 只；刷新 {res['refreshed']}/{res['stale']} 只，"
+        f"新增约 {res['saved_rows']} 行（{res['elapsed_ms']}ms）"
+    )
+    return res["universe"], res["refreshed"], res["saved_rows"]
 
 
 def main() -> int:

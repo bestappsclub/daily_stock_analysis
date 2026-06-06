@@ -81,8 +81,11 @@ python scripts/sync_prices.py --days 500      # 抓约 2 年
 python scripts/sync_prices.py --full          # 忽略新鲜度全部重抓
 ```
 
+也可在 **Web「选股」页**点 **「同步行情缓存」按钮**(选「美股」或「新加坡」时显示)直接触发当前市场的增量同步，无需命令行；对应接口 `POST /api/v1/alphasift/sync-cache`（`{market, full}`，仅 us/sg，A股返回 400）。
+
 - 增量：本地最新日期在 `SCREEN_CACHE_STALE_DAYS`（默认 2）天内则跳过。
 - 灌库后重复扫描**秒级/毫秒级**（实测 5 只全缓存约 200ms）。
+- CLI、Web 按钮、每日定时任务三者**同一份逻辑**（`MarketScreenerService.sync_cache`）。
 - 体量参考：约 150 字节/行；us+sg≈2100 只 × 150 天 ≈ 47MB，2 年 ≈ 158MB。
 - 想每日自动刷新：用 macOS LaunchAgent 定时跑本脚本（见 `docs/run-local-service.md` 同类配置）。
 - 缓存层任何异常都自动回退 live，不会因数据库问题中断选股。
