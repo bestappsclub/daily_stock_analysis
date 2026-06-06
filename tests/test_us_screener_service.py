@@ -51,6 +51,7 @@ _DETERMINISTIC_ENV = {
     "US_SCREEN_ENRICH": "false",
     "US_SCREEN_UNIVERSE": "AAA,BBB,CCC",
     "US_SCREEN_MAX_UNIVERSE": "1500",
+    "US_SCREEN_USE_CACHE": "false",
 }
 
 
@@ -140,6 +141,7 @@ class SGScreenerTest(unittest.TestCase):
             "SG_SCREEN_LLM_RERANK": "false",
             "SG_SCREEN_ENRICH": "false",
             "SG_SCREEN_UNIVERSE": "D05.SI,O39.SI,U11.SI",
+            "SG_SCREEN_USE_CACHE": "false",
         },
         clear=False,
     )
@@ -302,6 +304,52 @@ class DkStrategyTest(unittest.TestCase):
         sg_ids = {s["id"] for s in MarketScreenerService("sg", config=SimpleNamespace()).strategies()["strategies"]}
         self.assertIn("us_dk_buy", us_ids)
         self.assertIn("sg_dk_buy", sg_ids)
+
+
+class _FakeRepo:
+    """Repo double: 'CACHED' has fresh cached bars, everything else is missing."""
+
+    def get_range(self, code, start, end):
+        if code == "CACHED":
+            return [
+                SimpleNamespace(
+                    date=date.today() - timedelta(days=i),
+                    open=10.0, high=11.0, low=9.0, close=10.0,
+                    volume=1_000_000.0, amount=1e7, pct_chg=0.0,
+                )
+                for i in range(60)
+            ]
+        return []
+
+    def save_dataframe(self, df, code, data_source="yfinance"):
+        return len(df)
+
+
+class PriceCacheTest(unittest.TestCase):
+    @patch.dict(
+        "os.environ",
+        {
+            "US_SCREEN_ENABLED": "true",
+            "US_SCREEN_LLM_RERANK": "false",
+            "US_SCREEN_ENRICH": "false",
+            "US_SCREEN_UNIVERSE": "CACHED,MISS",
+            "US_SCREEN_USE_CACHE": "true",
+        },
+        clear=False,
+    )
+    def test_cache_hit_only_fetches_missing(self) -> None:
+        live = {"MISS": _make_df(50, "up")}
+        with patch("src.repositories.stock_repo.StockRepository", return_value=_FakeRepo()), \
+                patch.object(uss, "batch_download_us_daily", return_value=live) as mocked:
+            result = USScreenerService(config=SimpleNamespace()).screen(
+                strategy="us_momentum", market="us", max_results=5
+            )
+        # live fetch must be called only for the stale/missing symbol
+        mocked.assert_called_once()
+        called_universe = list(mocked.call_args.args[0]) if mocked.call_args.args else list(mocked.call_args.kwargs.get("symbols", []))
+        self.assertEqual(called_universe, ["MISS"])
+        self.assertTrue(result["enabled"])
+        self.assertEqual(result["snapshot_count"], 2)  # 1 cached + 1 live
 
 
 if __name__ == "__main__":

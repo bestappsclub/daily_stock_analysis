@@ -24,9 +24,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import pandas as pd
 from fastapi import HTTPException
 
 from src.config import Config, get_config
@@ -178,7 +180,7 @@ class MarketScreenerService:
 
         history_days = _env_int(f"{self._prefix}_HISTORY_DAYS", 150)
         try:
-            frames = batch_download_us_daily(universe, days=history_days)
+            frames = self._load_frames(universe, history_days, warnings)
         except Exception as exc:  # noqa: BLE001 - 数据层失败需可降级提示
             raise HTTPException(
                 status_code=424,
@@ -269,6 +271,55 @@ class MarketScreenerService:
         if cap > 0:
             ordered = ordered[:cap]
         return ordered
+
+    # --- 行情加载（本地缓存优先，缺失/过期才 live 补抓并回写） ---
+    def _load_frames(
+        self, universe: List[str], history_days: int, warnings: List[str]
+    ) -> Dict[str, pd.DataFrame]:
+        """加载股票池日线：默认先读本地 `stock_daily` 缓存，只对缺失/过期标的 live 抓取并 upsert 回库。
+
+        ``<PREFIX>_USE_CACHE=false`` 时退回纯 live（旧行为）。缓存层任何异常都回退 live，
+        保证选股不因数据库问题中断。
+        """
+        if not _env_bool(f"{self._prefix}_USE_CACHE", True):
+            return batch_download_us_daily(universe, days=history_days)
+
+        stale_days = _env_int("SCREEN_CACHE_STALE_DAYS", 2)
+        try:
+            from src.repositories.stock_repo import StockRepository
+            repo = StockRepository()
+        except Exception as exc:  # noqa: BLE001 - 无法初始化仓储则退回 live
+            logger.warning("Screener 缓存不可用，退回 live：%s", exc)
+            return batch_download_us_daily(universe, days=history_days)
+
+        today = date.today()
+        start = today - timedelta(days=history_days)
+        fresh_cutoff = today - timedelta(days=max(stale_days, 0))
+
+        cached: Dict[str, pd.DataFrame] = {}
+        stale: List[str] = []
+        for code in universe:
+            try:
+                rows = repo.get_range(code, start, today)
+            except Exception:  # noqa: BLE001 - 单只读失败按缺失处理
+                rows = []
+            if rows and len(rows) >= 20 and max(r.date for r in rows) >= fresh_cutoff:
+                cached[code] = _rows_to_frame(rows)
+            else:
+                stale.append(code)
+
+        fetched: Dict[str, pd.DataFrame] = {}
+        if stale:
+            fetched = batch_download_us_daily(stale, days=history_days)
+            for code, df in fetched.items():
+                try:
+                    repo.save_dataframe(df, code, data_source="yfinance")
+                except Exception as exc:  # noqa: BLE001 - 回写失败不影响本次选股
+                    logger.debug("Screener 缓存回写失败 %s: %s", code, exc)
+
+        if cached:
+            warnings.append(f"{len(cached)}/{len(universe)} 只来自本地缓存，{len(fetched)} 只实时补抓。")
+        return {**cached, **fetched}
 
     # --- 策略排序 ---
     @staticmethod
@@ -437,6 +488,27 @@ class USScreenerService(MarketScreenerService):
 
 # backward-compat：保留 US_STRATEGIES 导出
 US_STRATEGIES = strategies_for_market("us")
+
+
+def _rows_to_frame(rows: List[Any]) -> pd.DataFrame:
+    """Convert cached StockDaily ORM rows into the OHLCV DataFrame the analyzer expects."""
+    recs = [
+        {
+            "date": r.date,
+            "open": r.open,
+            "high": r.high,
+            "low": r.low,
+            "close": r.close,
+            "volume": r.volume,
+            "amount": r.amount,
+            "pct_chg": r.pct_chg,
+        }
+        for r in rows
+    ]
+    df = pd.DataFrame(recs)
+    if not df.empty:
+        df = df.sort_values("date").reset_index(drop=True)
+    return df
 
 
 def _parse_llm_json(text: str) -> Any:
