@@ -139,7 +139,9 @@ class TrendAnalysisResult:
 
     # 东财式 DK 买卖点状态（价格突破 + 放量折扣状态机，详见 _analyze_dk）
     dk_state: str = "unknown"        # "hold"(持股/多) | "cash"(持币/空) | "unknown"
-    dk_signal: str = ""              # "D"(刚转持股=买点) | "K"(刚转持币=卖点) | ""
+    dk_signal: str = ""              # 仅当最新一根就是翻转点时为 "D"/"K"（=当天出现），否则 ""
+    dk_last_signal: str = ""         # 最近一次翻转点类型 "D"/"K"（不论几天前），无则 ""
+    dk_days_since: int = -1          # 距最近一次 D/K 翻转点的交易日数（0=当天，-1=无）
     dk_desc: str = ""                # 人类可读描述
 
     def to_dict(self) -> Dict[str, Any]:
@@ -179,6 +181,8 @@ class TrendAnalysisResult:
             'structure_desc': self.structure_desc,
             'dk_state': self.dk_state,
             'dk_signal': self.dk_signal,
+            'dk_last_signal': self.dk_last_signal,
+            'dk_days_since': self.dk_days_since,
             'dk_desc': self.dk_desc,
         }
 
@@ -323,7 +327,8 @@ class StockTrendAnalyzer:
         vol = df['volume'].to_numpy(dtype=float) if has_vol else None
 
         bull = False
-        prev_bull = False
+        last_flip_idx = -1       # 最近一次状态翻转所在的 K 线下标
+        last_flip_type = ""      # 该翻转类型："D"（转持股）/"K"（转持币）
         for i in range(length):
             if i >= n_up:
                 hard_up = high[i - n_up:i].max()
@@ -332,24 +337,31 @@ class StockTrendAnalyzer:
                 if has_vol and i >= v_win - 1:
                     vt = vol[i - v_win + 1:i + 1].mean()
                 c = close[i]
-                prev_bull = bull
                 if not bull:
                     if c > hard_up or (
                         c > hard_up * self.DK_VASSIST and vt == vt and vol[i] > vt
                     ):
                         bull = True
+                        last_flip_idx, last_flip_type = i, "D"
                 elif c < hard_dn:
                     bull = False
+                    last_flip_idx, last_flip_type = i, "K"
 
         result.dk_state = "hold" if bull else "cash"
-        if bull and not prev_bull:
-            result.dk_signal = "D"
-            result.dk_desc = "刚转持股（D点/买点：价格突破）"
-        elif (not bull) and prev_bull:
-            result.dk_signal = "K"
-            result.dk_desc = "刚转持币（K点/卖点：跌破N日低）"
+        if last_flip_idx >= 0:
+            days_since = (length - 1) - last_flip_idx
+            result.dk_last_signal = last_flip_type
+            result.dk_days_since = days_since
+            # 仅当最新一根就是翻转点时算"当天出现"
+            result.dk_signal = last_flip_type if days_since == 0 else ""
+            label = "D点/买点" if last_flip_type == "D" else "K点/卖点"
+            when = "当天" if days_since == 0 else f"{days_since} 天前"
+            holding = "持股" if bull else "持币"
+            result.dk_desc = f"{holding}｜{label} {when}出现"
         else:
             result.dk_signal = ""
+            result.dk_last_signal = ""
+            result.dk_days_since = -1
             result.dk_desc = "持股（多头持有）" if bull else "持币（空仓观望）"
 
     def _analyze_swing_structure(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:

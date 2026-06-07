@@ -272,6 +272,30 @@ class StructureStrategyTest(unittest.TestCase):
         self.assertIn("us_structure_bear", ids)
 
 
+def _dk_df(closes) -> pd.DataFrame:
+    """Build an OHLCV df from a close series (high/low ±0.5%) for DK tests."""
+    n = len(closes)
+    dates = [date(2025, 1, 1) + timedelta(days=i) for i in range(n)]
+    return pd.DataFrame({
+        "date": dates,
+        "open": closes,
+        "high": [c * 1.005 for c in closes],
+        "low": [c * 0.995 for c in closes],
+        "close": closes,
+        "volume": [1_000_000] * n,
+        "amount": [c * 1_000_000 for c in closes],
+        "pct_chg": [0.0] * n,
+    })
+
+
+# 最新一根才突破 20 日高 → 当天出现 D 点
+_D_TODAY = _dk_df([100.0] * 29 + [115.0])
+# 先升入持股、最后一根跌破 10 日低 → 当天出现 K 点
+_K_TODAY = _dk_df([100.0 + i for i in range(29)] + [80.0])
+# 全程横盘 → 无 D/K
+_FLAT = _dk_df([100.0] * 30)
+
+
 class DkIndicatorTest(unittest.TestCase):
     def test_dk_state_hold_on_uptrend_cash_on_downtrend(self) -> None:
         from src.stock_analyzer import StockTrendAnalyzer
@@ -282,30 +306,62 @@ class DkIndicatorTest(unittest.TestCase):
         self.assertEqual(up.dk_state, "hold")
         self.assertEqual(down.dk_state, "cash")
 
+    def test_dk_signal_and_days_since(self) -> None:
+        from src.stock_analyzer import StockTrendAnalyzer
+
+        analyzer = StockTrendAnalyzer()
+        d = analyzer.analyze(_D_TODAY, "DT")
+        k = analyzer.analyze(_K_TODAY, "KT")
+        self.assertEqual(d.dk_signal, "D")
+        self.assertEqual(d.dk_days_since, 0)
+        self.assertEqual(d.dk_last_signal, "D")
+        self.assertEqual(k.dk_signal, "K")
+        self.assertEqual(k.dk_days_since, 0)
+        # 摆动上涨但 D 点出现在更早的某根 → 当天无 signal、days_since>0
+        up = analyzer.analyze(_make_df(100, "up"), "UP")
+        self.assertEqual(up.dk_signal, "")
+        self.assertGreater(up.dk_days_since, 0)
+        self.assertEqual(up.dk_last_signal, "D")
+
 
 class DkStrategyTest(unittest.TestCase):
     @patch.dict(
         "os.environ",
-        {**_DETERMINISTIC_ENV, "US_SCREEN_UNIVERSE": "UP,DOWN"},
+        {**_DETERMINISTIC_ENV, "US_SCREEN_UNIVERSE": "DT,FLAT"},
         clear=False,
     )
-    def test_dk_buy_filters_to_hold_only(self) -> None:
-        frames = {"UP": _make_df(100, "up"), "DOWN": _make_df(100, "down")}
+    def test_dk_buy_keeps_only_today_d_points(self) -> None:
+        frames = {"DT": _D_TODAY, "FLAT": _FLAT}
         with patch.object(uss, "batch_download_us_daily", return_value=frames):
             result = USScreenerService(config=SimpleNamespace()).screen(
                 strategy="us_dk_buy", market="us", max_results=5
             )
         codes = {c["code"] for c in result["candidates"]}
-        self.assertIn("UP", codes)
-        self.assertNotIn("DOWN", codes)
+        self.assertEqual(codes, {"DT"})
+
+    @patch.dict(
+        "os.environ",
+        {**_DETERMINISTIC_ENV, "US_SCREEN_UNIVERSE": "KT,FLAT"},
+        clear=False,
+    )
+    def test_dk_sell_keeps_only_today_k_points(self) -> None:
+        frames = {"KT": _K_TODAY, "FLAT": _FLAT}
+        with patch.object(uss, "batch_download_us_daily", return_value=frames):
+            result = USScreenerService(config=SimpleNamespace()).screen(
+                strategy="us_dk_sell", market="us", max_results=5
+            )
+        codes = {c["code"] for c in result["candidates"]}
+        self.assertEqual(codes, {"KT"})
 
     def test_dk_strategy_listed_per_market(self) -> None:
         us_ids = {s["id"] for s in MarketScreenerService("us", config=SimpleNamespace()).strategies()["strategies"]}
         sg_ids = {s["id"] for s in MarketScreenerService("sg", config=SimpleNamespace()).strategies()["strategies"]}
         cn_ids = {s["id"] for s in MarketScreenerService("cn", config=SimpleNamespace()).strategies()["strategies"]}
         self.assertIn("us_dk_buy", us_ids)
+        self.assertIn("us_dk_sell", us_ids)
         self.assertIn("sg_dk_buy", sg_ids)
         self.assertIn("cn_dk_buy", cn_ids)
+        self.assertIn("cn_dk_sell", cn_ids)
 
 
 class CnScreenerTest(unittest.TestCase):

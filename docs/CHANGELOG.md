@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] 选股本地缓存：新增 `scripts/sync_prices.py` 把美股/新加坡日线灌入本地 `stock_daily`，选股默认优先读缓存、只对缺失/过期标的 live 补抓回写（`<PREFIX>_USE_CACHE`、`SCREEN_CACHE_STALE_DAYS` 可配），重复扫描秒级、可离线、不限流；数据库保持 gitignore 不入库。
 - [文档] 更新 `docs/how-it-works.md` 源码走读：新增「多市场选股/DK/摆动结构、本地行情缓存、大盘复盘选市场、新加坡个股输入、本地常驻与定时」章节；`docs/run-local-service.md` 补充每日行情同步（`com.dsa.pricesync`）配置。
 - [新功能] Web「选股」页新增「同步行情缓存」按钮（美股/新加坡/A股）：接口 `POST /api/v1/alphasift/sync-cache` 触发当前市场增量同步本地行情缓存，与 CLI `scripts/sync_prices.py`、每日定时任务共用 `MarketScreenerService.sync_cache`；并新增「强制刷新」勾选（`full`，忽略新鲜度重拉，盘内可取当日最新）。
+- [改进] DK 选股精确化为「当天出现」：`*_dk_buy` 改为筛**当天出现 D 点**、新增 `*_dk_sell` 筛**当天出现 K 点**（命中为空即返回空）；个股趋势新增 `dk_last_signal`/`dk_days_since` 字段，标注 D/K 点是当天还是几天前出现，候选理由同步展示。
 - [新功能] A股原生选股（含 DK/结构/动量等策略）：`MarketScreenerService` 新增 `cn` 市场（默认池 `src/data/cn_universe.txt` 全 A股+北交所约 5500 只，akshare 前复权 `batch_download_cn_daily`，本地缓存共用 `stock_daily`），新增 `scripts/fetch_cn_universe.py`。通过 `CN_SCREEN_NATIVE=true` 开启（默认关，A股仍走 AlphaSift 向后兼容）；开启后 Web「选股」页选「A股」用本原生引擎。
 - [改进] 新加坡选股默认股票池由 STI 成分股(约 30)扩展为 SGX 全主板(普通股+REITs+商业信托，约 615 只)，新增 `scripts/fetch_sg_universe.py` 从 SGX 官方列表生成 `src/data/sg_universe.txt`；`SG_SCREEN_MAX_UNIVERSE` 默认上限由 200 提升至 700。
 - [改进] 选股「返回数量」前端默认由 3 调整为 20，与后端默认一致。
