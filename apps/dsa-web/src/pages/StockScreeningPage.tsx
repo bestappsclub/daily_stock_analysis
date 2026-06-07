@@ -436,14 +436,32 @@ const StockScreeningPage: React.FC = () => {
       {error ? <InlineAlert variant="danger" title="调用失败" message={error} /> : null}
 
       <section className="rounded-2xl border border-cyan/35 bg-card/95 p-4 shadow-soft-card">
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">选择策略</h2>
-            <p className="mt-1 text-xs text-secondary-text">策略来自 AlphaSift；DSA 会对候选补充行情、基本面和新闻上下文。</p>
+            <p className="mt-1 text-xs text-secondary-text">
+              先选市场：A股走 AlphaSift；<span className="text-cyan">美股 / 新加坡为 DSA 原生（含多头结构 / 空头结构 / DK买点）</span>。切换市场会刷新下方策略。
+            </p>
           </div>
-          <span className="rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 text-xs font-semibold text-cyan">
-            {selectedStrategyTag}
-          </span>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-xs font-medium text-secondary-text">
+              市场
+              <select
+                className="h-9 rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-foreground outline-none transition-colors focus:border-cyan"
+                value={market}
+                onChange={(event) => handleMarketChange(event.target.value)}
+              >
+                {MARKETS.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 text-xs font-semibold text-cyan">
+              {selectedStrategyTag}
+            </span>
+          </div>
         </div>
 
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
@@ -487,22 +505,7 @@ const StockScreeningPage: React.FC = () => {
           参数设置
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_180px_auto] lg:items-end">
-          <label className="space-y-2 text-xs font-medium text-secondary-text">
-            市场
-            <select
-              className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground outline-none transition-colors focus:border-cyan"
-              value={market}
-              onChange={(event) => handleMarketChange(event.target.value)}
-            >
-              {MARKETS.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_180px_auto] lg:items-end">
           <label className="space-y-2 text-xs font-medium text-secondary-text">
             策略参数
             <input
