@@ -179,7 +179,7 @@ python scripts/sync_prices.py --markets us --days 150
 
 ## 10. 原生多市场选股（美股 / 新加坡 / DK / 摆动结构）
 
-A 股选股由外部 `alphasift` 包提供（仅 `cn`）；**美股(us)/新加坡(sg) 是 DSA 自建的原生选股器**，三者通过同一个 `/api/v1/alphasift/screen` 按 `market` 分发，复用同一个 Web「选股」页。
+**美股(us)/新加坡(sg) 是 DSA 自建的原生选股器**；**A股(cn) 可选原生**（`CN_SCREEN_NATIVE=true` 开启，默认关时仍走外部 `alphasift` 包）。各市场通过同一个 `/api/v1/alphasift/screen` 按 `market` 分发，复用同一个 Web「选股」页。A股原生数据走 akshare 前复权（`data_provider/akshare_fetcher.py:batch_download_cn_daily`，东方财富→新浪→腾讯 fallback），默认池 `src/data/cn_universe.txt`（全 A股+北交所 ~5500），由 `scripts/fetch_cn_universe.py` 从前端股票索引生成。
 
 - 核心：[src/services/us_screener_service.py](src/services/us_screener_service.py) 的 `MarketScreenerService` —— 扫描**有界股票池**，对每只调用与个股分析相同的 `StockTrendAnalyzer` 打分，按策略排序，可选 LLM 重排。
 - 股票池（静态可提交文件，确定性、不依赖运行时网络）：

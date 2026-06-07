@@ -1,20 +1,22 @@
 # -*- coding: utf-8 -*-
-"""多市场（美股 / 新加坡）原生选股服务。
+"""多市场（美股 / 新加坡 / A股）原生选股服务。
 
 市场无关的选股器：扫描有界股票池，复用 ``StockTrendAnalyzer`` 打分、按策略排序，
 可选 LLM 重排与 DSA 增强，返回与 ``AlphaSiftService.screen()`` **同结构**的结果，
-使现有「选股」页 / ``/screen`` API 无需改动即可展示美股 / 新加坡候选。
+使现有「选股」页 / ``/screen`` API 无需改动即可展示各市场候选。
 
-目前覆盖市场（均通过 yfinance 批量抓取日线）：
-- ``us``：默认池标普 Composite 1500（``src/data/us_universe.txt``）
-- ``sg``：默认池新加坡 STI 成分股（``src/data/sg_universe.txt``，``.SI`` 形式）
+目前覆盖市场（均前复权，本地缓存优先）：
+- ``us``：默认池标普 Composite 1500（``src/data/us_universe.txt``，yfinance）
+- ``sg``：默认池新加坡 SGX 全主板（``src/data/sg_universe.txt``，``.SI``，yfinance）
+- ``cn``：默认池 A股全市场 + 北交所（``src/data/cn_universe.txt``，6 位码，akshare）
 
 设计原则（与仓库护栏一致）：
 - 单只标的数据/分析失败跳过，不中断整体（fail-open）。
 - LLM 重排、DSA 增强默认可降级：失败即回退为纯因子排序。
-- 不触碰 A 股 / AlphaSift 链路，独立实现。
+- ``cn`` 启用后，``/alphasift`` 接口的 A股请求走本原生引擎（DK/结构/动量等），
+  AlphaSift 仍保留但不再用于 A股选股。
 
-配置（环境变量，``<PREFIX>`` 为 ``US_SCREEN`` 或 ``SG_SCREEN``，见 .env.example）：
+配置（环境变量，``<PREFIX>`` 为 ``US_SCREEN`` / ``SG_SCREEN`` / ``CN_SCREEN``，见 .env.example）：
 ``<PREFIX>_ENABLED`` / ``<PREFIX>_UNIVERSE`` / ``<PREFIX>_UNIVERSE_FILE`` /
 ``<PREFIX>_MAX_UNIVERSE`` / ``<PREFIX>_HISTORY_DAYS`` / ``<PREFIX>_LLM_RERANK`` /
 ``<PREFIX>_LLM_RERANK_TOP`` / ``<PREFIX>_ENRICH``。
@@ -56,6 +58,7 @@ _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 _MARKETS: Dict[str, Dict[str, Any]] = {
     "us": {"env_prefix": "US_SCREEN", "universe_file": "us_universe.txt", "default_max": 1500, "label": "美股"},
     "sg": {"env_prefix": "SG_SCREEN", "universe_file": "sg_universe.txt", "default_max": 700, "label": "新加坡"},
+    "cn": {"env_prefix": "CN_SCREEN", "universe_file": "cn_universe.txt", "default_max": 6000, "label": "A股"},
 }
 SUPPORTED_MARKETS = tuple(_MARKETS.keys())
 
@@ -272,6 +275,16 @@ class MarketScreenerService:
             ordered = ordered[:cap]
         return ordered
 
+    # --- 按市场分发的批量抓取 ---
+    def _fetch_batch(self, symbols: List[str], history_days: int) -> Dict[str, pd.DataFrame]:
+        """按市场选择数据源批量抓日线：us/sg 走 yfinance，cn 走 akshare（前复权）。"""
+        if not symbols:
+            return {}
+        if self.market == "cn":
+            from data_provider.akshare_fetcher import batch_download_cn_daily
+            return batch_download_cn_daily(symbols, days=history_days)
+        return batch_download_us_daily(symbols, days=history_days)
+
     # --- 行情加载（本地缓存优先，缺失/过期才 live 补抓并回写） ---
     def _load_frames(
         self, universe: List[str], history_days: int, warnings: List[str]
@@ -282,7 +295,7 @@ class MarketScreenerService:
         保证选股不因数据库问题中断。
         """
         if not _env_bool(f"{self._prefix}_USE_CACHE", True):
-            return batch_download_us_daily(universe, days=history_days)
+            return self._fetch_batch(universe, history_days)
 
         stale_days = _env_int("SCREEN_CACHE_STALE_DAYS", 2)
         try:
@@ -310,7 +323,7 @@ class MarketScreenerService:
 
         fetched: Dict[str, pd.DataFrame] = {}
         if stale:
-            fetched = batch_download_us_daily(stale, days=history_days)
+            fetched = self._fetch_batch(stale, history_days)
             for code, df in fetched.items():
                 try:
                     repo.save_dataframe(df, code, data_source="yfinance")
@@ -360,7 +373,7 @@ class MarketScreenerService:
         saved = 0
         refreshed = 0
         for i in range(0, len(stale), chunk):
-            frames = batch_download_us_daily(stale[i:i + chunk], days=history_days)
+            frames = self._fetch_batch(stale[i:i + chunk], history_days)
             for code, df in frames.items():
                 try:
                     saved += repo.save_dataframe(df, code, data_source="yfinance")

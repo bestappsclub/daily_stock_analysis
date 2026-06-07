@@ -1513,6 +1513,17 @@ class AlphaSiftSyncCacheApiTestCase(unittest.TestCase):
         self.assertEqual(caught.exception.status_code, 400)
         self.assertEqual(caught.exception.detail["error"], "sync_unsupported_market")
 
+    def test_cn_routes_to_alphasift_by_default(self) -> None:
+        # 默认 CN_SCREEN_NATIVE 关：A股不走原生（空串 → AlphaSift）
+        with patch.dict("os.environ", {"CN_SCREEN_NATIVE": "false"}, clear=False):
+            self.assertEqual(alphasift_endpoint._native_screen_market("cn"), "")
+        # 显式开启后 A股走原生
+        with patch.dict("os.environ", {"CN_SCREEN_NATIVE": "true"}, clear=False):
+            self.assertEqual(alphasift_endpoint._native_screen_market("cn"), "cn")
+        # us/sg 始终原生
+        self.assertEqual(alphasift_endpoint._native_screen_market("us"), "us")
+        self.assertEqual(alphasift_endpoint._native_screen_market("sg"), "sg")
+
     @patch.dict("os.environ", {"US_SCREEN_UNIVERSE": "AAA,BBB"}, clear=False)
     def test_sync_cache_us_returns_counts(self) -> None:
         from src.services import us_screener_service as uss

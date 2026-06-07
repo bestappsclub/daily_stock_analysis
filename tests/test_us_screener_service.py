@@ -302,8 +302,39 @@ class DkStrategyTest(unittest.TestCase):
     def test_dk_strategy_listed_per_market(self) -> None:
         us_ids = {s["id"] for s in MarketScreenerService("us", config=SimpleNamespace()).strategies()["strategies"]}
         sg_ids = {s["id"] for s in MarketScreenerService("sg", config=SimpleNamespace()).strategies()["strategies"]}
+        cn_ids = {s["id"] for s in MarketScreenerService("cn", config=SimpleNamespace()).strategies()["strategies"]}
         self.assertIn("us_dk_buy", us_ids)
         self.assertIn("sg_dk_buy", sg_ids)
+        self.assertIn("cn_dk_buy", cn_ids)
+
+
+class CnScreenerTest(unittest.TestCase):
+    @patch.dict(
+        "os.environ",
+        {
+            "CN_SCREEN_ENABLED": "true",
+            "CN_SCREEN_LLM_RERANK": "false",
+            "CN_SCREEN_ENRICH": "false",
+            "CN_SCREEN_UNIVERSE": "600519,000001",
+            "CN_SCREEN_USE_CACHE": "false",
+        },
+        clear=False,
+    )
+    def test_cn_screen_uses_akshare_batch(self) -> None:
+        frames = {"600519": _make_df(1700, "up"), "000001": _make_df(11, "up")}
+        with patch(
+            "data_provider.akshare_fetcher.batch_download_cn_daily", return_value=frames
+        ) as mocked:
+            result = MarketScreenerService("cn", config=SimpleNamespace()).screen(
+                strategy="cn_momentum", market="cn", max_results=5
+            )
+        mocked.assert_called_once()
+        self.assertEqual(result["market"], "cn")
+        self.assertEqual(result["snapshot_count"], 2)
+
+    def test_cn_recognized_as_native_market(self) -> None:
+        from src.services.us_screener_service import SUPPORTED_MARKETS
+        self.assertIn("cn", SUPPORTED_MARKETS)
 
 
 class _FakeRepo:

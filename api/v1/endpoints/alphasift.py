@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -16,10 +17,26 @@ from src.services.us_screener_service import MarketScreenerService, SUPPORTED_MA
 router = APIRouter()
 
 
+def _cn_native_enabled() -> bool:
+    """A股是否走 DSA 原生选股引擎（含 DK/结构）。默认关，置 CN_SCREEN_NATIVE=true 开启。
+
+    关闭时 A股仍走外部 AlphaSift（向后兼容）；开启后 A股请求路由到 MarketScreenerService。
+    """
+    return (os.getenv("CN_SCREEN_NATIVE", "") or "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def _native_screen_market(market: str) -> str:
-    """返回原生选股市场（us/sg），非原生市场返回空串（走 AlphaSift）。"""
+    """返回走 DSA 原生选股的市场标记；否则空串（走 AlphaSift）。
+
+    - us / sg：始终原生。
+    - cn：仅当 CN_SCREEN_NATIVE 开启时原生，否则走 AlphaSift。
+    """
     m = (market or "").strip().lower()
-    return m if m in SUPPORTED_MARKETS else ""
+    if m in ("us", "sg"):
+        return m
+    if m == "cn" and m in SUPPORTED_MARKETS and _cn_native_enabled():
+        return "cn"
+    return ""
 
 
 class AlphaSiftScreenRequest(BaseModel):

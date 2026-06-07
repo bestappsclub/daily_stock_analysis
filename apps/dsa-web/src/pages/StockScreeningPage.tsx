@@ -239,6 +239,7 @@ const StockScreeningPage: React.FC = () => {
   const [strategyLoadError, setStrategyLoadError] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
+  const [syncFull, setSyncFull] = useState(false);
 
   const selectedStrategy = useMemo(() => strategies.find((item) => item.id === strategy), [strategies, strategy]);
   const selectedStrategyTitle = selectedStrategy?.name || selectedStrategy?.title || '自定义策略';
@@ -349,15 +350,15 @@ const StockScreeningPage: React.FC = () => {
     setMaxResults(nextMaxResults);
   };
 
-  // 本地行情缓存仅美股/新加坡支持（A股走 AlphaSift，无本地缓存）
-  const supportsCache = market === 'us' || market === 'sg';
+  // 本地行情缓存支持的原生市场（美股/新加坡/A股）
+  const supportsCache = market === 'us' || market === 'sg' || market === 'cn';
 
   const handleSyncCache = async () => {
     setSyncing(true);
     setSyncMessage('');
     setError('');
     try {
-      const r = await alphasiftApi.syncCache(market);
+      const r = await alphasiftApi.syncCache(market, syncFull);
       setSyncMessage(
         `行情缓存已更新：${r.market} 股票池 ${r.universe} 只，刷新 ${r.refreshed}/${r.stale} 只，` +
         `新增约 ${r.savedRows} 行（${(r.elapsedMs / 1000).toFixed(1)}s）。`,
@@ -528,18 +529,32 @@ const StockScreeningPage: React.FC = () => {
           </label>
 
           {supportsCache && (
-            <Button
-              variant="secondary"
-              className="h-11"
-              isLoading={syncing}
-              loadingText="同步中..."
-              disabled={syncing || loading}
-              title="把该市场全部股票的日线行情拉取/更新到本地缓存（更快、可离线）"
-              onClick={() => void handleSyncCache()}
-            >
-              <RefreshCw className="h-4 w-4" />
-              同步行情缓存
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                className="h-11"
+                isLoading={syncing}
+                loadingText="同步中..."
+                disabled={syncing || loading}
+                title="把该市场股票的日线行情拉取/更新到本地缓存（更快、可离线）"
+                onClick={() => void handleSyncCache()}
+              >
+                <RefreshCw className="h-4 w-4" />
+                同步行情缓存
+              </Button>
+              <label
+                className="flex h-11 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 text-xs text-secondary-text"
+                title="忽略新鲜度，重新拉取该市场全部标的的最新行情（盘内可拿到当日最新；全市场较慢）"
+              >
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-border accent-cyan"
+                  checked={syncFull}
+                  onChange={(event) => setSyncFull(event.target.checked)}
+                />
+                强制刷新
+              </label>
+            </div>
           )}
 
           <Button

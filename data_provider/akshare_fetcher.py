@@ -2183,6 +2183,32 @@ class AkshareFetcher(BaseFetcher):
         return None
 
 
+def batch_download_cn_daily(symbols, days: int = 150):
+    """批量抓 A 股日线，返回 ``{code: DataFrame}``。
+
+    与 ``yfinance_fetcher.batch_download_us_daily`` 对位，供选股器/缓存按市场分发。
+    复用 ``AkshareFetcher.get_daily_data``（**前复权 qfq** + 东方财富→新浪→腾讯多端点
+    fallback + 列标准化 + 技术指标），比 raw 单端点直连稳健（东财间歇性断连时自动转
+    新浪/腾讯）。fail-open：单只失败跳过，下次增量同步补齐。
+
+    ``symbols`` 为 6 位 A 股代码；返回字典以**原始传入代码**为键，便于按池中代码落库。
+    前复权口径与美股/新加坡一致，保证 DK / 均线等指标统一。
+    """
+    fetcher = AkshareFetcher()
+    out = {}
+    for raw in symbols:
+        bare = "".join(ch for ch in str(raw) if ch.isdigit())[:6]
+        if len(bare) != 6:
+            continue
+        try:
+            df = fetcher.get_daily_data(bare, days=days)
+        except Exception:  # noqa: BLE001 - 单只失败跳过（fail-open）
+            continue
+        if df is not None and not df.empty:
+            out[str(raw).strip().upper()] = df.reset_index(drop=True)
+    return out
+
+
 if __name__ == "__main__":
     # 测试代码
     logging.basicConfig(level=logging.DEBUG)
