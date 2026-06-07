@@ -110,7 +110,7 @@ rm ~/Library/LaunchAgents/com.dsa.webserver.plist
     <array>
         <string>/Users/iz/dev/daily_stock_analysis/.venv/bin/python</string>
         <string>scripts/sync_prices.py</string>
-        <string>--markets</string><string>us,sg</string>
+        <string>--markets</string><string>us,sg,cn</string>
         <string>--days</string><string>150</string>
     </array>
     <key>WorkingDirectory</key><string>/Users/iz/dev/daily_stock_analysis</string>
@@ -133,6 +133,8 @@ tail -f /Users/iz/dev/daily_stock_analysis/logs/launchd_pricesync.out.log
 ```
 
 > 一次性任务（跑完退出，不保活）。增量：已新鲜的标的跳过，首次需先全量灌一次 `python scripts/sync_prices.py`。改时间编辑 `StartCalendarInterval` 后重新 `load`。
+>
+> A股（cn）默认池由 `.env` 的 `CN_SCREEN_UNIVERSE_FILE` 决定（如流动性池 `src/data/cn_universe_liquid.txt`）；A股逐只抓取较慢，首次回填建议手动后台 `python scripts/sync_prices.py --markets cn`，定时任务之后只做增量。
 
 ## 说明与限制
 
