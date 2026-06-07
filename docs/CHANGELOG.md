@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] 选股本地缓存：新增 `scripts/sync_prices.py` 把美股/新加坡日线灌入本地 `stock_daily`，选股默认优先读缓存、只对缺失/过期标的 live 补抓回写（`<PREFIX>_USE_CACHE`、`SCREEN_CACHE_STALE_DAYS` 可配），重复扫描秒级、可离线、不限流；数据库保持 gitignore 不入库。
 - [文档] 更新 `docs/how-it-works.md` 源码走读：新增「多市场选股/DK/摆动结构、本地行情缓存、大盘复盘选市场、新加坡个股输入、本地常驻与定时」章节；`docs/run-local-service.md` 补充每日行情同步（`com.dsa.pricesync`）配置。
 - [新功能] Web「选股」页新增「同步行情缓存」按钮（美股/新加坡/A股）：接口 `POST /api/v1/alphasift/sync-cache` 触发当前市场增量同步本地行情缓存，与 CLI `scripts/sync_prices.py`、每日定时任务共用 `MarketScreenerService.sync_cache`；并新增「强制刷新」勾选（`full`，忽略新鲜度重拉，盘内可取当日最新）。
+- [改进] DK 买卖点同步 stockscreener 东财校准版：通道改用**收盘价**（非 high/low）、放量软突破改为独立短周期 `HHV(close, DK_NSOFT=7)`（取代 0.96 折扣 `DK_VASSIST`）、放量条件含昨日延续；参数 `DK_NSOFT`/`DK_VMULT` 取代 `DK_VASSIST`。与 stockscreener `_dk_buysell_state` 实测 12/12 一致。
 - [新功能] 新增跳空缺口指标与 `*_gap_up`/`*_gap_down` 选股策略（全市场）：个股趋势输出 `gap_dir`/`gap_pct`/`gap_days_since`，选股筛近一周内（`GAP_WINDOW` 默认 5）开盘向上/向下跳空、当天优先（`GAP_MIN_PCT` 默认 1%）；候选理由标注如「缺口：向上跳空 6.0%（当天）」。
 - [改进] DK 选股精确化为「当天出现」：`*_dk_buy` 改为筛**当天出现 D 点**、新增 `*_dk_sell` 筛**当天出现 K 点**（命中为空即返回空）；个股趋势新增 `dk_last_signal`/`dk_days_since` 字段，标注 D/K 点是当天还是几天前出现，候选理由同步展示。
 - [新功能] 港股(hk)原生选股：新增 `hk` 市场（默认池 `src/data/hk_universe.txt` 约 2700 只，yfinance `.HK` 前复权，与美股/新加坡同路径），始终原生（AlphaSift 不覆盖港股）；Web「选股」页市场新增「港股」，支持本地缓存与同步按钮；新增 `scripts/fetch_hk_universe.py`。

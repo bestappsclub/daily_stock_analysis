@@ -230,11 +230,13 @@ class StockTrendAnalyzer:
     # 摆动结构识别窗口 N：某点比左右各 N 根都高/低才算摆动高/低点（可经 SWING_PIVOT_WINDOW 覆盖）
     SWING_WINDOW = int(os.getenv("SWING_PIVOT_WINDOW", "3") or 3)
 
-    # 东财式 DK 买卖点参数（与 stockscreener technical.py:_dk_buysell_state 保持一致）
-    DK_NUP = int(os.getenv("DK_NUP", "20") or 20)        # 硬突破位窗口（N日最高，不含当日）
-    DK_NDN = int(os.getenv("DK_NDN", "10") or 10)        # 破位窗口（N日最低，不含当日）
-    DK_VASSIST = float(os.getenv("DK_VASSIST", "0.96") or 0.96)  # 放量突破折扣
+    # 东财式 DK 买卖点参数（与 stockscreener technical.py:_dk_buysell_state 保持一致，
+    # 东财校准版：收盘价唐奇安通道 + 短周期软突破 + 放量延续，不用 high/low 与固定折扣）
+    DK_NUP = int(os.getenv("DK_NUP", "20") or 20)        # 硬突破位窗口 HHV(close, N)，不含当日
+    DK_NSOFT = int(os.getenv("DK_NSOFT", "7") or 7)      # 放量软突破窗口 HHV(close, N)，不含当日
+    DK_NDN = int(os.getenv("DK_NDN", "10") or 10)        # 破位窗口 LLV(close, N)，不含当日
     DK_VWIN = int(os.getenv("DK_VWIN", "20") or 20)      # 放量阈值均量窗口
+    DK_VMULT = float(os.getenv("DK_VMULT", "1.0") or 1.0)  # 放量阈值倍数 × MA(VOL, vwin)
 
     # 跳空缺口参数：开盘相对昨收的缺口幅度阈值（百分比）与"最近一周"窗口（交易日）
     GAP_MIN_PCT = float(os.getenv("GAP_MIN_PCT", "1.0") or 1.0)   # 缺口最小幅度(%)
@@ -350,18 +352,24 @@ class StockTrendAnalyzer:
                 return
 
     def _analyze_dk(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
-        """东财式 DK 买卖点状态机（价格突破 + 放量折扣，带滞后带 → 信号稀疏）。
+        """东财式 DK 买卖点状态机（东财校准版：收盘价唐奇安通道 + 短周期软突破 + 放量延续）。
 
-        镜像 stockscreener ``technical.py:_dk_buysell_state``，同参数：
-            持股(D点) ← 持币 且 (收盘 > 硬突破位 N日最高)
-                              或 (收盘 > 放量突破位=硬突破×0.96 且 放量)
-            持币(K点) ← 持股 且 (收盘 < 破位 N日最低)
-        硬突破位与破位之间形成滞后带，避免来回打脸。设置最后一根的
-        ``dk_state``（hold/cash）与发生状态翻转时的 ``dk_signal``（D/K）。
+        镜像 stockscreener ``technical.py:_dk_buysell_state``（提交 90ffdb7 起，按东财
+        「明日提示」逆向标定确认）：
+            持股(D点) ← 持币 且 (收盘 > 硬突破位 HHV(close, n_up))
+                              或 (收盘 > 放量软突破位 HHV(close, n_soft) 且 放量)
+            持币(K点) ← 持股 且 (收盘 < 破位 LLV(close, n_dn))
+        要点：通道**全部用收盘价**（非 high/low）；放量位是独立的**短周期**收盘高点
+        （非 hard×固定系数）；放量条件含「昨日已放量延续」。硬突破/破位之间形成滞后带 →
+        信号稀疏。设置最新一根的 ``dk_state``/``dk_signal`` 及最近翻转的
+        ``dk_last_signal``/``dk_days_since``。
 
-        注意：要与东财对齐应使用前复权数据（本仓库 yfinance 抓取默认前复权）。
+        注意：与东财对齐需前复权数据（本仓库 yfinance/akshare 抓取默认前复权）。
         """
-        n_up, n_dn, v_win = max(self.DK_NUP, 1), max(self.DK_NDN, 1), max(self.DK_VWIN, 1)
+        n_up = max(self.DK_NUP, 1)
+        n_soft = max(self.DK_NSOFT, 1)
+        n_dn = max(self.DK_NDN, 1)
+        v_win = max(self.DK_VWIN, 1)
         length = len(df)
         if length < n_up + 1:
             result.dk_state = "unknown"
@@ -369,26 +377,30 @@ class StockTrendAnalyzer:
             return
 
         close = df['close'].to_numpy(dtype=float)
-        high = (df['high'] if 'high' in df.columns else df['close']).to_numpy(dtype=float)
-        low = (df['low'] if 'low' in df.columns else df['close']).to_numpy(dtype=float)
         has_vol = 'volume' in df.columns
         vol = df['volume'].to_numpy(dtype=float) if has_vol else None
+
+        def _vol_thr(end_idx: int) -> float:
+            # vol_mult × MA(VOL, v_win)（含当根，end_idx<v_win-1 不足返回 nan）
+            if not has_vol or end_idx < v_win - 1 or end_idx < 0:
+                return float('nan')
+            return float(vol[end_idx - v_win + 1: end_idx + 1].mean()) * self.DK_VMULT
 
         bull = False
         last_flip_idx = -1       # 最近一次状态翻转所在的 K 线下标
         last_flip_type = ""      # 该翻转类型："D"（转持股）/"K"（转持币）
         for i in range(length):
             if i >= n_up:
-                hard_up = high[i - n_up:i].max()
-                hard_dn = low[i - n_dn:i].min() if i >= n_dn else low[:i].min()
-                vt = float('nan')
-                if has_vol and i >= v_win - 1:
-                    vt = vol[i - v_win + 1:i + 1].mean()
+                hard_up = close[i - n_up:i].max()      # HHV(close, n_up)，不含当日
+                soft_up = close[i - n_soft:i].max()    # HHV(close, n_soft)，不含当日
+                hard_dn = close[i - n_dn:i].min()      # LLV(close, n_dn)，不含当日
                 c = close[i]
                 if not bull:
-                    if c > hard_up or (
-                        c > hard_up * self.DK_VASSIST and vt == vt and vol[i] > vt
-                    ):
+                    vt_i = _vol_thr(i)
+                    vt_prev = _vol_thr(i - 1)
+                    vol_ok = (vt_i == vt_i and vol[i] > vt_i) or \
+                             (i > 0 and vt_prev == vt_prev and vol[i - 1] > vt_prev)
+                    if c > hard_up or (c > soft_up and vol_ok):
                         bull = True
                         last_flip_idx, last_flip_type = i, "D"
                 elif c < hard_dn:
