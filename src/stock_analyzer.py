@@ -17,6 +17,7 @@
 """
 
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Dict, Any, List
 from enum import Enum
@@ -131,7 +132,24 @@ class TrendAnalysisResult:
     signal_score: int = 0            # 综合评分 0-100
     signal_reasons: List[str] = field(default_factory=list)
     risk_factors: List[str] = field(default_factory=list)
-    
+
+    # 摆动结构（道氏理论：头头高底底高=多头 / 头头低底底低=空头）
+    structure: str = "unknown"       # "bull" | "bear" | "range" | "unknown"
+    structure_desc: str = ""         # 人类可读描述
+
+    # 东财式 DK 买卖点状态（价格突破 + 放量折扣状态机，详见 _analyze_dk）
+    dk_state: str = "unknown"        # "hold"(持股/多) | "cash"(持币/空) | "unknown"
+    dk_signal: str = ""              # 仅当最新一根就是翻转点时为 "D"/"K"（=当天出现），否则 ""
+    dk_last_signal: str = ""         # 最近一次翻转点类型 "D"/"K"（不论几天前），无则 ""
+    dk_days_since: int = -1          # 距最近一次 D/K 翻转点的交易日数（0=当天，-1=无）
+    dk_desc: str = ""                # 人类可读描述
+
+    # 跳空缺口（开盘相对昨收）：最近一次显著缺口的方向/幅度/几天前
+    gap_dir: str = ""                # "up"(向上跳空) | "down"(向下跳空) | ""
+    gap_pct: float = 0.0             # 该缺口幅度（带符号，%）
+    gap_days_since: int = -1         # 距最近缺口的交易日数（0=当天，-1=无）
+    gap_desc: str = ""               # 人类可读描述
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             'code': self.code,
@@ -165,6 +183,17 @@ class TrendAnalysisResult:
             'rsi_24': self.rsi_24,
             'rsi_status': self.rsi_status.value,
             'rsi_signal': self.rsi_signal,
+            'structure': self.structure,
+            'structure_desc': self.structure_desc,
+            'dk_state': self.dk_state,
+            'dk_signal': self.dk_signal,
+            'dk_last_signal': self.dk_last_signal,
+            'dk_days_since': self.dk_days_since,
+            'dk_desc': self.dk_desc,
+            'gap_dir': self.gap_dir,
+            'gap_pct': self.gap_pct,
+            'gap_days_since': self.gap_days_since,
+            'gap_desc': self.gap_desc,
         }
 
 
@@ -197,6 +226,21 @@ class StockTrendAnalyzer:
     RSI_LONG = 24              # 长期RSI周期
     RSI_OVERBOUGHT = 70        # 超买阈值
     RSI_OVERSOLD = 30          # 超卖阈值
+
+    # 摆动结构识别窗口 N：某点比左右各 N 根都高/低才算摆动高/低点（可经 SWING_PIVOT_WINDOW 覆盖）
+    SWING_WINDOW = int(os.getenv("SWING_PIVOT_WINDOW", "3") or 3)
+
+    # 东财式 DK 买卖点参数（与 stockscreener technical.py:_dk_buysell_state 保持一致，
+    # 东财校准版：收盘价唐奇安通道 + 短周期软突破 + 放量延续，不用 high/low 与固定折扣）
+    DK_NUP = int(os.getenv("DK_NUP", "20") or 20)        # 硬突破位窗口 HHV(close, N)，不含当日
+    DK_NSOFT = int(os.getenv("DK_NSOFT", "7") or 7)      # 放量软突破窗口 HHV(close, N)，不含当日
+    DK_NDN = int(os.getenv("DK_NDN", "10") or 10)        # 破位窗口 LLV(close, N)，不含当日
+    DK_VWIN = int(os.getenv("DK_VWIN", "20") or 20)      # 放量阈值均量窗口
+    DK_VMULT = float(os.getenv("DK_VMULT", "1.0") or 1.0)  # 放量阈值倍数 × MA(VOL, vwin)
+
+    # 跳空缺口参数：开盘相对昨收的缺口幅度阈值（百分比）与"最近一周"窗口（交易日）
+    GAP_MIN_PCT = float(os.getenv("GAP_MIN_PCT", "1.0") or 1.0)   # 缺口最小幅度(%)
+    GAP_WINDOW = int(os.getenv("GAP_WINDOW", "5") or 5)          # 近 N 个交易日内算"最近缺口"
     
     def __init__(self):
         """初始化分析器"""
@@ -259,8 +303,176 @@ class StockTrendAnalyzer:
         # 7. 生成买入信号
         self._generate_signal(result)
 
+        # 8. 摆动结构分析（头头高底底高 / 头头低底底低）
+        try:
+            self._analyze_swing_structure(df, result)
+        except Exception as exc:  # noqa: BLE001 - 结构分析失败不应影响主趋势结果
+            logger.debug(f"{code} 摆动结构分析失败: {exc}")
+
+        # 9. 东财式 DK 买卖点（价格突破 + 放量折扣状态机）
+        try:
+            self._analyze_dk(df, result)
+        except Exception as exc:  # noqa: BLE001 - DK 分析失败不应影响主趋势结果
+            logger.debug(f"{code} DK 买卖点分析失败: {exc}")
+
+        # 10. 跳空缺口（开盘相对昨收）
+        try:
+            self._analyze_gap(df, result)
+        except Exception as exc:  # noqa: BLE001 - 缺口分析失败不应影响主趋势结果
+            logger.debug(f"{code} 跳空缺口分析失败: {exc}")
+
         return result
-    
+
+    def _analyze_gap(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """跳空缺口：开盘价相对昨收的缺口。从最新一根往回找**最近一次**显著缺口
+        （|缺口%| ≥ GAP_MIN_PCT），记录方向/幅度/几天前（0=当天）。
+
+        只扫到 GAP_WINDOW + 少量余量即可——策略只关心"近一周内"的缺口。
+        """
+        length = len(df)
+        if length < 2 or 'open' not in df.columns:
+            return
+        open_ = df['open'].to_numpy(dtype=float)
+        close = df['close'].to_numpy(dtype=float)
+        thr = max(self.GAP_MIN_PCT, 0.0)
+        scan = min(length - 1, max(self.GAP_WINDOW, 1) + 1)  # 最近窗口内找
+        for back in range(scan):
+            i = length - 1 - back
+            prev_c = close[i - 1]
+            if prev_c <= 0:
+                continue
+            g = (open_[i] - prev_c) / prev_c * 100.0
+            if abs(g) >= thr:
+                result.gap_dir = "up" if g > 0 else "down"
+                result.gap_pct = round(g, 2)
+                result.gap_days_since = back
+                when = "当天" if back == 0 else f"{back} 天前"
+                arrow = "向上跳空" if g > 0 else "向下跳空"
+                result.gap_desc = f"{arrow} {abs(g):.1f}%（{when}）"
+                return
+
+    def _analyze_dk(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """东财式 DK 买卖点状态机（东财校准版：收盘价唐奇安通道 + 短周期软突破 + 放量延续）。
+
+        镜像 stockscreener ``technical.py:_dk_buysell_state``（提交 90ffdb7 起，按东财
+        「明日提示」逆向标定确认）：
+            持股(D点) ← 持币 且 (收盘 > 硬突破位 HHV(close, n_up))
+                              或 (收盘 > 放量软突破位 HHV(close, n_soft) 且 放量)
+            持币(K点) ← 持股 且 (收盘 < 破位 LLV(close, n_dn))
+        要点：通道**全部用收盘价**（非 high/low）；放量位是独立的**短周期**收盘高点
+        （非 hard×固定系数）；放量条件含「昨日已放量延续」。硬突破/破位之间形成滞后带 →
+        信号稀疏。设置最新一根的 ``dk_state``/``dk_signal`` 及最近翻转的
+        ``dk_last_signal``/``dk_days_since``。
+
+        注意：与东财对齐需前复权数据（本仓库 yfinance/akshare 抓取默认前复权）。
+        """
+        n_up = max(self.DK_NUP, 1)
+        n_soft = max(self.DK_NSOFT, 1)
+        n_dn = max(self.DK_NDN, 1)
+        v_win = max(self.DK_VWIN, 1)
+        length = len(df)
+        if length < n_up + 1:
+            result.dk_state = "unknown"
+            result.dk_desc = "数据不足以计算 DK 买卖点"
+            return
+
+        close = df['close'].to_numpy(dtype=float)
+        has_vol = 'volume' in df.columns
+        vol = df['volume'].to_numpy(dtype=float) if has_vol else None
+
+        def _vol_thr(end_idx: int) -> float:
+            # vol_mult × MA(VOL, v_win)（含当根，end_idx<v_win-1 不足返回 nan）
+            if not has_vol or end_idx < v_win - 1 or end_idx < 0:
+                return float('nan')
+            return float(vol[end_idx - v_win + 1: end_idx + 1].mean()) * self.DK_VMULT
+
+        bull = False
+        last_flip_idx = -1       # 最近一次状态翻转所在的 K 线下标
+        last_flip_type = ""      # 该翻转类型："D"（转持股）/"K"（转持币）
+        for i in range(length):
+            if i >= n_up:
+                hard_up = close[i - n_up:i].max()      # HHV(close, n_up)，不含当日
+                soft_up = close[i - n_soft:i].max()    # HHV(close, n_soft)，不含当日
+                hard_dn = close[i - n_dn:i].min()      # LLV(close, n_dn)，不含当日
+                c = close[i]
+                if not bull:
+                    vt_i = _vol_thr(i)
+                    vt_prev = _vol_thr(i - 1)
+                    vol_ok = (vt_i == vt_i and vol[i] > vt_i) or \
+                             (i > 0 and vt_prev == vt_prev and vol[i - 1] > vt_prev)
+                    if c > hard_up or (c > soft_up and vol_ok):
+                        bull = True
+                        last_flip_idx, last_flip_type = i, "D"
+                elif c < hard_dn:
+                    bull = False
+                    last_flip_idx, last_flip_type = i, "K"
+
+        result.dk_state = "hold" if bull else "cash"
+        if last_flip_idx >= 0:
+            days_since = (length - 1) - last_flip_idx
+            result.dk_last_signal = last_flip_type
+            result.dk_days_since = days_since
+            # 仅当最新一根就是翻转点时算"当天出现"
+            result.dk_signal = last_flip_type if days_since == 0 else ""
+            label = "D点/买点" if last_flip_type == "D" else "K点/卖点"
+            when = "当天" if days_since == 0 else f"{days_since} 天前"
+            holding = "持股" if bull else "持币"
+            result.dk_desc = f"{holding}｜{label} {when}出现"
+        else:
+            result.dk_signal = ""
+            result.dk_last_signal = ""
+            result.dk_days_since = -1
+            result.dk_desc = "持股（多头持有）" if bull else "持币（空仓观望）"
+
+    def _analyze_swing_structure(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """道氏摆动结构识别（头头高底底高 / 头头低底底低）。
+
+        用 fractal 法找摆动高/低点：某根比左右各 N 根都高 -> 摆动高点(头)，
+        都低 -> 摆动低点(底)。比较最近两个高点与最近两个低点：
+        - 头头高 + 底底高 -> bull（多头结构）
+        - 头头低 + 底底低 -> bear（空头结构）
+        - 其余 -> range（震荡/背离）
+        """
+        n = max(int(self.SWING_WINDOW), 1)
+        length = len(df)
+        if length < (2 * n + 1) * 2:
+            result.structure = "unknown"
+            result.structure_desc = "数据不足以识别摆动结构"
+            return
+
+        highs = (df['high'] if 'high' in df.columns else df['close']).to_numpy()
+        lows = (df['low'] if 'low' in df.columns else df['close']).to_numpy()
+
+        swing_high_idx: List[int] = []
+        swing_low_idx: List[int] = []
+        for i in range(n, length - n):
+            wh = highs[i - n:i + n + 1]
+            wl = lows[i - n:i + n + 1]
+            if highs[i] == wh.max() and int(wh.argmax()) == n:
+                swing_high_idx.append(i)
+            if lows[i] == wl.min() and int(wl.argmin()) == n:
+                swing_low_idx.append(i)
+
+        if len(swing_high_idx) < 2 or len(swing_low_idx) < 2:
+            result.structure = "range"
+            result.structure_desc = "摆动高/低点不足，结构未明"
+            return
+
+        higher_high = highs[swing_high_idx[-1]] > highs[swing_high_idx[-2]]
+        higher_low = lows[swing_low_idx[-1]] > lows[swing_low_idx[-2]]
+
+        if higher_high and higher_low:
+            result.structure = "bull"
+            result.structure_desc = "头头高 + 底底高（多头结构）"
+        elif (not higher_high) and (not higher_low):
+            result.structure = "bear"
+            result.structure_desc = "头头低 + 底底低（空头结构）"
+        else:
+            result.structure = "range"
+            result.structure_desc = (
+                "头头高但底底低（背离/震荡）" if higher_high else "头头低但底底高（收敛/震荡）"
+            )
+
     def _calculate_mas(self, df: pd.DataFrame) -> pd.DataFrame:
         """计算均线"""
         df = df.copy()

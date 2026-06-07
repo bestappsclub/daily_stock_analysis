@@ -49,7 +49,7 @@ describe('alphasiftApi', () => {
       reloadNow: true,
       items: [{ key: 'ALPHASIFT_ENABLED', value: 'true' }],
     });
-    expect(get).toHaveBeenCalledWith('/api/v1/alphasift/status');
+    expect(get).toHaveBeenCalledWith('/api/v1/alphasift/status', { params: { market: 'cn' } });
     expect(updateConfig).toHaveBeenCalledTimes(1);
     expect(post).not.toHaveBeenCalled();
   });
@@ -122,7 +122,7 @@ describe('alphasiftApi', () => {
 
     const result = await alphasiftApi.getStrategies();
 
-    expect(get).toHaveBeenCalledWith('/api/v1/alphasift/strategies', { timeout: 300000 });
+    expect(get).toHaveBeenCalledWith('/api/v1/alphasift/strategies', { params: { market: 'cn' }, timeout: 300000 });
     expect(result.enabled).toBe(true);
     expect(result.strategyCount).toBe(1);
     expect(result.strategies[0].id).toBe('dual_low');

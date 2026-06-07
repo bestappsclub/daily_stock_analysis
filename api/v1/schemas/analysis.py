@@ -108,6 +108,14 @@ class MarketReviewRequest(BaseModel):
         True,
         description="是否在大盘复盘完成后发送推送通知",
     )
+    region: Optional[str] = Field(
+        None,
+        description=(
+            "指定复盘市场：cn/hk/us/sg/both。"
+            "显式指定时直接复盘该市场（跳过交易日过滤）；"
+            "缺省时按 MARKET_REVIEW_REGION 配置 + 当日交易日自动判定。"
+        ),
+    )
 
 
 class MarketReviewAccepted(BaseModel):

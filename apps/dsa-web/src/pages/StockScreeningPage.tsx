@@ -1,6 +1,6 @@
 import type React from 'react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, CircleAlert, Play, PlusCircle, Search, SlidersHorizontal } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Play, PlusCircle, RefreshCw, Search, SlidersHorizontal } from 'lucide-react';
 import {
   alphasiftApi,
   type AlphaSiftCandidate,
@@ -9,7 +9,31 @@ import {
 } from '../api/alphasift';
 import { AppPage, Button, InlineAlert } from '../components/common';
 
-const MARKETS = [{ id: 'cn', label: 'A 股' }];
+const MARKETS = [
+  { id: 'cn', label: 'A 股' },
+  { id: 'hk', label: '港股' },
+  { id: 'us', label: '美股' },
+  { id: 'sg', label: '新加坡' },
+];
+
+// StockScreener（姊妹项目）详情页地址；可用 VITE_STOCKSCREENER_URL 覆盖
+const STOCKSCREENER_BASE =
+  (import.meta.env.VITE_STOCKSCREENER_URL as string | undefined)?.replace(/\/+$/, '') ||
+  'https://stockscreener-ashen.vercel.app';
+
+// Stock Codex（Streamlit 个股分析）地址；可用 VITE_STOCK_CODEX_URL 覆盖
+const STOCK_CODEX_BASE =
+  (import.meta.env.VITE_STOCK_CODEX_URL as string | undefined)?.replace(/\/+$/, '') ||
+  'https://stock-codex.onrender.com';
+
+// DSA 代码 -> StockScreener 详情页 symbol：US/HK/SG 同形；A股 6 位数字补 .SS/.SZ 后缀
+function toScreenerSymbol(code: string): string {
+  const c = (code || '').trim().toUpperCase();
+  if (/^\d{6}$/.test(c)) {
+    return c.startsWith('6') || c.startsWith('9') ? `${c}.SS` : `${c}.SZ`;
+  }
+  return c;
+}
 
 const formatScore = (score: AlphaSiftCandidate['score']) => {
   if (score == null || Number.isNaN(Number(score))) {
@@ -205,7 +229,7 @@ const StockScreeningPage: React.FC = () => {
   const [market, setMarket] = useState('cn');
   const [strategy, setStrategy] = useState('dual_low');
   const [strategies, setStrategies] = useState<AlphaSiftStrategy[]>([]);
-  const [maxResults, setMaxResults] = useState(3);
+  const [maxResults, setMaxResults] = useState(20);
   const [candidates, setCandidates] = useState<AlphaSiftCandidate[]>([]);
   const [screenMeta, setScreenMeta] = useState<AlphaSiftScreenResponse | null>(null);
   const [expandedCode, setExpandedCode] = useState<string | null>(null);
@@ -214,6 +238,9 @@ const StockScreeningPage: React.FC = () => {
   const [loadingStrategies, setLoadingStrategies] = useState(false);
   const [error, setError] = useState('');
   const [strategyLoadError, setStrategyLoadError] = useState('');
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
+  const [syncFull, setSyncFull] = useState(false);
 
   const selectedStrategy = useMemo(() => strategies.find((item) => item.id === strategy), [strategies, strategy]);
   const selectedStrategyTitle = selectedStrategy?.name || selectedStrategy?.title || '自定义策略';
@@ -235,11 +262,11 @@ const StockScreeningPage: React.FC = () => {
     setExpandedCode(null);
   };
 
-  const loadStrategies = useCallback(async () => {
+  const loadStrategies = useCallback(async (targetMarket: string) => {
     setLoadingStrategies(true);
     try {
       setStrategyLoadError('');
-      const result = await alphasiftApi.getStrategies();
+      const result = await alphasiftApi.getStrategies(targetMarket);
       const loadedStrategies = result.strategies || [];
       setStrategies(loadedStrategies);
       if (loadedStrategies.length > 0) {
@@ -258,7 +285,7 @@ const StockScreeningPage: React.FC = () => {
   useEffect(() => {
     let active = true;
     alphasiftApi
-      .getStatus()
+      .getStatus(market)
       .then((status) => {
         if (!active) {
           return;
@@ -266,7 +293,7 @@ const StockScreeningPage: React.FC = () => {
         setEnabled(status.enabled);
         setAvailable(status.available);
         if (status.enabled && status.available) {
-          void loadStrategies();
+          void loadStrategies(market);
         }
       })
       .catch(() => {
@@ -278,7 +305,7 @@ const StockScreeningPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [loadStrategies]);
+  }, [loadStrategies, market]);
 
   const handleEnable = async () => {
     setEnabling(true);
@@ -287,10 +314,10 @@ const StockScreeningPage: React.FC = () => {
       await alphasiftApi.enable();
       setEnabled(true);
       setAvailable(true);
-      await loadStrategies();
+      await loadStrategies(market);
     } catch (err) {
       try {
-        const status = await alphasiftApi.getStatus();
+        const status = await alphasiftApi.getStatus(market);
         setEnabled(status.enabled);
         setAvailable(status.available);
       } catch {
@@ -324,10 +351,31 @@ const StockScreeningPage: React.FC = () => {
     setMaxResults(nextMaxResults);
   };
 
+  // 本地行情缓存支持的原生市场（美股/新加坡/港股/A股）
+  const supportsCache = market === 'us' || market === 'sg' || market === 'hk' || market === 'cn';
+
+  const handleSyncCache = async () => {
+    setSyncing(true);
+    setSyncMessage('');
+    setError('');
+    try {
+      const r = await alphasiftApi.syncCache(market, syncFull);
+      setSyncMessage(
+        `行情缓存已更新：${r.market} 股票池 ${r.universe} 只，刷新 ${r.refreshed}/${r.stale} 只，` +
+        `新增约 ${r.savedRows} 行（${(r.elapsedMs / 1000).toFixed(1)}s）。`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '同步行情缓存失败');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleSubmit = async () => {
     setLoading(true);
     setError('');
     setScreenMeta(null);
+    setSyncMessage('');
     try {
       const result = await alphasiftApi.screen({ market, strategy, maxResults });
       setScreenMeta(result);
@@ -390,14 +438,32 @@ const StockScreeningPage: React.FC = () => {
       {error ? <InlineAlert variant="danger" title="调用失败" message={error} /> : null}
 
       <section className="rounded-2xl border border-cyan/35 bg-card/95 p-4 shadow-soft-card">
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-foreground">选择策略</h2>
-            <p className="mt-1 text-xs text-secondary-text">策略来自 AlphaSift；DSA 会对候选补充行情、基本面和新闻上下文。</p>
+            <p className="mt-1 text-xs text-secondary-text">
+              先选市场：A股走 AlphaSift；<span className="text-cyan">美股 / 新加坡为 DSA 原生（含多头结构 / 空头结构 / DK买点）</span>。切换市场会刷新下方策略。
+            </p>
           </div>
-          <span className="rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 text-xs font-semibold text-cyan">
-            {selectedStrategyTag}
-          </span>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-xs font-medium text-secondary-text">
+              市场
+              <select
+                className="h-9 rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-foreground outline-none transition-colors focus:border-cyan"
+                value={market}
+                onChange={(event) => handleMarketChange(event.target.value)}
+              >
+                {MARKETS.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <span className="rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 text-xs font-semibold text-cyan">
+              {selectedStrategyTag}
+            </span>
+          </div>
         </div>
 
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
@@ -441,22 +507,7 @@ const StockScreeningPage: React.FC = () => {
           参数设置
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_180px_auto] lg:items-end">
-          <label className="space-y-2 text-xs font-medium text-secondary-text">
-            市场
-            <select
-              className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground outline-none transition-colors focus:border-cyan"
-              value={market}
-              onChange={(event) => handleMarketChange(event.target.value)}
-            >
-              {MARKETS.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
+        <div className="grid gap-4 lg:grid-cols-[1.2fr_180px_auto] lg:items-end">
           <label className="space-y-2 text-xs font-medium text-secondary-text">
             策略参数
             <input
@@ -478,6 +529,35 @@ const StockScreeningPage: React.FC = () => {
             />
           </label>
 
+          {supportsCache && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                className="h-11"
+                isLoading={syncing}
+                loadingText="同步中..."
+                disabled={syncing || loading}
+                title="把该市场股票的日线行情拉取/更新到本地缓存（更快、可离线）"
+                onClick={() => void handleSyncCache()}
+              >
+                <RefreshCw className="h-4 w-4" />
+                同步行情缓存
+              </Button>
+              <label
+                className="flex h-11 cursor-pointer items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 text-xs text-secondary-text"
+                title="忽略新鲜度，重新拉取该市场全部标的的最新行情（盘内可拿到当日最新；全市场较慢）"
+              >
+                <input
+                  type="checkbox"
+                  className="h-3.5 w-3.5 rounded border-border accent-cyan"
+                  checked={syncFull}
+                  onChange={(event) => setSyncFull(event.target.checked)}
+                />
+                强制刷新
+              </label>
+            </div>
+          )}
+
           <Button
             className="h-11 min-w-40"
             isLoading={loading}
@@ -489,6 +569,9 @@ const StockScreeningPage: React.FC = () => {
             运行选股
           </Button>
         </div>
+        {syncMessage && (
+          <p className="mt-3 text-xs text-success">{syncMessage}</p>
+        )}
       </section>
 
       <section className="rounded-2xl border border-border bg-card/95 p-4 shadow-soft-card">
@@ -585,7 +668,28 @@ const StockScreeningPage: React.FC = () => {
                     <Fragment key={`${item.rank}-${item.code}`}>
                       <tr className="border-t border-border align-top transition-colors hover:bg-hover/50">
                         <td className="px-4 py-3 text-secondary-text">{item.rank}</td>
-                        <td className="px-4 py-3 font-mono font-semibold text-foreground">{item.code}</td>
+                        <td className="px-4 py-3 font-mono font-semibold text-foreground">
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={`${STOCKSCREENER_BASE}/screener/${encodeURIComponent(toScreenerSymbol(item.code))}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-foreground hover:text-cyan hover:underline"
+                              title="在 StockScreener 查看个股详情"
+                            >
+                              {item.code}
+                            </a>
+                            <a
+                              href={`${STOCK_CODEX_BASE}/?symbol=${encodeURIComponent(toScreenerSymbol(item.code))}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-normal text-secondary-text hover:text-cyan hover:underline"
+                              title="在 Stock Codex 分析个股"
+                            >
+                              分析↗
+                            </a>
+                          </div>
+                        </td>
                         <td className="px-4 py-3 font-semibold text-foreground">{item.name || '-'}</td>
                         <td className="px-4 py-3 text-secondary-text">{item.industry || '-'}</td>
                         <td className="px-4 py-3 text-secondary-text">{formatNumber(item.price)}</td>

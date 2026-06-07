@@ -154,6 +154,46 @@ class AnalysisApiContractTestCase(unittest.TestCase):
         self.assertEqual(kwargs["stock_name"], "大盘复盘")
         self.assertEqual(kwargs["message"], "大盘复盘任务已提交")
 
+    def test_trigger_market_review_explicit_region_bypasses_trading_day_skip(self) -> None:
+        if trigger_market_review is None or analysis_endpoint_module is None:
+            self.skipTest("analysis endpoint helpers unavailable in this environment")
+        task_queue = MagicMock()
+        task_queue.submit_background_task.return_value = SimpleNamespace(task_id="mr-region")
+        request = SimpleNamespace(send_notification=True, region="us")
+        config = SimpleNamespace(trading_day_check_enabled=False)
+
+        with patch.object(
+            analysis_endpoint_module,
+            "_try_acquire_market_review_lock",
+            return_value=object(),
+        ), patch.object(
+            analysis_endpoint_module,
+            # would normally skip (all markets closed); explicit region must override
+            "_compute_market_review_override_region",
+            return_value="",
+        ), patch.object(
+            analysis_endpoint_module, "_run_market_review_background",
+        ) as run_bg, patch(
+            "api.v1.endpoints.analysis.get_task_queue", return_value=task_queue
+        ):
+            response = trigger_market_review(request=request, config=config)
+            # invoke the captured background lambda to assert region propagation
+            args, _ = task_queue.submit_background_task.call_args
+            args[0]()
+
+        self.assertEqual(response.status, "accepted")
+        self.assertNotIn("非交易日", response.message)
+        self.assertEqual(run_bg.call_args.kwargs["override_region"], "us")
+
+    def test_trigger_market_review_rejects_invalid_region(self) -> None:
+        if trigger_market_review is None or analysis_endpoint_module is None:
+            self.skipTest("analysis endpoint helpers unavailable in this environment")
+        request = SimpleNamespace(send_notification=True, region="jp")
+        config = SimpleNamespace(trading_day_check_enabled=False)
+        with self.assertRaises(Exception) as ctx:
+            trigger_market_review(request=request, config=config)
+        self.assertEqual(getattr(ctx.exception, "status_code", None), 400)
+
     def test_trigger_market_review_rejects_duplicate_submission(self) -> None:
         if trigger_market_review is None or analysis_endpoint_module is None:
             self.skipTest("analysis endpoint helpers unavailable in this environment")

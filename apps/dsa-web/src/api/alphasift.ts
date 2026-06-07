@@ -93,6 +93,15 @@ export type AlphaSiftStrategiesResponse = {
   strategyCount: number;
 };
 
+export type SyncCacheResponse = {
+  market: string;
+  universe: number;
+  stale: number;
+  refreshed: number;
+  savedRows: number;
+  elapsedMs: number;
+};
+
 export type AlphaSiftScreenResponse = {
   enabled: boolean;
   candidates: AlphaSiftCandidate[];
@@ -140,8 +149,10 @@ async function setAlphaSiftEnabled(value: 'true' | 'false'): Promise<void> {
 }
 
 export const alphasiftApi = {
-  async getStatus(): Promise<AlphaSiftStatus> {
-    const response = await apiClient.get<Record<string, unknown>>('/api/v1/alphasift/status');
+  async getStatus(market: string = 'cn'): Promise<AlphaSiftStatus> {
+    const response = await apiClient.get<Record<string, unknown>>('/api/v1/alphasift/status', {
+      params: { market },
+    });
     return toCamelCase<AlphaSiftStatus>(response.data);
   },
 
@@ -154,8 +165,20 @@ export const alphasiftApi = {
     return toCamelCase<AlphaSiftScreenResponse>(response.data);
   },
 
-  async getStrategies(): Promise<AlphaSiftStrategiesResponse> {
-    const response = await apiClient.get<Record<string, unknown>>('/api/v1/alphasift/strategies', { timeout: ALPHASIFT_INSTALL_TIMEOUT_MS });
+  async syncCache(market: string, full: boolean = false): Promise<SyncCacheResponse> {
+    const response = await apiClient.post<Record<string, unknown>>(
+      '/api/v1/alphasift/sync-cache',
+      { market, full },
+      { timeout: ALPHASIFT_SCREEN_TIMEOUT_MS },
+    );
+    return toCamelCase<SyncCacheResponse>(response.data);
+  },
+
+  async getStrategies(market: string = 'cn'): Promise<AlphaSiftStrategiesResponse> {
+    const response = await apiClient.get<Record<string, unknown>>('/api/v1/alphasift/strategies', {
+      params: { market },
+      timeout: ALPHASIFT_INSTALL_TIMEOUT_MS,
+    });
     return toCamelCase<AlphaSiftStrategiesResponse>(response.data);
   },
 

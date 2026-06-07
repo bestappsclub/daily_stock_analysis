@@ -522,14 +522,28 @@ def trigger_market_review(
     """Trigger market review from Web/API without blocking the request."""
     request = request or MarketReviewRequest()
 
-    override_region = _compute_market_review_override_region(config)
-    if override_region == "":
-        return MarketReviewAccepted(
-            status="accepted",
-            message="今日大盘复盘相关市场均为非交易日，已跳过大盘复盘",
-            send_notification=request.send_notification,
-            trace_id=None,
-        )
+    requested_region = (getattr(request, "region", None) or "").strip().lower()
+    if requested_region:
+        # 用户在 Web 端显式选择市场：直接复盘该市场，不再做交易日过滤
+        # （手动触发即代表用户想看，非交易日也允许复盘上一交易日）。
+        if requested_region not in ("cn", "hk", "us", "sg", "both"):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "invalid_market_review_region",
+                    "message": f"不支持的复盘市场：{requested_region}（可选 cn/hk/us/sg/both）",
+                },
+            )
+        override_region = requested_region
+    else:
+        override_region = _compute_market_review_override_region(config)
+        if override_region == "":
+            return MarketReviewAccepted(
+                status="accepted",
+                message="今日大盘复盘相关市场均为非交易日，已跳过大盘复盘",
+                send_notification=request.send_notification,
+                trace_id=None,
+            )
 
     lock_token = _try_acquire_market_review_lock(config)
     if lock_token is None:

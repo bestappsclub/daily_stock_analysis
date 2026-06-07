@@ -67,10 +67,26 @@ HK_PROFILE = MarketProfile(
 )
 
 
+SG_PROFILE = MarketProfile(
+    region="sg",
+    mood_index_code="STI",
+    news_queries=[
+        "新加坡股市 海峡时报指数",
+        "Singapore stock market STI",
+        "SGX Straits Times Index",
+    ],
+    prompt_index_hint="分析海峡时报指数(STI)等新加坡主要指数走势特点",
+    has_market_stats=False,
+    has_sector_rankings=False,
+)
+
+
 def get_profile(region: str) -> MarketProfile:
     """根据 region 返回对应的 MarketProfile"""
     if region == "us":
         return US_PROFILE
     if region == "hk":
         return HK_PROFILE
+    if region == "sg":
+        return SG_PROFILE
     return CN_PROFILE

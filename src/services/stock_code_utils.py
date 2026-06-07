@@ -68,6 +68,9 @@ def is_code_like(value: str) -> bool:
         return True
     if _strip_exchange_suffix(text) is not None:
         return True
+    # SG (SGX) codes are alphanumeric with a .SI suffix: D05.SI, BS6.SI, 9CI.SI, A17U.SI
+    if re.match(r"^[A-Z0-9]{1,5}\.SI$", text):
+        return True
     if re.match(r"^[A-Z]{1,5}(?:\.(?:US|[A-Z]))?$", text):
         return True
     # Support exchange-prefixed codes: SH600519, SZ000001, BJ920493, HK00700
@@ -89,6 +92,9 @@ def normalize_code(raw: str) -> Optional[str]:
     if not text:
         return None
     if text.isdigit() and len(text) in (5, 6):
+        return text
+    # SG (SGX) codes keep their .SI suffix (bare base is ambiguous): D05.SI, BS6.SI
+    if re.match(r"^[A-Z0-9]{1,5}\.SI$", text):
         return text
     if re.match(r"^[A-Z]{1,5}(?:\.(?:US|[A-Z]))?$", text):
         return text

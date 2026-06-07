@@ -163,10 +163,46 @@ HK_BLUEPRINT = MarketStrategyBlueprint(
 )
 
 
+SG_BLUEPRINT = MarketStrategyBlueprint(
+    region="sg",
+    title="新加坡市场三段式复盘策略",
+    positioning="聚焦海峡时报指数(STI)趋势、银行与REITs权重板块及区域资金情绪，形成次日交易计划。",
+    principles=[
+        "先看 STI 方向，再看银行/REITs 等权重板块，最后看资金情绪与区域联动。",
+        "结论必须映射到仓位、节奏与风险控制动作。",
+        "判断使用当日数据与近3日新闻，不臆测未验证信息。",
+    ],
+    dimensions=[
+        StrategyDimension(
+            name="趋势结构",
+            objective="判断市场处于上升、震荡还是防守阶段。",
+            checkpoints=["STI 是否站稳关键均线", "放量上涨或缩量下跌是否成立", "关键支撑阻力是否被突破"],
+        ),
+        StrategyDimension(
+            name="权重板块",
+            objective="识别银行、REITs 等权重板块对指数的拉动或拖累。",
+            checkpoints=["三大银行(DBS/OCBC/UOB)走势", "REITs 对利率预期的敏感度", "权重股集中度与广度"],
+        ),
+        StrategyDimension(
+            name="资金与区域",
+            objective="提炼资金情绪与区域市场联动。",
+            checkpoints=["新元汇率与利率含义", "区域市场(美股/港股)联动", "防御与成长因子轮动"],
+        ),
+    ],
+    action_framework=[
+        "进攻：STI 上行 + 权重板块走强 + 资金情绪偏积极。",
+        "均衡：指数分化或缩量震荡，控制仓位并等待确认。",
+        "防守：指数转弱 + 波动率上升，优先风控与减仓。",
+    ],
+)
+
+
 def get_market_strategy_blueprint(region: str) -> MarketStrategyBlueprint:
     """Return strategy blueprint by market region."""
     if region == "us":
         return US_BLUEPRINT
     if region == "hk":
         return HK_BLUEPRINT
+    if region == "sg":
+        return SG_BLUEPRINT
     return CN_BLUEPRINT

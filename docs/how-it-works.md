@@ -158,14 +158,59 @@ python main.py --dry-run
 
 # 2. 完整分析单只股票 + 详细日志，对照本文第 4 节逐步看
 python main.py --stocks 600519 --debug
+python main.py --stocks BS6.SI --debug      # 新加坡个股（注意 .SI 后缀）
 
-# 3. 跑大盘复盘
+# 3. 跑大盘复盘（可指定市场）
 python main.py --market-review
+MARKET_REVIEW_REGION=us python main.py --market-review
 
 # 4. 起 Web 工作台，从 UI 反向理解 API
 python main.py --webui   # 然后访问 http://127.0.0.1:8000
+
+# 5. 灌本地行情缓存后，体验秒级全市场选股（见第 11 节）
+python scripts/sync_prices.py --markets us --days 150
 ```
 
 边看日志边对照 `analyze_stock()` 的各个 Step，是理解这套系统最快的方式。
-</content>
-</invoke>
+
+---
+
+# 进阶能力（本轮扩展，单独成节便于学习）
+
+## 10. 原生多市场选股（美股 / 新加坡 / DK / 摆动结构）
+
+**美股(us)/新加坡(sg) 是 DSA 自建的原生选股器**；**A股(cn) 可选原生**（`CN_SCREEN_NATIVE=true` 开启，默认关时仍走外部 `alphasift` 包）。各市场通过同一个 `/api/v1/alphasift/screen` 按 `market` 分发，复用同一个 Web「选股」页。A股原生数据走 akshare 前复权（`data_provider/akshare_fetcher.py:batch_download_cn_daily`，东方财富→新浪→腾讯 fallback），默认池 `src/data/cn_universe.txt`（全 A股+北交所 ~5500），由 `scripts/fetch_cn_universe.py` 从前端股票索引生成。
+
+- 核心：[src/services/us_screener_service.py](src/services/us_screener_service.py) 的 `MarketScreenerService` —— 扫描**有界股票池**，对每只调用与个股分析相同的 `StockTrendAnalyzer` 打分，按策略排序，可选 LLM 重排。
+- 股票池（静态可提交文件，确定性、不依赖运行时网络）：
+  - 美股 [src/data/us_universe.txt](src/data/us_universe.txt)（标普 Composite 1500）
+  - 新加坡 [src/data/sg_universe.txt](src/data/sg_universe.txt)（SGX 全主板 ~615，由 [scripts/fetch_sg_universe.py](scripts/fetch_sg_universe.py) 从 SGX 官方列表生成）
+- 内置策略（id 形如 `us_*` / `sg_*`）：趋势动量 / 放量突破 / 超跌反转 / 多头趋势 / **多头结构 / 空头结构** / **DK买点**。
+- API 分发：[api/v1/endpoints/alphasift.py](api/v1/endpoints/alphasift.py) `_native_screen_market()`。
+- 详见 [docs/us-screening.md](us-screening.md)。
+
+两个特色指标都在 [src/stock_analyzer.py](src/stock_analyzer.py) 计算，作为字段挂在 `TrendAnalysisResult` 上：
+
+- **摆动结构（道氏）**：`_analyze_swing_structure()` 用 fractal 找摆动高/低点，头头高+底底高=`structure=bull`，头头低+底底低=`bear`。
+- **东财式 DK 买卖点**：`_analyze_dk()` 价格突破 N 日高(放量折扣)转持股(D点/买)、跌破 N 日低转持币(K点/卖)，输出 `dk_state`(hold/cash)/`dk_signal`(D/K)。算法与 stockscreener `_dk_buysell_state` 一致，完整说明见 stockscreener 项目 `docs/dk-indicator.md`。要与东财对齐需前复权数据。
+
+## 11. 本地行情缓存（加速 / 离线 / 不限流）
+
+选股默认**优先读本地 `stock_daily` 表缓存**，只对缺失/过期标的 live 补抓并回写：
+
+- 灌库 / 增量刷新：[scripts/sync_prices.py](scripts/sync_prices.py)（`--markets us,sg --days 150`，已新鲜的跳过）；或 Web「选股」页的**「同步行情缓存」按钮** → `POST /api/v1/alphasift/sync-cache`。三者同一份逻辑 `MarketScreenerService.sync_cache()`。
+- 缓存读写：`MarketScreenerService._load_frames()` + 仓储层 [src/repositories/stock_repo.py](src/repositories/stock_repo.py)（`get_range`/`save_dataframe`），底层 [src/storage.py](src/storage.py) 的 `StockDaily` 表与 `save_daily_data()` upsert。
+- 开关：`<PREFIX>_USE_CACHE`（默认开）、`SCREEN_CACHE_STALE_DAYS`（默认 2 天）；**缓存层任何异常自动回退 live**。
+- 数据库 `data/stock_analysis.db` 已 gitignore，不入库（约 150 字节/行，us+sg≈2100 只×150 天≈47MB）。
+- 体感：全缓存重复扫描毫秒级（实测 5 只 ~200ms）。
+
+## 12. 大盘复盘选市场 + 新加坡个股输入
+
+- **复盘选市场**：Web 首页「大盘复盘」按钮旁的市场下拉（A股/港股/美股/新加坡/全部）→ `MarketReviewRequest.region` → [api/v1/endpoints/analysis.py](api/v1/endpoints/analysis.py) `trigger_market_review`（显式 region 跳过交易日过滤）。`cn/hk/us/sg/both` 由 [src/core/trading_calendar.py](src/core/trading_calendar.py) `compute_effective_region` 解析；复盘执行 [src/core/market_review.py](src/core/market_review.py)。缺省仍按 `MARKET_REVIEW_REGION` 配置 + 当日交易日自动判定。
+- **SG 个股输入**：自动补全索引 [apps/dsa-web/public/stocks.index.json](apps/dsa-web/public/stocks.index.json) 纳入 SGX 全主板（由 [scripts/add_sg_to_stock_index.py](scripts/add_sg_to_stock_index.py) 注入）；输入裸代码/名称（`BS6`/`DBS`）经 `resolveQueryToCanonicalCode` 解析成 `.SI` 规范代码；前端 [validation.ts](apps/dsa-web/src/utils/validation.ts) 与后端 [stock_code_utils.py](src/services/stock_code_utils.py) 都放行 `.SI` 格式；市场识别 `.SI → sg`（时区 Asia/Singapore，日历 XSES）。
+
+## 13. 本地常驻与定时（macOS）
+
+- **Web 服务常驻**：`com.dsa.webserver`（登录自启 + 保活，端口 8000）。
+- **行情缓存每日刷新**：`com.dsa.pricesync`（每天 06:00/18:00 跑 `sync_prices.py`，增量）。
+- 配置与管理命令见 [docs/run-local-service.md](run-local-service.md)。

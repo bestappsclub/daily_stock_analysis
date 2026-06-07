@@ -85,3 +85,7 @@ static/
 /apps/dsa-desktop/dist/
 /apps/dsa-desktop/node_modules/
 docs/specs/
+
+# Obsidian editor config (accidentally committed; keep out of repo)
+.obsidian/
+docs/.obsidian/
