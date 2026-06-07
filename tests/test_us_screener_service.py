@@ -393,6 +393,36 @@ class CnScreenerTest(unittest.TestCase):
         self.assertIn("cn", SUPPORTED_MARKETS)
 
 
+class HkScreenerTest(unittest.TestCase):
+    def test_hk_native_and_strategies(self) -> None:
+        from src.services.us_screener_service import SUPPORTED_MARKETS
+        self.assertIn("hk", SUPPORTED_MARKETS)
+        ids = {s["id"] for s in MarketScreenerService("hk", config=SimpleNamespace()).strategies()["strategies"]}
+        self.assertIn("hk_dk_buy", ids)
+        self.assertIn("hk_momentum", ids)
+
+    @patch.dict(
+        "os.environ",
+        {
+            "HK_SCREEN_ENABLED": "true",
+            "HK_SCREEN_LLM_RERANK": "false",
+            "HK_SCREEN_ENRICH": "false",
+            "HK_SCREEN_UNIVERSE": "0700.HK,0005.HK",
+            "HK_SCREEN_USE_CACHE": "false",
+        },
+        clear=False,
+    )
+    def test_hk_screen_uses_yfinance_batch(self) -> None:
+        frames = {"0700.HK": _make_df(400, "up"), "0005.HK": _make_df(60, "up")}
+        with patch.object(uss, "batch_download_us_daily", return_value=frames) as mocked:
+            result = MarketScreenerService("hk", config=SimpleNamespace()).screen(
+                strategy="hk_momentum", market="hk", max_results=5
+            )
+        mocked.assert_called_once()
+        self.assertEqual(result["market"], "hk")
+        self.assertEqual(result["snapshot_count"], 2)
+
+
 class _FakeRepo:
     """Repo double: 'CACHED' has fresh cached bars, everything else is missing."""
 

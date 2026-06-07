@@ -58,6 +58,7 @@ _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 _MARKETS: Dict[str, Dict[str, Any]] = {
     "us": {"env_prefix": "US_SCREEN", "universe_file": "us_universe.txt", "default_max": 1500, "label": "美股"},
     "sg": {"env_prefix": "SG_SCREEN", "universe_file": "sg_universe.txt", "default_max": 700, "label": "新加坡"},
+    "hk": {"env_prefix": "HK_SCREEN", "universe_file": "hk_universe.txt", "default_max": 3000, "label": "港股"},
     "cn": {"env_prefix": "CN_SCREEN", "universe_file": "cn_universe.txt", "default_max": 6000, "label": "A股"},
 }
 SUPPORTED_MARKETS = tuple(_MARKETS.keys())

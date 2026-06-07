@@ -11,6 +11,7 @@ import { AppPage, Button, InlineAlert } from '../components/common';
 
 const MARKETS = [
   { id: 'cn', label: 'A 股' },
+  { id: 'hk', label: '港股' },
   { id: 'us', label: '美股' },
   { id: 'sg', label: '新加坡' },
 ];
@@ -350,8 +351,8 @@ const StockScreeningPage: React.FC = () => {
     setMaxResults(nextMaxResults);
   };
 
-  // 本地行情缓存支持的原生市场（美股/新加坡/A股）
-  const supportsCache = market === 'us' || market === 'sg' || market === 'cn';
+  // 本地行情缓存支持的原生市场（美股/新加坡/港股/A股）
+  const supportsCache = market === 'us' || market === 'sg' || market === 'hk' || market === 'cn';
 
   const handleSyncCache = async () => {
     setSyncing(true);

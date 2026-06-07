@@ -28,11 +28,11 @@ def _cn_native_enabled() -> bool:
 def _native_screen_market(market: str) -> str:
     """返回走 DSA 原生选股的市场标记；否则空串（走 AlphaSift）。
 
-    - us / sg：始终原生。
+    - us / sg / hk：始终原生（AlphaSift 不覆盖这些市场）。
     - cn：仅当 CN_SCREEN_NATIVE 开启时原生，否则走 AlphaSift。
     """
     m = (market or "").strip().lower()
-    if m in ("us", "sg"):
+    if m in ("us", "sg", "hk"):
         return m
     if m == "cn" and m in SUPPORTED_MARKETS and _cn_native_enabled():
         return "cn"
