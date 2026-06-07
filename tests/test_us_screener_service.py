@@ -393,6 +393,52 @@ class CnScreenerTest(unittest.TestCase):
         self.assertIn("cn", SUPPORTED_MARKETS)
 
 
+def _gap_df(last_open: float, base: float = 100.0, n: int = 30) -> pd.DataFrame:
+    """Flat at `base`, with the last bar opening at `last_open` (creates a gap)."""
+    opens = [base] * (n - 1) + [last_open]
+    closes = [base] * (n - 1) + [last_open]
+    dates = [date(2025, 1, 1) + timedelta(days=i) for i in range(n)]
+    return pd.DataFrame({
+        "date": dates,
+        "open": opens,
+        "high": [c * 1.01 for c in closes],
+        "low": [c * 0.99 for c in closes],
+        "close": closes,
+        "volume": [1_000_000] * n,
+    })
+
+
+class GapTest(unittest.TestCase):
+    def test_gap_detection(self) -> None:
+        from src.stock_analyzer import StockTrendAnalyzer
+        an = StockTrendAnalyzer()
+        up = an.analyze(_gap_df(106.0), "GU")   # 末根开盘 +6%
+        dn = an.analyze(_gap_df(94.0), "GD")     # 末根开盘 -6%
+        flat = an.analyze(_gap_df(100.3), "GF")  # +0.3% < 阈值1%
+        self.assertEqual(up.gap_dir, "up")
+        self.assertEqual(up.gap_days_since, 0)
+        self.assertEqual(dn.gap_dir, "down")
+        self.assertEqual(flat.gap_dir, "")
+
+    @patch.dict(
+        "os.environ",
+        {**_DETERMINISTIC_ENV, "US_SCREEN_UNIVERSE": "GU,GD,GF"},
+        clear=False,
+    )
+    def test_gap_up_strategy_filters(self) -> None:
+        frames = {"GU": _gap_df(106.0), "GD": _gap_df(94.0), "GF": _gap_df(100.3)}
+        with patch.object(uss, "batch_download_us_daily", return_value=frames):
+            result = USScreenerService(config=SimpleNamespace()).screen(
+                strategy="us_gap_up", market="us", max_results=5
+            )
+        self.assertEqual({c["code"] for c in result["candidates"]}, {"GU"})
+
+    def test_gap_strategies_listed(self) -> None:
+        ids = {s["id"] for s in MarketScreenerService("us", config=SimpleNamespace()).strategies()["strategies"]}
+        self.assertIn("us_gap_up", ids)
+        self.assertIn("us_gap_down", ids)
+
+
 class HkScreenerTest(unittest.TestCase):
     def test_hk_native_and_strategies(self) -> None:
         from src.services.us_screener_service import SUPPORTED_MARKETS

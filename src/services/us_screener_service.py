@@ -73,6 +73,8 @@ _STRATEGY_TEMPLATES: List[Dict[str, Any]] = [
     {"suffix": "structure_bear", "name": "空头结构", "description": "道氏摆动结构：头头低 + 底底低（空头结构）。", "category": "structure", "tags": ["结构", "空头", "头头低底底低"]},
     {"suffix": "dk_buy", "name": "DK买点", "description": "当天出现 D 点（价格突破 N 日高/放量，买入信号）。", "category": "dk", "tags": ["DK", "买点", "D点", "当天"]},
     {"suffix": "dk_sell", "name": "DK卖点", "description": "当天出现 K 点（跌破 N 日低，卖出信号）。", "category": "dk", "tags": ["DK", "卖点", "K点", "当天"]},
+    {"suffix": "gap_up", "name": "向上跳空", "description": "近一周内开盘向上跳空（开盘高于昨收），当天的优先。", "category": "gap", "tags": ["缺口", "跳空", "向上", "当天"]},
+    {"suffix": "gap_down", "name": "向下跳空", "description": "近一周内开盘向下跳空（开盘低于昨收），当天的优先。", "category": "gap", "tags": ["缺口", "跳空", "向下", "当天"]},
 ]
 
 
@@ -410,6 +412,15 @@ class MarketScreenerService:
                 key = lambda t: (-t.signal_score, -t.trend_strength)  # noqa: E731 - 最弱在前
             return sorted(filtered, key=key, reverse=True)
 
+        # 跳空缺口：近一周内（分析器按 GAP_WINDOW 限定）向上/向下跳空；当天的优先，
+        # 再按缺口幅度、评分。命中为空即返回空（不降级）。
+        if suffix in ("gap_up", "gap_down"):
+            want_dir = "up" if suffix == "gap_up" else "down"
+            filtered = [t for t in scored if getattr(t, "gap_dir", "") == want_dir]
+            # -days_since：越近越靠前；|gap%|：越大越靠前；再按评分
+            key = lambda t: (-getattr(t, "gap_days_since", 99), abs(getattr(t, "gap_pct", 0.0)), t.signal_score)  # noqa: E731
+            return sorted(filtered, key=key, reverse=True)
+
         if suffix == "structure_bull":
             filtered = [t for t in scored if getattr(t, "structure", "") == "bull"]
             key = lambda t: (t.signal_score, t.trend_strength)  # noqa: E731
@@ -448,6 +459,9 @@ class MarketScreenerService:
         dk_desc = getattr(tr, "dk_desc", "")
         if getattr(tr, "dk_last_signal", "") and dk_desc:
             reason += f" ｜ DK：{dk_desc}"
+        gap_desc = getattr(tr, "gap_desc", "")
+        if getattr(tr, "gap_dir", "") and gap_desc:
+            reason += f" ｜ 缺口：{gap_desc}"
         if reasons:
             reason += "：" + "；".join(reasons[:3])
         return {

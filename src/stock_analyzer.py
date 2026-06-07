@@ -144,6 +144,12 @@ class TrendAnalysisResult:
     dk_days_since: int = -1          # 距最近一次 D/K 翻转点的交易日数（0=当天，-1=无）
     dk_desc: str = ""                # 人类可读描述
 
+    # 跳空缺口（开盘相对昨收）：最近一次显著缺口的方向/幅度/几天前
+    gap_dir: str = ""                # "up"(向上跳空) | "down"(向下跳空) | ""
+    gap_pct: float = 0.0             # 该缺口幅度（带符号，%）
+    gap_days_since: int = -1         # 距最近缺口的交易日数（0=当天，-1=无）
+    gap_desc: str = ""               # 人类可读描述
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             'code': self.code,
@@ -184,6 +190,10 @@ class TrendAnalysisResult:
             'dk_last_signal': self.dk_last_signal,
             'dk_days_since': self.dk_days_since,
             'dk_desc': self.dk_desc,
+            'gap_dir': self.gap_dir,
+            'gap_pct': self.gap_pct,
+            'gap_days_since': self.gap_days_since,
+            'gap_desc': self.gap_desc,
         }
 
 
@@ -225,6 +235,10 @@ class StockTrendAnalyzer:
     DK_NDN = int(os.getenv("DK_NDN", "10") or 10)        # 破位窗口（N日最低，不含当日）
     DK_VASSIST = float(os.getenv("DK_VASSIST", "0.96") or 0.96)  # 放量突破折扣
     DK_VWIN = int(os.getenv("DK_VWIN", "20") or 20)      # 放量阈值均量窗口
+
+    # 跳空缺口参数：开盘相对昨收的缺口幅度阈值（百分比）与"最近一周"窗口（交易日）
+    GAP_MIN_PCT = float(os.getenv("GAP_MIN_PCT", "1.0") or 1.0)   # 缺口最小幅度(%)
+    GAP_WINDOW = int(os.getenv("GAP_WINDOW", "5") or 5)          # 近 N 个交易日内算"最近缺口"
     
     def __init__(self):
         """初始化分析器"""
@@ -299,7 +313,41 @@ class StockTrendAnalyzer:
         except Exception as exc:  # noqa: BLE001 - DK 分析失败不应影响主趋势结果
             logger.debug(f"{code} DK 买卖点分析失败: {exc}")
 
+        # 10. 跳空缺口（开盘相对昨收）
+        try:
+            self._analyze_gap(df, result)
+        except Exception as exc:  # noqa: BLE001 - 缺口分析失败不应影响主趋势结果
+            logger.debug(f"{code} 跳空缺口分析失败: {exc}")
+
         return result
+
+    def _analyze_gap(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """跳空缺口：开盘价相对昨收的缺口。从最新一根往回找**最近一次**显著缺口
+        （|缺口%| ≥ GAP_MIN_PCT），记录方向/幅度/几天前（0=当天）。
+
+        只扫到 GAP_WINDOW + 少量余量即可——策略只关心"近一周内"的缺口。
+        """
+        length = len(df)
+        if length < 2 or 'open' not in df.columns:
+            return
+        open_ = df['open'].to_numpy(dtype=float)
+        close = df['close'].to_numpy(dtype=float)
+        thr = max(self.GAP_MIN_PCT, 0.0)
+        scan = min(length - 1, max(self.GAP_WINDOW, 1) + 1)  # 最近窗口内找
+        for back in range(scan):
+            i = length - 1 - back
+            prev_c = close[i - 1]
+            if prev_c <= 0:
+                continue
+            g = (open_[i] - prev_c) / prev_c * 100.0
+            if abs(g) >= thr:
+                result.gap_dir = "up" if g > 0 else "down"
+                result.gap_pct = round(g, 2)
+                result.gap_days_since = back
+                when = "当天" if back == 0 else f"{back} 天前"
+                arrow = "向上跳空" if g > 0 else "向下跳空"
+                result.gap_desc = f"{arrow} {abs(g):.1f}%（{when}）"
+                return
 
     def _analyze_dk(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
         """东财式 DK 买卖点状态机（价格突破 + 放量折扣，带滞后带 → 信号稀疏）。
