@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [新功能] Web「选股」页每只候选新增「买卖」列：基于 DK/吊灯止损/相对强弱/量价给出 🟢买/🟡持/🔴卖/⚪观望 判定 + 吊灯止损价，逻辑与 `scripts/daily_signals.py` 一致。
+- [新功能] Web 新增「学习」页（`/learn`，左侧导航🎓）：讲解选股流程、买卖点规则、指标与策略速查、完整买卖实例与快速上手命令。
+- [新功能] 新增 `dk_signal` 技术指标告警（DK 买卖点，`direction=buy|sell|both`）：最新一根出现 D 点/K 点即触发，复用 `StockTrendAnalyzer` DK 状态机，接入告警中心与 `AlertRuleForm`；详见 `docs/alerts.md`。
+- [改进] 相对强弱 RS 基准指数获取失败时降级为「样本等权代理指数」（用本次股票池行情合成），使 A 股 akshare 指数限流/中断时 RS 仍可用；`<PREFIX>_BENCHMARK=` 显式置空仍可关闭 RS。
+- [新功能] 新增 `scripts/daily_signals.py`（选股+买卖点日报，离线读缓存）与 `scripts/backtest_rule.py`（策略级 walk-forward 回测，验证规则 edge）。
 - [新功能] 趋势引擎新增 ADX/DMI、OBV（量价确认/背离）、相对强弱 RS（vs 大盘指数）三类指标，个股分析与选股候选均输出对应字段（`adx`/`plus_di`/`minus_di`/`adx_status`、`obv`/`obv_trend`/`obv_divergence`、`rs_ratio`/`rs_chg_pct`/`rs_status`），OBV 顶背离会进风险标记；参数 `ADX_LEN/ADX_TREND_MIN/ADX_STRONG/OBV_DIV_WIN/RS_LOOKBACK` 可配。
 - [新功能] 多市场选股新增 `*_rs_leaders`（相对强弱领涨：跑赢大盘且 RS 上行的多头股）与 `*_trend_confirmed`（ADX 趋势确认：多头 + ADX≥阈值）两个策略；RS 基准指数按市场取 `^GSPC`/`^STI`/`^HSI`/沪深300，`<PREFIX>_BENCHMARK` 可覆盖，指数抓取失败则 RS 中性、fail-open 不影响选股。
 - [文档] `docs/us-screening.md` 增补 ADX/OBV/相对强弱 RS 三指标说明、两个新策略与基准指数配置。

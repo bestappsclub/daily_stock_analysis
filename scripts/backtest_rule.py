@@ -83,7 +83,7 @@ def build_equal_weight_benchmark(frames: Dict[str, pd.DataFrame]) -> pd.DataFram
 
 
 def backtest(frames: Dict[str, pd.DataFrame], bench_df: pd.DataFrame,
-             warmup: int = 65, verbose_every: int = 50) -> Dict:
+             warmup: int = 65, adx_min: float = 0.0, verbose_every: int = 50) -> Dict:
     analyzer = StockTrendAnalyzer()
     trades: List[Dict] = []
     bh_returns: List[float] = []  # 同窗口买入持有对照（每只股票）
@@ -113,7 +113,7 @@ def backtest(frames: Dict[str, pd.DataFrame], bench_df: pd.DataFrame,
                 continue
             if not in_pos:
                 enter = (res.rs_status == "leading" and res.trend_status in BULLISH
-                         and res.chandelier_dir == 1)
+                         and res.chandelier_dir == 1 and res.adx >= adx_min)
                 if enter:
                     in_pos = True
                     entry_price = exec_open
@@ -177,6 +177,8 @@ def main() -> None:
     ap.add_argument("--sample", type=int, default=250, help="采样股票数（0=全部）")
     ap.add_argument("--min-bars", type=int, default=140)
     ap.add_argument("--warmup", type=int, default=65)
+    ap.add_argument("--adx-min", type=float, default=0.0,
+                    help="入场要求 ADX≥此值（0=不过滤；25=趋势确认）")
     args = ap.parse_args()
 
     if not DB_PATH.exists():
@@ -192,10 +194,11 @@ def main() -> None:
     bench_df = build_equal_weight_benchmark(frames)
     print(f"等权基准指数：{len(bench_df)} 个交易日 "
           f"({bench_df['date'].iloc[0]} → {bench_df['date'].iloc[-1]})")
-    print("规则：入场=相对强弱领涨+多头+吊灯多 / 出场=吊灯翻空（次日开盘执行）")
+    adx_note = f"+ADX≥{args.adx_min:g}" if args.adx_min > 0 else "（无ADX过滤）"
+    print(f"规则：入场=相对强弱领涨+多头+吊灯多{adx_note} / 出场=吊灯翻空（次日开盘执行）")
     print("开始 walk-forward 回测...\n")
 
-    r = backtest(frames, bench_df, warmup=args.warmup)
+    r = backtest(frames, bench_df, warmup=args.warmup, adx_min=args.adx_min)
 
     print("\n" + "=" * 56)
     print("  回测结果：rs_leaders 入场 + 吊灯止损出场")

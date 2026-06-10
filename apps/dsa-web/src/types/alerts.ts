@@ -9,6 +9,7 @@ export type AlertType =
   | 'macd_cross'
   | 'kdj_cross'
   | 'cci_threshold'
+  | 'dk_signal'
   | 'portfolio_stop_loss'
   | 'portfolio_concentration'
   | 'portfolio_drawdown'

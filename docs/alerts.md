@@ -232,6 +232,7 @@ P5 支持的 `alert_type` 与 `parameters`：
 | `macd_cross` | `direction=bullish_cross|bearish_cross`，`fast_period=12`，`slow_period=26`，`signal_period=9`，均为 `[2,250]` 且 `fast_period < slow_period` | DIF/DEA 边缘金叉/死叉 |
 | `kdj_cross` | `direction=bullish_cross|bearish_cross`，`period=9`，`k_period=3`，`d_period=3`，均为 `[2,250]` | K/D 边缘金叉/死叉 |
 | `cci_threshold` | `direction=above|below`，`period` 默认 `14`，整数 `[2,250]`，`threshold` 必填且为有限数值 | CCI 相对阈值边缘上穿/下穿 |
+| `dk_signal` | `direction=buy|sell|both`（默认 `both`），无阈值参数 | 东财式 DK 买卖点：最新一根出现 D 点（buy）/ K 点（sell）即触发；复用 `StockTrendAnalyzer` DK 状态机，需 ~60 根日线热身 |
 
 评估规则：
 

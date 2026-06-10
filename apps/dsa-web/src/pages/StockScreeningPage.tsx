@@ -113,6 +113,49 @@ const getSignal = (item: AlphaSiftCandidate) => {
   return typeof rawSignal === 'string' && rawSignal.trim() ? rawSignal : '观察';
 };
 
+const rawNum = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
+  return undefined;
+};
+const rawStr = (value: unknown): string => (typeof value === 'string' ? value : '');
+
+type Verdict = { label: string; emoji: string; cls: string; stop?: number; tip: string };
+
+/**
+ * 把候选股 raw 里的趋势引擎字段翻译成一句买卖判定 + 止损价。
+ * 规则与 scripts/daily_signals.py:verdict / 学习页一致：
+ *   🔴 卖/避：当日K点 / 吊灯翻空 / 跌破吊灯止损 / OBV顶背离
+ *   🟢 买  ：当日D点；或 相对强弱领涨 + 多头 + 吊灯多 + 持股态
+ *   🟡 持有：持股态 + 多头(未达强买)
+ *   ⚪ 观望：其余
+ */
+const getVerdict = (item: AlphaSiftCandidate): Verdict => {
+  const raw = item.raw || {};
+  const dkSignal = rawStr(raw.dk_signal);
+  const dkState = rawStr(raw.dk_state);
+  const chandDir = rawNum(raw.chandelier_dir);
+  const stop = rawNum(raw.chandelier_stop);
+  const price = rawNum(raw.current_price) ?? rawNum(item.price);
+  const obvDiv = rawStr(raw.obv_divergence);
+  const rsStatus = rawStr(raw.rs_status);
+  const bullish = rawStr(raw.trend_status).includes('多头');
+
+  if (dkSignal === 'K' || chandDir === -1 || (stop != null && price != null && price < stop) || obvDiv === 'bearish') {
+    return { label: '卖/避', emoji: '🔴', cls: 'bg-danger/10 text-danger', stop, tip: 'K点/吊灯翻空/跌破止损/OBV顶背离 → 离场或避开' };
+  }
+  if (dkSignal === 'D') {
+    return { label: '买·今日D点', emoji: '🟢', cls: 'bg-success/10 text-success', stop, tip: '当天出现 DK 买点（D点）' };
+  }
+  if (dkState === 'hold' && bullish) {
+    if (rsStatus === 'leading' && chandDir === 1) {
+      return { label: '买/持·强势', emoji: '🟢', cls: 'bg-success/10 text-success', stop, tip: '相对强弱领涨 + 多头 + 吊灯多' };
+    }
+    return { label: '持有', emoji: '🟡', cls: 'bg-warning/10 text-warning', stop, tip: '持股态 + 多头趋势' };
+  }
+  return { label: '观望', emoji: '⚪', cls: 'bg-surface text-secondary-text', stop, tip: '暂无明确买卖信号' };
+};
+
 const getFactorEntries = (item: AlphaSiftCandidate) =>
   Object.entries(item.factorScores || {})
     .filter(([, value]) => typeof value === 'number')
@@ -700,6 +743,7 @@ const StockScreeningPage: React.FC = () => {
                   <th className="px-4 py-3 font-semibold">价格</th>
                   <th className="px-4 py-3 font-semibold">涨跌幅</th>
                   <th className="px-4 py-3 font-semibold">评分</th>
+                  <th className="px-4 py-3 font-semibold" title="买卖判定 + 止损价（基于 DK/吊灯止损/相对强弱/量价）">买卖</th>
                   <th className="px-4 py-3 font-semibold" title="相对强度百分位 0-100（对照大盘）">PWR</th>
                   <th className="px-4 py-3 font-semibold">LLM</th>
                   <th className="px-4 py-3 font-semibold">风险</th>
@@ -777,6 +821,23 @@ const StockScreeningPage: React.FC = () => {
                         </td>
                         <td className="px-4 py-3 font-bold text-cyan">{formatScore(item.score)}</td>
                         <td className="px-4 py-3">
+                          {(() => {
+                            const verdict = getVerdict(item);
+                            return (
+                              <div className="flex flex-col gap-0.5" title={verdict.tip}>
+                                <span className={cn('inline-flex w-fit items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold', verdict.cls)}>
+                                  {verdict.emoji} {verdict.label}
+                                </span>
+                                {verdict.stop ? (
+                                  <span className="font-mono text-[11px] text-secondary-text" title="吊灯止损价（跌破即离场）">
+                                    止损 {verdict.stop.toFixed(2)}
+                                  </span>
+                                ) : null}
+                              </div>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-4 py-3">
                           {item.pwr != null ? (
                             <span
                               title={`对照大盘超额收益 · 1月 ${formatChangePct(item.rs1m)} · 3月 ${formatChangePct(item.rs3m)} · 6月 ${formatChangePct(item.rs6m)}`}
@@ -809,7 +870,7 @@ const StockScreeningPage: React.FC = () => {
                       </tr>
                       {expanded ? (
                         <tr className="border-t border-border bg-surface/45">
-                          <td colSpan={12} className="px-4 py-4">
+                          <td colSpan={13} className="px-4 py-4">
                             <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
                               <div className="space-y-3">
                                 <div>

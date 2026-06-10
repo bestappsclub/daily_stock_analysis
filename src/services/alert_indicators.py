@@ -17,10 +17,12 @@ TECHNICAL_ALERT_TYPES = frozenset({
     "macd_cross",
     "kdj_cross",
     "cci_threshold",
+    "dk_signal",
 })
 
 ABOVE_BELOW_DIRECTIONS = frozenset({"above", "below"})
 CROSS_DIRECTIONS = frozenset({"bullish_cross", "bearish_cross"})
+DK_DIRECTIONS = frozenset({"buy", "sell", "both"})
 MAX_REQUESTED_DAYS = 365
 
 
@@ -85,6 +87,12 @@ def normalize_indicator_parameters(alert_type: str, parameters: Dict[str, Any]) 
             "threshold": _finite_float(parameters.get("threshold"), "threshold"),
         }
         return _ensure_required_bars_fetchable(alert_type, normalized)
+    if alert_type == "dk_signal":
+        # 东财式 DK 买卖点：direction=buy(只D点)/sell(只K点)/both(D或K)；无阈值参数。
+        normalized = {
+            "direction": _direction(parameters.get("direction"), DK_DIRECTIONS, default="both"),
+        }
+        return _ensure_required_bars_fetchable(alert_type, normalized)
     raise ValueError(f"unsupported technical alert_type: {alert_type}")
 
 
@@ -99,6 +107,8 @@ def compute_required_bars(alert_type: str, params: Dict[str, Any]) -> int:
         return int(params["period"]) + int(params["k_period"]) + int(params["d_period"]) + 1
     if alert_type == "cci_threshold":
         return int(params["period"]) + 1
+    if alert_type == "dk_signal":
+        return 60  # DK 唐奇安通道状态机 + 吊灯止损需要足够热身（>=DK窗口/通道+余量）
     raise ValueError(f"unsupported technical alert_type: {alert_type}")
 
 
@@ -126,6 +136,8 @@ def evaluate_indicator_alert(
     columns = ("close",)
     if alert_type in {"kdj_cross", "cci_threshold"}:
         columns = ("high", "low", "close")
+    elif alert_type == "dk_signal":
+        columns = ("open", "high", "low", "close", "volume")
 
     try:
         normalized = normalize_ohlcv(df, required_columns=columns, now=now)
@@ -172,6 +184,8 @@ def evaluate_indicator_alert(
         return _evaluate_kdj(stock_code, params, normalized)
     if alert_type == "cci_threshold":
         return _evaluate_cci(stock_code, params, normalized)
+    if alert_type == "dk_signal":
+        return _evaluate_dk(stock_code, params, normalized)
     raise ValueError(f"unsupported technical alert_type: {alert_type}")
 
 
@@ -350,6 +364,40 @@ def _evaluate_cci(stock_code: str, params: Dict[str, Any], df: pd.DataFrame) -> 
         status="triggered" if triggered else "not_triggered",
         observed_value=curr_value,
         threshold=threshold,
+        message=message,
+        data_timestamp=latest,
+    )
+
+
+def _evaluate_dk(stock_code: str, params: Dict[str, Any], df: pd.DataFrame) -> IndicatorEvaluation:
+    """东财式 DK 买卖点告警：复用 StockTrendAnalyzer，检查**最新一根**是否出现 D/K 点。
+
+    direction=buy → 仅当日 D 点触发；sell → 仅当日 K 点；both → D 或 K。
+    复用与个股分析/选股一致的 DK 状态机，保证全系统语义一致。
+    """
+    from src.stock_analyzer import StockTrendAnalyzer  # 局部导入，避免模块级重依赖
+
+    direction = str(params["direction"])
+    latest = _latest_timestamp(df)
+    try:
+        result = StockTrendAnalyzer().analyze(df, stock_code)
+    except Exception:  # noqa: BLE001 - 分析失败按指标不可用处理（降级，不误触发）
+        return _indicator_unavailable("DK", latest)
+
+    signal = getattr(result, "dk_signal", "") or ""
+    want = {"buy": {"D"}, "sell": {"K"}, "both": {"D", "K"}}[direction]
+    triggered = signal in want
+    sig_label = {"D": "买点 D", "K": "卖点 K"}.get(signal, "无")
+    dir_label = {"buy": "买点 D", "sell": "卖点 K", "both": "买/卖点"}[direction]
+    message = (
+        f"{stock_code} 当日出现 DK {sig_label}（状态 {result.dk_state}）"
+        if triggered
+        else f"{stock_code} 当日无 DK {dir_label}（当前状态 {result.dk_state}）"
+    )
+    return IndicatorEvaluation(
+        status="triggered" if triggered else "not_triggered",
+        observed_value=1.0 if triggered else 0.0,
+        threshold=None,
         message=message,
         data_timestamp=latest,
     )

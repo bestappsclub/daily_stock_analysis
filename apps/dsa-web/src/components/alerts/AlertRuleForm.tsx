@@ -23,6 +23,7 @@ const SYMBOL_ALERT_TYPE_OPTIONS = [
   { value: 'macd_cross', label: 'MACD 金叉/死叉' },
   { value: 'kdj_cross', label: 'KDJ 金叉/死叉' },
   { value: 'cci_threshold', label: 'CCI 阈值' },
+  { value: 'dk_signal', label: 'DK 买卖点' },
 ];
 
 const PORTFOLIO_ALERT_TYPE_OPTIONS = [
@@ -69,6 +70,12 @@ const THRESHOLD_DIRECTION_OPTIONS = [
 const CROSS_DIRECTION_OPTIONS = [
   { value: 'bullish_cross', label: '金叉' },
   { value: 'bearish_cross', label: '死叉' },
+];
+
+const DK_DIRECTION_OPTIONS = [
+  { value: 'both', label: '买点或卖点' },
+  { value: 'buy', label: '仅买点 D' },
+  { value: 'sell', label: '仅卖点 K' },
 ];
 
 const STOP_LOSS_MODE_OPTIONS = [
@@ -123,6 +130,7 @@ export const AlertRuleForm: React.FC<AlertRuleFormProps> = ({ onSubmit, isSubmit
   const [changeDirection, setChangeDirection] = useState<'up' | 'down'>('up');
   const [thresholdDirection, setThresholdDirection] = useState<'above' | 'below'>('above');
   const [crossDirection, setCrossDirection] = useState<'bullish_cross' | 'bearish_cross'>('bullish_cross');
+  const [dkDirection, setDkDirection] = useState<'buy' | 'sell' | 'both'>('both');
   const [stopLossMode, setStopLossMode] = useState<PortfolioStopLossMode>('near');
   const [price, setPrice] = useState('');
   const [changePct, setChangePct] = useState('');
@@ -197,6 +205,8 @@ export const AlertRuleForm: React.FC<AlertRuleFormProps> = ({ onSubmit, isSubmit
       setThresholdDirection('above');
       setPeriod('14');
       setThreshold('');
+    } else if (nextType === 'dk_signal') {
+      setDkDirection('both');
     } else if (nextType === 'portfolio_stop_loss') {
       setStopLossMode('near');
     } else if (nextType === 'market_light_status') {
@@ -320,6 +330,9 @@ export const AlertRuleForm: React.FC<AlertRuleFormProps> = ({ onSubmit, isSubmit
       const parsedThreshold = parseFiniteNumber(threshold, 'CCI 阈值');
       if (parsedPeriod == null || parsedThreshold == null) return null;
       return { direction: thresholdDirection, period: parsedPeriod, threshold: parsedThreshold };
+    }
+    if (alertType === 'dk_signal') {
+      return { direction: dkDirection };
     }
     if (alertType === 'portfolio_stop_loss') {
       return { mode: stopLossMode };
@@ -707,6 +720,18 @@ export const AlertRuleForm: React.FC<AlertRuleFormProps> = ({ onSubmit, isSubmit
               value={threshold}
               onChange={(event) => setThreshold(event.target.value)}
               disabled={isSubmitting}
+            />
+          </div>
+        ) : null}
+
+        {alertType === 'dk_signal' ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            <Select
+              label="信号方向"
+              value={dkDirection}
+              options={DK_DIRECTION_OPTIONS}
+              disabled={isSubmitting}
+              onChange={(value) => setDkDirection(value as 'buy' | 'sell' | 'both')}
             />
           </div>
         ) : null}
