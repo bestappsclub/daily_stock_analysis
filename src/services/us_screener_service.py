@@ -373,7 +373,8 @@ class MarketScreenerService:
             if len(norm) < 5:  # 样本太少，代理无统计意义
                 return None
             bench = pd.concat(norm, axis=1).mean(axis=1, skipna=True)
-            return pd.DataFrame({"date": bench.index, "close": bench.values}).sort_values(
+            # 'date' 必须是 datetime64（与个股行情一致），否则 RS 合并(on='date')对不齐 → RS/PWR 恒为 0
+            return pd.DataFrame({"date": pd.to_datetime(bench.index), "close": bench.values}).sort_values(
                 "date").reset_index(drop=True)
         except Exception:  # noqa: BLE001 - 代理合成失败即放弃，RS 中性
             return None
