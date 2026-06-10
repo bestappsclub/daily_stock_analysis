@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 import pandas as pd
 
-from src.stock_analyzer import StockTrendAnalyzer, TrendAnalysisResult
+from src.stock_analyzer import StockTrendAnalyzer, TrendAnalysisResult, TrendStatus, VolumeStatus
 from src.services.us_screener_service import MarketScreenerService
 
 
@@ -88,6 +88,20 @@ class ApplyStrategyTest(unittest.TestCase):
         scored = [self._tr("pos", smi=0.3), self._tr("neg", smi=-0.2), self._tr("hi", smi=0.6)]
         out = MarketScreenerService._apply_strategy("smart_money", scored)
         self.assertEqual([t.code for t in out], ["hi", "pos"])  # 仅 smi>0，强者在前
+
+    def test_power_setup_requires_triple_confluence(self) -> None:
+        # 三重共振：结构 bull + 多头趋势(均线多排) + 放量上涨，三者缺一不可
+        good = self._tr("GOOD", structure="bull", trend_status=TrendStatus.BULL,
+                        volume_status=VolumeStatus.HEAVY_VOLUME_UP, weinstein_stage=2, rs_status="leading", pwr=90)
+        weak = self._tr("WEAK", structure="bull", trend_status=TrendStatus.BULL,
+                        volume_status=VolumeStatus.HEAVY_VOLUME_UP, weinstein_stage=0, pwr=10)
+        no_struct = self._tr("NOSTRUCT", structure="", trend_status=TrendStatus.BULL,
+                             volume_status=VolumeStatus.HEAVY_VOLUME_UP)
+        no_vol = self._tr("NOVOL", structure="bull", trend_status=TrendStatus.BULL,
+                          volume_status=VolumeStatus.NORMAL)
+        out = MarketScreenerService._apply_strategy("power_setup", [no_struct, weak, no_vol, good])
+        # 仅三重共振者入选；教科书(阶段2+领涨+高PWR)在前
+        self.assertEqual([t.code for t in out], ["GOOD", "WEAK"])
 
 
 if __name__ == "__main__":

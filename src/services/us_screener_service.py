@@ -79,6 +79,7 @@ _STRATEGY_TEMPLATES: List[Dict[str, Any]] = [
     {"suffix": "gap_down", "name": "向下跳空", "description": "近一周内开盘向下跳空（开盘低于昨收），当天的优先。", "category": "gap", "tags": ["缺口", "跳空", "向下", "当天"]},
     {"suffix": "rs_leaders", "name": "相对强弱领涨", "description": "相对大盘走强（跑赢且 RS 线上行）的多头标的，按超额收益排序。", "category": "relative_strength", "tags": ["相对强弱", "RS", "领涨", "跑赢大盘"]},
     {"suffix": "trend_confirmed", "name": "ADX趋势确认", "description": "多头趋势且 ADX 确认（趋势强、非震荡）的高质量标的。", "category": "trend", "tags": ["ADX", "趋势确认", "趋势强度", "多头"]},
+    {"suffix": "power_setup", "name": "三重共振·强势突破", "description": "头头高底底高（上升结构）+ 均线多排（多头趋势）+ 放量上涨，三者共振的高胜率买点；阶段2 / 领涨RS / 高PWR 优先。命中为空=今日无教科书买点。", "category": "composite", "tags": ["共振", "结构", "均线多排", "放量", "强势突破", "教科书买点"]},
     {"suffix": "stage2_strong_up", "name": "阶段2 强势上涨", "description": "温斯坦阶段2：价在30周线上方且均线上行（主升段），按相对强度排序。", "category": "stage", "tags": ["温斯坦", "阶段2", "强势", "主升", "PT"]},
     {"suffix": "stage1_turn_up", "name": "阶段1 底部转折", "description": "温斯坦阶段1：价在30周线下方但均线走平/转强（筑底转折）。", "category": "stage", "tags": ["温斯坦", "阶段1", "底部", "转折", "PT"]},
     {"suffix": "stage3_turn_down", "name": "阶段3 见顶转折", "description": "温斯坦阶段3：价在30周线上方但均线走平/转弱（顶部派发），最弱在前。", "category": "stage", "tags": ["温斯坦", "阶段3", "见顶", "派发", "PT"]},
@@ -534,6 +535,23 @@ class MarketScreenerService:
             filtered = [t for t in scored if getattr(t, "smi", 0.0) > 0]
             pool = filtered if filtered else scored
             return sorted(pool, key=lambda t: (getattr(t, "smi", 0.0), t.signal_score), reverse=True)
+
+        # 三重共振·强势突破：上升结构(头头高底底高) + 均线多排(多头趋势) + 放量上涨，三者同时成立。
+        # 排序让 阶段2 / 领涨RS / 高PWR 的「教科书买点」浮到最前。命中为空即返回空（今日无买点，不强求交易）。
+        if suffix == "power_setup":
+            filtered = [
+                t for t in scored
+                if getattr(t, "structure", "") == "bull"
+                and t.trend_status in {TrendStatus.STRONG_BULL, TrendStatus.BULL}
+                and t.volume_status == VolumeStatus.HEAVY_VOLUME_UP
+            ]
+            key = lambda t: (  # noqa: E731
+                1 if getattr(t, "weinstein_stage", 0) == 2 else 0,
+                1 if getattr(t, "rs_status", "") == "leading" else 0,
+                getattr(t, "pwr", 0),
+                t.signal_score,
+            )
+            return sorted(filtered, key=key, reverse=True)
 
         if suffix == "rs_leaders":
             # 相对强弱领涨：跑赢大盘且 RS 上行（leading）的多头标的，按超额收益排序。
