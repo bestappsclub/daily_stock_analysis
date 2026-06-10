@@ -265,7 +265,22 @@ class StockAnalysisPipeline:
             error_msg = f"获取/保存数据失败: {str(e)}"
             logger.error(f"{stock_name}({code}) {error_msg}")
             return False, error_msg
-    
+
+    def _load_rs_benchmark(self, market: Optional[str]):
+        """个股相对强弱 RS 的大盘基准指数（复用选股器的基准抓取逻辑）。
+
+        best-effort：market 不支持或抓取失败都返回 None，RS 字段保持中性，不影响个股分析主流程。
+        """
+        try:
+            from src.services.us_screener_service import MarketScreenerService, SUPPORTED_MARKETS
+            if not market or market not in SUPPORTED_MARKETS:
+                return None
+            svc = MarketScreenerService(market, config=self.config)
+            return svc._load_benchmark(120, [])  # 120 自然日足够覆盖 RS_LOOKBACK 交易日
+        except Exception as exc:  # noqa: BLE001 - 基准缺失不影响个股分析
+            logger.debug(f"个股 RS 基准指数获取失败({market}): {exc}")
+            return None
+
     def analyze_stock(
         self,
         code: str,
@@ -417,7 +432,8 @@ class StockAnalysisPipeline:
                     # Issue #234: Augment with realtime for intraday MA calculation
                     if self.config.enable_realtime_quote and realtime_quote:
                         df = self._augment_historical_with_realtime(df, realtime_quote, code)
-                    trend_result = self.trend_analyzer.analyze(df, code)
+                    benchmark_df = self._load_rs_benchmark(_mkt)  # 相对强弱 RS 基准（缺失则中性）
+                    trend_result = self.trend_analyzer.analyze(df, code, benchmark_df=benchmark_df)
                     logger.info(f"{stock_name}({code}) 趋势分析: {trend_result.trend_status.value}, "
                               f"买入信号={trend_result.buy_signal.value}, 评分={trend_result.signal_score}")
             except Exception as e:

@@ -54,12 +54,14 @@ VERSION = "0.2.0"
 
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 
-# 每个市场的配置（env 前缀、默认股票池文件、最大默认上限）
+# 每个市场的配置（env 前缀、默认股票池文件、最大默认上限、相对强弱 RS 基准指数）
+# benchmark：us/sg/hk 走 yfinance（^GSPC/^STI/^HSI）；cn 走 akshare 指数（沪深300）。
+# 可经 <PREFIX>_BENCHMARK 覆盖；抓取失败则 RS 中性、fail-open。
 _MARKETS: Dict[str, Dict[str, Any]] = {
-    "us": {"env_prefix": "US_SCREEN", "universe_file": "us_universe.txt", "default_max": 1500, "label": "美股"},
-    "sg": {"env_prefix": "SG_SCREEN", "universe_file": "sg_universe.txt", "default_max": 700, "label": "新加坡"},
-    "hk": {"env_prefix": "HK_SCREEN", "universe_file": "hk_universe.txt", "default_max": 3000, "label": "港股"},
-    "cn": {"env_prefix": "CN_SCREEN", "universe_file": "cn_universe.txt", "default_max": 6000, "label": "A股"},
+    "us": {"env_prefix": "US_SCREEN", "universe_file": "us_universe.txt", "default_max": 1500, "label": "美股", "benchmark": "^GSPC"},
+    "sg": {"env_prefix": "SG_SCREEN", "universe_file": "sg_universe.txt", "default_max": 700, "label": "新加坡", "benchmark": "^STI"},
+    "hk": {"env_prefix": "HK_SCREEN", "universe_file": "hk_universe.txt", "default_max": 3000, "label": "港股", "benchmark": "^HSI"},
+    "cn": {"env_prefix": "CN_SCREEN", "universe_file": "cn_universe.txt", "default_max": 6000, "label": "A股", "benchmark": "000300"},
 }
 SUPPORTED_MARKETS = tuple(_MARKETS.keys())
 
@@ -75,6 +77,8 @@ _STRATEGY_TEMPLATES: List[Dict[str, Any]] = [
     {"suffix": "dk_sell", "name": "DK卖点", "description": "当天出现 K 点（跌破 N 日低，卖出信号）。", "category": "dk", "tags": ["DK", "卖点", "K点", "当天"]},
     {"suffix": "gap_up", "name": "向上跳空", "description": "近一周内开盘向上跳空（开盘高于昨收），当天的优先。", "category": "gap", "tags": ["缺口", "跳空", "向上", "当天"]},
     {"suffix": "gap_down", "name": "向下跳空", "description": "近一周内开盘向下跳空（开盘低于昨收），当天的优先。", "category": "gap", "tags": ["缺口", "跳空", "向下", "当天"]},
+    {"suffix": "rs_leaders", "name": "相对强弱领涨", "description": "相对大盘走强（跑赢且 RS 线上行）的多头标的，按超额收益排序。", "category": "relative_strength", "tags": ["相对强弱", "RS", "领涨", "跑赢大盘"]},
+    {"suffix": "trend_confirmed", "name": "ADX趋势确认", "description": "多头趋势且 ADX 确认（趋势强、非震荡）的高质量标的。", "category": "trend", "tags": ["ADX", "趋势确认", "趋势强度", "多头"]},
 ]
 
 
@@ -202,10 +206,13 @@ class MarketScreenerService:
         if len(frames) < len(universe):
             warnings.append(f"{len(universe) - len(frames)}/{len(universe)} 只标的无可用行情，已跳过。")
 
+        # 基准指数（相对强弱 RS）：抓一次喂给所有标的；缺失则 RS 中性、fail-open
+        benchmark_df = self._load_benchmark(history_days, warnings)
+
         scored: List[TrendAnalysisResult] = []
         for code, df in frames.items():
             try:
-                scored.append(self.analyzer.analyze(df, code))
+                scored.append(self.analyzer.analyze(df, code, benchmark_df=benchmark_df))
             except Exception as exc:  # noqa: BLE001 - 单只分析失败跳过
                 logger.debug("Screener 趋势分析失败 %s: %s", code, exc)
 
@@ -288,6 +295,40 @@ class MarketScreenerService:
             from data_provider.akshare_fetcher import batch_download_cn_daily
             return batch_download_cn_daily(symbols, days=history_days)
         return batch_download_us_daily(symbols, days=history_days)
+
+    # --- 相对强弱 RS 的基准指数（抓一次，喂给趋势引擎；失败 fail-open 返回 None） ---
+    def _load_benchmark(self, history_days: int, warnings: List[str]) -> Optional[pd.DataFrame]:
+        """抓本市场基准指数日线（含 'date'/'close'），用于个股相对强弱 RS。
+
+        us/sg/hk 走 yfinance（^GSPC/^STI/^HSI）；cn 走 akshare 指数（沪深300）。
+        指数代码可经 ``<PREFIX>_BENCHMARK`` 覆盖，留空则禁用 RS。任何失败都不中断选股，
+        仅返回 None 并记一条 warning（RS 字段保持中性）。
+        """
+        # 显式设为空（<PREFIX>_BENCHMARK=）= 关闭 RS；未设置才用市场默认基准指数
+        raw = os.getenv(f"{self._prefix}_BENCHMARK")
+        symbol = raw.strip() if raw is not None else str(self._cfg.get("benchmark") or "")
+        if not symbol:
+            return None
+        try:
+            if self.market == "cn":
+                import akshare as ak  # 局部导入，避免无 akshare 环境下影响 us/sg/hk
+                start = (date.today() - timedelta(days=history_days)).strftime("%Y%m%d")
+                end = date.today().strftime("%Y%m%d")
+                raw = ak.index_zh_a_hist(symbol=symbol, period="daily", start_date=start, end_date=end)
+                if raw is None or raw.empty:
+                    raise ValueError("akshare 指数返回空")
+                bench = raw.rename(columns={"日期": "date", "收盘": "close"})[["date", "close"]].copy()
+                bench["date"] = pd.to_datetime(bench["date"]).dt.date
+                return bench.sort_values("date").reset_index(drop=True)
+            frames = batch_download_us_daily([symbol], days=history_days)
+            df = frames.get(symbol)
+            if df is None or df.empty:
+                raise ValueError("yfinance 指数返回空")
+            return df[["date", "close"]].copy()
+        except Exception as exc:  # noqa: BLE001 - 基准缺失不影响选股，仅 RS 中性
+            warnings.append(f"基准指数 {symbol} 获取失败，本次相对强弱 RS 不可用：{exc}")
+            logger.warning("Screener 基准指数 %s 获取失败: %s", symbol, exc)
+            return None
 
     # --- 行情加载（本地缓存优先，缺失/过期才 live 补抓并回写） ---
     def _load_frames(
@@ -421,7 +462,23 @@ class MarketScreenerService:
             key = lambda t: (-getattr(t, "gap_days_since", 99), abs(getattr(t, "gap_pct", 0.0)), t.signal_score)  # noqa: E731
             return sorted(filtered, key=key, reverse=True)
 
-        if suffix == "structure_bull":
+        if suffix == "rs_leaders":
+            # 相对强弱领涨：跑赢大盘且 RS 上行（leading）的多头标的，按超额收益排序。
+            # 命中为空（含无基准指数）降级为全集按 rs_chg_pct 排序。
+            filtered = [
+                t for t in scored
+                if getattr(t, "rs_status", "") == "leading" and t.trend_status in bullish
+            ]
+            key = lambda t: (getattr(t, "rs_chg_pct", 0.0), t.signal_score)  # noqa: E731
+        elif suffix == "trend_confirmed":
+            # ADX 趋势确认：多头趋势 且 ADX≥阈值（趋势强、非震荡），按 ADX 排序。
+            filtered = [
+                t for t in scored
+                if t.trend_status in {TrendStatus.STRONG_BULL, TrendStatus.BULL}
+                and getattr(t, "adx", 0.0) >= StockTrendAnalyzer.ADX_TREND_MIN
+            ]
+            key = lambda t: (getattr(t, "adx", 0.0), t.signal_score)  # noqa: E731
+        elif suffix == "structure_bull":
             filtered = [t for t in scored if getattr(t, "structure", "") == "bull"]
             key = lambda t: (t.signal_score, t.trend_strength)  # noqa: E731
         elif suffix == "structure_bear":
@@ -462,6 +519,18 @@ class MarketScreenerService:
         gap_desc = getattr(tr, "gap_desc", "")
         if getattr(tr, "gap_dir", "") and gap_desc:
             reason += f" ｜ 缺口：{gap_desc}"
+        rs_desc = getattr(tr, "rs_desc", "")
+        if getattr(tr, "rs_status", "neutral") != "neutral" and rs_desc:
+            reason += f" ｜ RS：{rs_desc}"
+        adx_desc = getattr(tr, "adx_desc", "")
+        if adx_desc:
+            reason += f" ｜ {adx_desc}"
+        vol_confirm_desc = getattr(tr, "vol_confirm_desc", "")
+        if getattr(tr, "obv_divergence", "") and vol_confirm_desc:
+            reason += f" ｜ {vol_confirm_desc}"
+        exit_desc = getattr(tr, "exit_desc", "")
+        if exit_desc:
+            reason += f" ｜ 止损：{exit_desc}"
         if reasons:
             reason += "：" + "；".join(reasons[:3])
         return {
@@ -480,6 +549,8 @@ class MarketScreenerService:
                 "bias_ma5": round(tr.bias_ma5, 2),
                 "volume_ratio_5d": round(tr.volume_ratio_5d, 2),
                 "rsi_12": round(tr.rsi_12, 2),
+                "adx": round(getattr(tr, "adx", 0.0), 2),
+                "rs_chg_pct": round(getattr(tr, "rs_chg_pct", 0.0), 2),
             },
             "industry": "",
             "raw": tr.to_dict(),

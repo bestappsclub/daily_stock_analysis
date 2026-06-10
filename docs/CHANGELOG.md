@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- [新功能] 趋势引擎新增 ADX/DMI、OBV（量价确认/背离）、相对强弱 RS（vs 大盘指数）三类指标，个股分析与选股候选均输出对应字段（`adx`/`plus_di`/`minus_di`/`adx_status`、`obv`/`obv_trend`/`obv_divergence`、`rs_ratio`/`rs_chg_pct`/`rs_status`），OBV 顶背离会进风险标记；参数 `ADX_LEN/ADX_TREND_MIN/ADX_STRONG/OBV_DIV_WIN/RS_LOOKBACK` 可配。
+- [新功能] 多市场选股新增 `*_rs_leaders`（相对强弱领涨：跑赢大盘且 RS 上行的多头股）与 `*_trend_confirmed`（ADX 趋势确认：多头 + ADX≥阈值）两个策略；RS 基准指数按市场取 `^GSPC`/`^STI`/`^HSI`/沪深300，`<PREFIX>_BENCHMARK` 可覆盖，指数抓取失败则 RS 中性、fail-open 不影响选股。
+- [文档] `docs/us-screening.md` 增补 ADX/OBV/相对强弱 RS 三指标说明、两个新策略与基准指数配置。
 - [新功能] 新增原生美股选股：Web「选股」页可选「美股」，扫描有界股票池（默认标普 Composite 1500）并复用趋势评分引擎给出候选股 + 可选 LLM 推荐理由；详见 `docs/us-screening.md`。
 - [新功能] 新增新加坡(SGX)市场完整支持：选股（默认 STI 成分股）、个股分析与大盘复盘（STI 指数）；SG 代码采用 yfinance 风格 `.SI` 后缀（如 `D05.SI`），`MARKET_REVIEW_REGION` 新增 `sg`。
 - [新功能] 新增道氏摆动结构指标（头头高底底高=多头 / 头头低底底低=空头）：趋势分析输出 `structure` 字段，并新增 `*_structure_bull` / `*_structure_bear` 选股策略（美股/新加坡）。
@@ -20,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] Web「选股」页新增「同步行情缓存」按钮（美股/新加坡/A股）：接口 `POST /api/v1/alphasift/sync-cache` 触发当前市场增量同步本地行情缓存，与 CLI `scripts/sync_prices.py`、每日定时任务共用 `MarketScreenerService.sync_cache`；并新增「强制刷新」勾选（`full`，忽略新鲜度重拉，盘内可取当日最新）。
 - [改进] DK 买卖点同步 stockscreener 东财校准版：通道改用**收盘价**（非 high/low）、放量软突破改为独立短周期 `HHV(close, DK_NSOFT=7)`（取代 0.96 折扣 `DK_VASSIST`）、放量条件含昨日延续；参数 `DK_NSOFT`/`DK_VMULT` 取代 `DK_VASSIST`。与 stockscreener `_dk_buysell_state` 实测 12/12 一致。
 - [新功能] 新增跳空缺口指标与 `*_gap_up`/`*_gap_down` 选股策略（全市场）：个股趋势输出 `gap_dir`/`gap_pct`/`gap_days_since`，选股筛近一周内（`GAP_WINDOW` 默认 5）开盘向上/向下跳空、当天优先（`GAP_MIN_PCT` 默认 1%）；候选理由标注如「缺口：向上跳空 6.0%（当天）」。
+- [新功能] 新增出场/止损位（与 stockscreener 一致）：吊灯止损 Chandelier Exit（`HHV/LLV(close)−mult×ATR`，棘轮）与 DK 持仓 12% 移动止损（峰值×(1-pct)）；个股结果含 `chandelier_stop`/`chandelier_dir`/`dk_trail_stop`，选股候选理由标注「止损：吊灯多 X / 移止12% Y」；参数 `CHANDELIER_LEN/CHANDELIER_MULT/DK_TRAIL_PCT`。
 - [改进] DK 选股精确化为「当天出现」：`*_dk_buy` 改为筛**当天出现 D 点**、新增 `*_dk_sell` 筛**当天出现 K 点**（命中为空即返回空）；个股趋势新增 `dk_last_signal`/`dk_days_since` 字段，标注 D/K 点是当天还是几天前出现，候选理由同步展示。
 - [新功能] 港股(hk)原生选股：新增 `hk` 市场（默认池 `src/data/hk_universe.txt` 约 2700 只，yfinance `.HK` 前复权，与美股/新加坡同路径），始终原生（AlphaSift 不覆盖港股）；Web「选股」页市场新增「港股」，支持本地缓存与同步按钮；新增 `scripts/fetch_hk_universe.py`。
 - [新功能] A股原生选股（含 DK/结构/动量等策略）：`MarketScreenerService` 新增 `cn` 市场（默认池 `src/data/cn_universe.txt` 全 A股+北交所约 5500 只，akshare 前复权 `batch_download_cn_daily`，本地缓存共用 `stock_daily`），新增 `scripts/fetch_cn_universe.py`。通过 `CN_SCREEN_NATIVE=true` 开启（默认关，A股仍走 AlphaSift 向后兼容）；开启后 Web「选股」页选「A股」用本原生引擎。

@@ -52,6 +52,7 @@ _DETERMINISTIC_ENV = {
     "US_SCREEN_UNIVERSE": "AAA,BBB,CCC",
     "US_SCREEN_MAX_UNIVERSE": "1500",
     "US_SCREEN_USE_CACHE": "false",
+    "US_SCREEN_BENCHMARK": "",  # 关闭相对强弱基准抓取，保持这些用例的调用计数确定
 }
 
 
@@ -142,6 +143,7 @@ class SGScreenerTest(unittest.TestCase):
             "SG_SCREEN_ENRICH": "false",
             "SG_SCREEN_UNIVERSE": "D05.SI,O39.SI,U11.SI",
             "SG_SCREEN_USE_CACHE": "false",
+            "SG_SCREEN_BENCHMARK": "",
         },
         clear=False,
     )
@@ -373,6 +375,7 @@ class CnScreenerTest(unittest.TestCase):
             "CN_SCREEN_ENRICH": "false",
             "CN_SCREEN_UNIVERSE": "600519,000001",
             "CN_SCREEN_USE_CACHE": "false",
+            "CN_SCREEN_BENCHMARK": "",
         },
         clear=False,
     )
@@ -439,6 +442,83 @@ class GapTest(unittest.TestCase):
         self.assertIn("us_gap_down", ids)
 
 
+class ExitStopTest(unittest.TestCase):
+    def test_chandelier_and_dk_trail(self) -> None:
+        from src.stock_analyzer import StockTrendAnalyzer
+        an = StockTrendAnalyzer()
+        up = an.analyze(_make_df(100, "up"), "U")
+        down = an.analyze(_make_df(100, "down"), "D")
+        self.assertEqual(up.chandelier_dir, 1)
+        self.assertGreater(up.chandelier_stop, 0)
+        self.assertEqual(up.dk_state, "hold")
+        self.assertGreater(up.dk_trail_stop, 0)
+        self.assertIn("吊灯", up.exit_desc)
+        self.assertEqual(down.chandelier_dir, -1)
+        self.assertEqual(down.dk_trail_stop, 0.0)
+
+
+def _flat_bench(n: int = 70, level: float = 1000.0) -> pd.DataFrame:
+    """Flat benchmark index (date/close) aligned to _make_df dates for RS tests."""
+    dates = [date(2025, 1, 1) + timedelta(days=i) for i in range(n)]
+    return pd.DataFrame({"date": dates, "close": [level] * n})
+
+
+class RsAdxStrategyTest(unittest.TestCase):
+    def test_new_strategies_listed_per_market(self) -> None:
+        for mkt in ("us", "sg", "hk", "cn"):
+            ids = {s["id"] for s in MarketScreenerService(mkt, config=SimpleNamespace()).strategies()["strategies"]}
+            self.assertIn(f"{mkt}_rs_leaders", ids)
+            self.assertIn(f"{mkt}_trend_confirmed", ids)
+
+    @patch.dict(
+        "os.environ",
+        {**_DETERMINISTIC_ENV, "US_SCREEN_UNIVERSE": "LEAD,LAGG"},
+        clear=False,
+    )
+    def test_rs_leaders_filters_to_leading_bullish(self) -> None:
+        frames = {"LEAD": _make_df(100, "up"), "LAGG": _make_df(100, "down")}
+        with patch.object(uss, "batch_download_us_daily", return_value=frames), \
+                patch.object(MarketScreenerService, "_load_benchmark", return_value=_flat_bench()):
+            result = USScreenerService(config=SimpleNamespace()).screen(
+                strategy="us_rs_leaders", market="us", max_results=5
+            )
+        codes = {c["code"] for c in result["candidates"]}
+        self.assertEqual(codes, {"LEAD"})
+        lead = next(c for c in result["candidates"] if c["code"] == "LEAD")
+        self.assertGreater(lead["factor_scores"]["rs_chg_pct"], 0)
+
+    @patch.dict(
+        "os.environ",
+        {**_DETERMINISTIC_ENV, "US_SCREEN_UNIVERSE": "LEAD,LAGG"},
+        clear=False,
+    )
+    def test_rs_leaders_failopen_without_benchmark(self) -> None:
+        # 基准缺失（benchmark="" in env → _load_benchmark 返回 None）：RS 中性，
+        # 仍能正常返回候选（降级为全集排序），不报错。
+        frames = {"LEAD": _make_df(100, "up"), "LAGG": _make_df(100, "down")}
+        with patch.object(uss, "batch_download_us_daily", return_value=frames):
+            result = USScreenerService(config=SimpleNamespace()).screen(
+                strategy="us_rs_leaders", market="us", max_results=5
+            )
+        self.assertTrue(result["enabled"])
+        self.assertGreaterEqual(len(result["candidates"]), 1)
+
+    @patch.dict(
+        "os.environ",
+        {**_DETERMINISTIC_ENV, "US_SCREEN_UNIVERSE": "TREND,FLAT"},
+        clear=False,
+    )
+    def test_trend_confirmed_filters_trending_high_adx(self) -> None:
+        frames = {"TREND": _make_df(100, "up"), "FLAT": _make_df(100, "flat")}
+        with patch.object(uss, "batch_download_us_daily", return_value=frames):
+            result = USScreenerService(config=SimpleNamespace()).screen(
+                strategy="us_trend_confirmed", market="us", max_results=5
+            )
+        codes = {c["code"] for c in result["candidates"]}
+        self.assertIn("TREND", codes)
+        self.assertNotIn("FLAT", codes)
+
+
 class HkScreenerTest(unittest.TestCase):
     def test_hk_native_and_strategies(self) -> None:
         from src.services.us_screener_service import SUPPORTED_MARKETS
@@ -455,6 +535,7 @@ class HkScreenerTest(unittest.TestCase):
             "HK_SCREEN_ENRICH": "false",
             "HK_SCREEN_UNIVERSE": "0700.HK,0005.HK",
             "HK_SCREEN_USE_CACHE": "false",
+            "HK_SCREEN_BENCHMARK": "",
         },
         clear=False,
     )
@@ -497,6 +578,7 @@ class PriceCacheTest(unittest.TestCase):
             "US_SCREEN_ENRICH": "false",
             "US_SCREEN_UNIVERSE": "CACHED,MISS",
             "US_SCREEN_USE_CACHE": "true",
+            "US_SCREEN_BENCHMARK": "",
         },
         clear=False,
     )

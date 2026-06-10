@@ -19,7 +19,7 @@
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from enum import Enum
 
 import pandas as pd
@@ -150,6 +150,31 @@ class TrendAnalysisResult:
     gap_days_since: int = -1         # 距最近缺口的交易日数（0=当天，-1=无）
     gap_desc: str = ""               # 人类可读描述
 
+    # 出场/止损位（与 stockscreener 一致）
+    chandelier_stop: float = 0.0     # 吊灯止损价（多头止损线，最新一根）
+    chandelier_dir: int = 0          # 吊灯方向：1=多 / -1=空 / 0=未知
+    dk_trail_stop: float = 0.0       # DK 持仓 12% 移动止损价（仅持股态有意义，否则 0）
+    exit_desc: str = ""              # 止损位人类可读描述
+
+    # ADX / DMI（趋势强度：判断"趋势 or 震荡"，决定该不该用趋势类策略）
+    adx: float = 0.0                 # ADX 值（越大趋势越强）
+    plus_di: float = 0.0             # +DI（多头动向）
+    minus_di: float = 0.0            # -DI（空头动向）
+    adx_status: str = "unknown"      # "strong_trend" | "trend" | "range" | "unknown"
+    adx_desc: str = ""               # 人类可读描述
+
+    # OBV 量价确认 / 背离（价涨量是否跟上，滤假突破）
+    obv: float = 0.0                 # 最新 OBV 值（能量潮，累积量）
+    obv_trend: str = ""              # "up" | "down" | "flat"（OBV 近窗口方向）
+    obv_divergence: str = ""         # "bullish"(底背离) | "bearish"(顶背离) | ""
+    vol_confirm_desc: str = ""       # 人类可读描述（量价配合/背离）
+
+    # 相对强弱 RS（个股 vs 大盘指数；需 benchmark，缺失则中性）
+    rs_ratio: float = 0.0            # (1+个股收益)/(1+大盘收益)，>1=跑赢，0=无数据
+    rs_chg_pct: float = 0.0          # 相对大盘超额收益（百分点，正=跑赢）
+    rs_status: str = "neutral"       # "leading"(领先) | "lagging"(落后) | "neutral"
+    rs_desc: str = ""                # 人类可读描述
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             'code': self.code,
@@ -194,6 +219,23 @@ class TrendAnalysisResult:
             'gap_pct': self.gap_pct,
             'gap_days_since': self.gap_days_since,
             'gap_desc': self.gap_desc,
+            'chandelier_stop': self.chandelier_stop,
+            'chandelier_dir': self.chandelier_dir,
+            'dk_trail_stop': self.dk_trail_stop,
+            'exit_desc': self.exit_desc,
+            'adx': self.adx,
+            'plus_di': self.plus_di,
+            'minus_di': self.minus_di,
+            'adx_status': self.adx_status,
+            'adx_desc': self.adx_desc,
+            'obv': self.obv,
+            'obv_trend': self.obv_trend,
+            'obv_divergence': self.obv_divergence,
+            'vol_confirm_desc': self.vol_confirm_desc,
+            'rs_ratio': self.rs_ratio,
+            'rs_chg_pct': self.rs_chg_pct,
+            'rs_status': self.rs_status,
+            'rs_desc': self.rs_desc,
         }
 
 
@@ -241,19 +283,38 @@ class StockTrendAnalyzer:
     # 跳空缺口参数：开盘相对昨收的缺口幅度阈值（百分比）与"最近一周"窗口（交易日）
     GAP_MIN_PCT = float(os.getenv("GAP_MIN_PCT", "1.0") or 1.0)   # 缺口最小幅度(%)
     GAP_WINDOW = int(os.getenv("GAP_WINDOW", "5") or 5)          # 近 N 个交易日内算"最近缺口"
-    
+
+    # 出场/止损（与 stockscreener 一致）：吊灯止损 + DK 持仓 12% 移动止损
+    CHANDELIER_LEN = int(os.getenv("CHANDELIER_LEN", "22") or 22)        # 吊灯止损窗口
+    CHANDELIER_MULT = float(os.getenv("CHANDELIER_MULT", "3.0") or 3.0)  # ATR 倍数
+    DK_TRAIL_PCT = float(os.getenv("DK_TRAIL_PCT", "0.12") or 0.12)      # DK 持仓移动止损回撤比例
+
+    # ADX / DMI（Wilder 平滑）：判断趋势强度，ADX≥TREND_MIN 视为有趋势，≥STRONG 视为强趋势
+    ADX_LEN = int(os.getenv("ADX_LEN", "14") or 14)                     # ADX/DI 平滑周期
+    ADX_TREND_MIN = float(os.getenv("ADX_TREND_MIN", "25") or 25)       # 趋势确认阈值
+    ADX_STRONG = float(os.getenv("ADX_STRONG", "40") or 40)            # 强趋势阈值
+
+    # OBV 量价背离检测窗口（近 N 个交易日内比较价与 OBV 的变化方向）
+    OBV_DIV_WIN = int(os.getenv("OBV_DIV_WIN", "20") or 20)
+
+    # 相对强弱 RS：与大盘指数对比的回看窗口（交易日）
+    RS_LOOKBACK = int(os.getenv("RS_LOOKBACK", "60") or 60)
+
     def __init__(self):
         """初始化分析器"""
         pass
     
-    def analyze(self, df: pd.DataFrame, code: str) -> TrendAnalysisResult:
+    def analyze(self, df: pd.DataFrame, code: str,
+                benchmark_df: Optional[pd.DataFrame] = None) -> TrendAnalysisResult:
         """
         分析股票趋势
-        
+
         Args:
             df: 包含 OHLCV 数据的 DataFrame
             code: 股票代码
-            
+            benchmark_df: 可选，大盘指数日线（需含 'date'/'close'），用于计算相对强弱 RS；
+                          为 None 或数据不足时 RS 字段保持中性（fail-open，不影响其余分析）。
+
         Returns:
             TrendAnalysisResult 分析结果
         """
@@ -321,7 +382,229 @@ class StockTrendAnalyzer:
         except Exception as exc:  # noqa: BLE001 - 缺口分析失败不应影响主趋势结果
             logger.debug(f"{code} 跳空缺口分析失败: {exc}")
 
+        # 11. 出场/止损位（吊灯止损 + DK 12% 移动止损在 _analyze_dk 中已算）
+        try:
+            self._analyze_exits(df, result)
+        except Exception as exc:  # noqa: BLE001 - 止损位计算失败不应影响主趋势结果
+            logger.debug(f"{code} 止损位计算失败: {exc}")
+
+        # 12. ADX / DMI（趋势强度）
+        try:
+            self._analyze_adx(df, result)
+        except Exception as exc:  # noqa: BLE001 - ADX 计算失败不应影响主趋势结果
+            logger.debug(f"{code} ADX 计算失败: {exc}")
+
+        # 13. OBV 量价确认 / 背离
+        try:
+            self._analyze_obv(df, result)
+        except Exception as exc:  # noqa: BLE001 - OBV 计算失败不应影响主趋势结果
+            logger.debug(f"{code} OBV 计算失败: {exc}")
+
+        # 14. 相对强弱 RS（vs 大盘指数；benchmark_df 缺失则保持中性）
+        try:
+            self._analyze_relative_strength(df, result, benchmark_df)
+        except Exception as exc:  # noqa: BLE001 - RS 计算失败不应影响主趋势结果
+            logger.debug(f"{code} 相对强弱 RS 计算失败: {exc}")
+
         return result
+
+    def _analyze_exits(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """吊灯止损 Chandelier Exit（收盘价基准，棘轮只进不退）+ 汇总止损描述。
+
+        镜像 stockscreener ``technical.py:chandelier_exit``：
+            多头止损 = HHV(close, len) − mult·ATR（随新高上抬）
+            空头止损 = LLV(close, len) + mult·ATR（随新低下压）
+        收盘上穿空头止损 → 转多；下穿多头止损 → 转空。设置最新一根的
+        ``chandelier_stop``/``chandelier_dir``，并与 DK 12% 移动止损合成 ``exit_desc``。
+        """
+        length = max(self.CHANDELIER_LEN, 1)
+        mult = self.CHANDELIER_MULT
+        n = len(df)
+        if n < length + 1 or 'high' not in df.columns or 'low' not in df.columns:
+            return
+        h = df['high'].to_numpy(dtype=float)
+        low = df['low'].to_numpy(dtype=float)
+        c = df['close'].to_numpy(dtype=float)
+        # ATR（Wilder 近似，与 stockscreener chandelier_exit 一致）
+        atr = [0.0] * n
+        for i in range(1, n):
+            tr = max(h[i] - low[i], abs(h[i] - c[i - 1]), abs(low[i] - c[i - 1]))
+            atr[i] = (atr[i - 1] * (i - 1) + tr) / i if i < length else (atr[i - 1] * (length - 1) + tr) / length
+        import numpy as _np
+        hhv = pd.Series(c).rolling(length).max().to_numpy()
+        llv = pd.Series(c).rolling(length).min().to_numpy()
+        long_stop = [float('nan')] * n
+        short_stop = [float('nan')] * n
+        direction = 1
+        for i in range(length, n):
+            a = hhv[i] - mult * atr[i]
+            b = llv[i] + mult * atr[i]
+            if i > length and not _np.isnan(long_stop[i - 1]):
+                a = max(a, long_stop[i - 1]) if c[i - 1] > long_stop[i - 1] else a
+                b = min(b, short_stop[i - 1]) if c[i - 1] < short_stop[i - 1] else b
+            long_stop[i] = a
+            short_stop[i] = b
+            if i > length:
+                if c[i] > short_stop[i - 1]:
+                    direction = 1
+                elif c[i] < long_stop[i - 1]:
+                    direction = -1
+        result.chandelier_dir = direction
+        result.chandelier_stop = round(long_stop[-1] if direction == 1 else short_stop[-1], 4)
+
+        parts = []
+        if result.chandelier_stop:
+            parts.append(f"吊灯{'多' if direction == 1 else '空'} {result.chandelier_stop:g}")
+        if result.dk_trail_stop:
+            parts.append(f"移止12% {result.dk_trail_stop:g}")
+        result.exit_desc = " / ".join(parts)
+
+    def _analyze_adx(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """ADX / DMI（Wilder 平滑，与 _calculate_rsi 同口径 ewm(alpha=1/period)）。
+
+        TR / +DM / −DM → 平滑 → +DI、−DI → DX → ADX。判断当前是趋势还是震荡：
+        ADX≥ADX_TREND_MIN 视为有趋势（趋势/突破类策略才可靠），<阈值视为震荡。
+        +DI>−DI 多头主导，反之空头主导。
+        """
+        period = max(self.ADX_LEN, 2)
+        n = len(df)
+        if n < period * 2 or not {'high', 'low', 'close'}.issubset(df.columns):
+            return
+        high = df['high'].to_numpy(dtype=float)
+        low = df['low'].to_numpy(dtype=float)
+        close = df['close'].to_numpy(dtype=float)
+        tr = np.zeros(n)
+        plus_dm = np.zeros(n)
+        minus_dm = np.zeros(n)
+        for i in range(1, n):
+            up_move = high[i] - high[i - 1]
+            down_move = low[i - 1] - low[i]
+            plus_dm[i] = up_move if (up_move > down_move and up_move > 0) else 0.0
+            minus_dm[i] = down_move if (down_move > up_move and down_move > 0) else 0.0
+            tr[i] = max(high[i] - low[i], abs(high[i] - close[i - 1]), abs(low[i] - close[i - 1]))
+
+        alpha = 1.0 / period
+        atr = pd.Series(tr).ewm(alpha=alpha, adjust=False).mean().to_numpy()
+        sm_plus = pd.Series(plus_dm).ewm(alpha=alpha, adjust=False).mean().to_numpy()
+        sm_minus = pd.Series(minus_dm).ewm(alpha=alpha, adjust=False).mean().to_numpy()
+        with np.errstate(divide='ignore', invalid='ignore'):
+            plus_di = 100.0 * sm_plus / atr
+            minus_di = 100.0 * sm_minus / atr
+            di_sum = plus_di + minus_di
+            dx = 100.0 * np.abs(plus_di - minus_di) / di_sum
+        dx = np.nan_to_num(dx, nan=0.0, posinf=0.0, neginf=0.0)
+        adx = pd.Series(dx).ewm(alpha=alpha, adjust=False).mean().to_numpy()
+
+        result.adx = round(float(adx[-1]), 2)
+        result.plus_di = round(float(np.nan_to_num(plus_di[-1])), 2)
+        result.minus_di = round(float(np.nan_to_num(minus_di[-1])), 2)
+        if result.adx >= self.ADX_STRONG:
+            result.adx_status = "strong_trend"
+        elif result.adx >= self.ADX_TREND_MIN:
+            result.adx_status = "trend"
+        else:
+            result.adx_status = "range"
+        if result.adx_status == "range":
+            result.adx_desc = f"ADX {result.adx:g} 震荡（趋势弱，趋势策略慎用）"
+        else:
+            direction = "多" if result.plus_di >= result.minus_di else "空"
+            label = "强趋势" if result.adx_status == "strong_trend" else "趋势确认"
+            result.adx_desc = (
+                f"ADX {result.adx:g} {label}（{direction}向，"
+                f"+DI{result.plus_di:g}/−DI{result.minus_di:g}）"
+            )
+
+    def _analyze_obv(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """OBV 能量潮 + 量价确认/背离。
+
+        OBV：收盘上涨累加当日量、下跌减去当日量。在 OBV_DIV_WIN 窗口内比较价与 OBV
+        的同期变化方向：价涨而 OBV 走弱=顶背离(bearish，追加风险标记)，
+        价跌而 OBV 走强=底背离(bullish)，方向一致=量价配合。
+        """
+        win = max(self.OBV_DIV_WIN, 2)
+        n = len(df)
+        if n < win + 1 or 'volume' not in df.columns:
+            return
+        close = df['close'].to_numpy(dtype=float)
+        vol = df['volume'].to_numpy(dtype=float)
+        obv = np.zeros(n)
+        for i in range(1, n):
+            if close[i] > close[i - 1]:
+                obv[i] = obv[i - 1] + vol[i]
+            elif close[i] < close[i - 1]:
+                obv[i] = obv[i - 1] - vol[i]
+            else:
+                obv[i] = obv[i - 1]
+        result.obv = round(float(obv[-1]), 2)
+
+        price_chg = close[-1] - close[-1 - win]
+        obv_chg = obv[-1] - obv[-1 - win]
+        result.obv_trend = "up" if obv_chg > 0 else ("down" if obv_chg < 0 else "flat")
+
+        if price_chg > 0 and obv_chg < 0:
+            result.obv_divergence = "bearish"
+            result.vol_confirm_desc = f"顶背离：价涨而 OBV 走弱（量价不配合，{win}日）"
+            result.risk_factors.append("OBV 顶背离：上涨缺量能支撑，提防假突破")
+        elif price_chg < 0 and obv_chg > 0:
+            result.obv_divergence = "bullish"
+            result.vol_confirm_desc = f"底背离：价跌而 OBV 走强（资金潜流入，{win}日）"
+        else:
+            result.obv_divergence = ""
+            if price_chg > 0 and obv_chg > 0:
+                result.vol_confirm_desc = f"量价配合：价涨 OBV 同步上行（{win}日）"
+            elif price_chg < 0 and obv_chg < 0:
+                result.vol_confirm_desc = f"量价同步走弱（{win}日）"
+            else:
+                result.vol_confirm_desc = ""
+
+    def _analyze_relative_strength(
+        self, df: pd.DataFrame, result: TrendAnalysisResult,
+        benchmark_df: Optional[pd.DataFrame] = None,
+    ) -> None:
+        """相对强弱 RS（个股 vs 大盘指数）。
+
+        benchmark_df（含 'date'/'close'）按日期对齐到个股，取 RS_LOOKBACK 窗口比较累计收益：
+            rs_chg_pct = (个股收益 − 大盘收益) × 100（正=跑赢）
+            rs_ratio   = (1+个股收益)/(1+大盘收益)（>1=跑赢）
+        并看 RS 线（个股/大盘）是否上行。leading=跑赢且 RS 上行；lagging=跑输且 RS 下行。
+        benchmark_df 缺失/对齐后数据不足时直接返回，字段保持中性（fail-open）。
+        """
+        if benchmark_df is None or getattr(benchmark_df, "empty", True):
+            return
+        if 'close' not in benchmark_df.columns or 'date' not in benchmark_df.columns:
+            return
+        if 'date' not in df.columns or 'close' not in df.columns:
+            return
+        look = max(self.RS_LOOKBACK, 2)
+        bench = benchmark_df[['date', 'close']].rename(columns={'close': '_bench_close'})
+        merged = df[['date', 'close']].merge(bench, on='date', how='left').dropna(subset=['_bench_close'])
+        avail = len(merged)
+        if avail < 21:  # 对齐后不足约 1 个月，RS 无统计意义，保持中性
+            return
+        look = min(look, avail - 1)  # 历史不足时收窄窗口（个股分析仅取 ~60 交易日）
+        stock_close = merged['close'].to_numpy(dtype=float)
+        bench_close = merged['_bench_close'].to_numpy(dtype=float)
+        s0, s1 = stock_close[-1 - look], stock_close[-1]
+        b0, b1 = bench_close[-1 - look], bench_close[-1]
+        if s0 <= 0 or b0 <= 0:
+            return
+        stock_ret = s1 / s0 - 1.0
+        bench_ret = b1 / b0 - 1.0
+        result.rs_chg_pct = round((stock_ret - bench_ret) * 100.0, 2)
+        if (1.0 + bench_ret) != 0:
+            result.rs_ratio = round((1.0 + stock_ret) / (1.0 + bench_ret), 4)
+        rs_line = stock_close / bench_close
+        rs_rising = rs_line[-1] > rs_line[-1 - look]
+        if result.rs_chg_pct > 0 and rs_rising:
+            result.rs_status = "leading"
+        elif result.rs_chg_pct < 0 and not rs_rising:
+            result.rs_status = "lagging"
+        else:
+            result.rs_status = "neutral"
+        sign = "+" if result.rs_chg_pct >= 0 else ""
+        verb = "跑赢" if result.rs_chg_pct >= 0 else "跑输"
+        arrow = "RS上行" if rs_rising else "RS走平/下行"
+        result.rs_desc = f"{verb}大盘 {sign}{result.rs_chg_pct:g}%（{look}日，{arrow}）"
 
     def _analyze_gap(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
         """跳空缺口：开盘价相对昨收的缺口。从最新一根往回找**最近一次**显著缺口
@@ -423,6 +706,11 @@ class StockTrendAnalyzer:
             result.dk_last_signal = ""
             result.dk_days_since = -1
             result.dk_desc = "持股（多头持有）" if bull else "持币（空仓观望）"
+
+        # DK 持仓 12% 移动止损：持股态下，从 D 点进场跟踪持仓期最高收盘，止损=峰值×(1-pct)
+        if bull and last_flip_type == "D" and last_flip_idx >= 0:
+            peak = float(close[last_flip_idx:length].max())
+            result.dk_trail_stop = round(peak * (1.0 - self.DK_TRAIL_PCT), 4)
 
     def _analyze_swing_structure(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
         """道氏摆动结构识别（头头高底底高 / 头头低底底低）。
