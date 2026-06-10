@@ -27,6 +27,14 @@ const formatChangePct = (value: unknown): string => {
   return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`;
 };
 
+// 温斯坦阶段徽章（用中性色，避开红涨绿跌的红/绿，免得语义打架）
+const STAGE_BADGE: Record<number, { label: string; title: string; cls: string }> = {
+  1: { label: 'S1', title: '阶段1 底部转折', cls: 'text-warning bg-warning/10' },
+  2: { label: 'S2', title: '阶段2 强势上涨', cls: 'text-cyan bg-cyan/10' },
+  3: { label: 'S3', title: '阶段3 见顶转折', cls: 'text-secondary-text bg-surface border border-border' },
+  4: { label: 'S4', title: '阶段4 弱势下跌', cls: 'text-secondary-text/70 bg-surface' },
+};
+
 const MARKETS = [
   { id: 'cn', label: 'A 股' },
   { id: 'hk', label: '港股' },
@@ -684,20 +692,23 @@ const StockScreeningPage: React.FC = () => {
             <table className="w-full min-w-[860px] border-collapse text-sm">
               <thead className="bg-surface text-left text-xs text-secondary-text">
                 <tr>
-                  <th className="w-14 px-4 py-3 font-semibold">#</th>
+                  <th className="w-10 px-2 py-3" />
+                  <th className="w-12 px-4 py-3 font-semibold">#</th>
                   <th className="px-4 py-3 font-semibold">代码</th>
                   <th className="px-4 py-3 font-semibold">名称</th>
-                  <th className="px-4 py-3 font-semibold">行业</th>
+                  <th className="px-4 py-3 font-semibold">板块</th>
                   <th className="px-4 py-3 font-semibold">价格</th>
                   <th className="px-4 py-3 font-semibold">涨跌幅</th>
                   <th className="px-4 py-3 font-semibold">评分</th>
+                  <th className="px-4 py-3 font-semibold" title="相对强度百分位 0-100（对照大盘）">PWR</th>
                   <th className="px-4 py-3 font-semibold">LLM</th>
                   <th className="px-4 py-3 font-semibold">风险</th>
                   <th className="px-4 py-3 font-semibold">详情</th>
                 </tr>
               </thead>
               <tbody>
-                {candidates.map((item) => {
+                {visibleCandidates.map((item) => {
+                  const watched = watchlist.has(item.code);
                   const expanded = expandedCode === item.code;
                   const factors = getFactorEntries(item);
                   const llmInsightAvailable = hasLlmInsight(item);
@@ -710,6 +721,19 @@ const StockScreeningPage: React.FC = () => {
                   return (
                     <Fragment key={`${item.rank}-${item.code}`}>
                       <tr className="border-t border-border align-top transition-colors hover:bg-hover/50">
+                        <td className="px-2 py-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleWatch(item.code)}
+                            title={watched ? '移出自选' : '加入自选'}
+                            className={cn(
+                              'rounded-md p-1 transition-colors',
+                              watched ? 'text-warning' : 'text-secondary-text/50 hover:text-secondary-text',
+                            )}
+                          >
+                            <Star className="h-4 w-4" fill={watched ? 'currentColor' : 'none'} />
+                          </button>
+                        </td>
                         <td className="px-4 py-3 text-secondary-text">{item.rank}</td>
                         <td className="px-4 py-3 font-mono font-semibold text-foreground">
                           <div className="flex items-center gap-2">
@@ -733,11 +757,40 @@ const StockScreeningPage: React.FC = () => {
                             </a>
                           </div>
                         </td>
-                        <td className="px-4 py-3 font-semibold text-foreground">{item.name || '-'}</td>
-                        <td className="px-4 py-3 text-secondary-text">{item.industry || '-'}</td>
+                        <td className="px-4 py-3 font-semibold text-foreground">
+                          <div className="flex items-center gap-1.5">
+                            <span>{item.name || '-'}</span>
+                            {item.stage && STAGE_BADGE[item.stage] ? (
+                              <span
+                                title={STAGE_BADGE[item.stage].title}
+                                className={cn('rounded px-1 py-0.5 text-[10px] font-bold leading-none', STAGE_BADGE[item.stage].cls)}
+                              >
+                                {STAGE_BADGE[item.stage].label}
+                              </span>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-secondary-text">{item.llmSector || item.industry || '-'}</td>
                         <td className="px-4 py-3 text-secondary-text">{formatNumber(item.price)}</td>
-                        <td className="px-4 py-3 text-secondary-text">{formatNumber(item.changePct)}%</td>
+                        <td className={cn('px-4 py-3 font-semibold tabular-nums', chgClass(item.changePct))}>
+                          {formatChangePct(item.changePct)}
+                        </td>
                         <td className="px-4 py-3 font-bold text-cyan">{formatScore(item.score)}</td>
+                        <td className="px-4 py-3">
+                          {item.pwr != null ? (
+                            <span
+                              title={`对照大盘超额收益 · 1月 ${formatChangePct(item.rs1m)} · 3月 ${formatChangePct(item.rs3m)} · 6月 ${formatChangePct(item.rs6m)}`}
+                              className={cn(
+                                'font-mono text-sm font-bold tabular-nums',
+                                item.pwr >= 80 ? 'text-cyan' : item.pwr >= 50 ? 'text-foreground' : 'text-secondary-text',
+                              )}
+                            >
+                              {item.pwr}
+                            </span>
+                          ) : (
+                            <span className="text-secondary-text">-</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-secondary-text">{llmDegraded ? '未重排' : formatScore(item.llmScore)}</td>
                         <td className="px-4 py-3">
                           <span className="rounded-lg bg-success/10 px-2.5 py-1 text-xs font-semibold text-success">
@@ -756,7 +809,7 @@ const StockScreeningPage: React.FC = () => {
                       </tr>
                       {expanded ? (
                         <tr className="border-t border-border bg-surface/45">
-                          <td colSpan={10} className="px-4 py-4">
+                          <td colSpan={12} className="px-4 py-4">
                             <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
                               <div className="space-y-3">
                                 <div>

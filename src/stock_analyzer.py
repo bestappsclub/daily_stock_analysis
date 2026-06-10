@@ -174,6 +174,16 @@ class TrendAnalysisResult:
     rs_chg_pct: float = 0.0          # 相对大盘超额收益（百分点，正=跑赢）
     rs_status: str = "neutral"       # "leading"(领先) | "lagging"(落后) | "neutral"
     rs_desc: str = ""                # 人类可读描述
+    # 多周期相对强度（vs 大盘超额收益%，对标东财/NDU PWR）；历史不足则保持 0（中性）
+    rs_1m: float = 0.0               # 近 ~21 交易日超额收益%
+    rs_3m: float = 0.0               # 近 ~63 交易日超额收益%
+    rs_6m: float = 0.0               # 近 ~126 交易日超额收益%
+    pwr: int = 0                     # 相对强度百分位 0-100（横截面，选股阶段填充；0=未评级）
+    # 温斯坦四阶段（30 周线斜率 + 价位）；0=未知，1=底部转折，2=强势上涨，3=见顶转折，4=弱势下跌
+    weinstein_stage: int = 0
+    weinstein_desc: str = ""
+    # 资金流（Chaikin Money Flow 20 日，≈聪明钱指数 SMI 代理）；>0 净流入，<0 净流出
+    smi: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -236,6 +246,13 @@ class TrendAnalysisResult:
             'rs_chg_pct': self.rs_chg_pct,
             'rs_status': self.rs_status,
             'rs_desc': self.rs_desc,
+            'rs_1m': self.rs_1m,
+            'rs_3m': self.rs_3m,
+            'rs_6m': self.rs_6m,
+            'pwr': self.pwr,
+            'weinstein_stage': self.weinstein_stage,
+            'weinstein_desc': self.weinstein_desc,
+            'smi': self.smi,
         }
 
 
@@ -405,6 +422,18 @@ class StockTrendAnalyzer:
             self._analyze_relative_strength(df, result, benchmark_df)
         except Exception as exc:  # noqa: BLE001 - RS 计算失败不应影响主趋势结果
             logger.debug(f"{code} 相对强弱 RS 计算失败: {exc}")
+
+        # 15. 温斯坦四阶段（需 ~30 周线；历史不足则 stage=0 保持未知）
+        try:
+            self._analyze_weinstein_stage(df, result)
+        except Exception as exc:  # noqa: BLE001 - 阶段判断失败不应影响主趋势结果
+            logger.debug(f"{code} 温斯坦阶段分析失败: {exc}")
+
+        # 16. 资金流 SMI（Chaikin Money Flow 代理）
+        try:
+            self._analyze_smi(df, result)
+        except Exception as exc:  # noqa: BLE001 - 资金流计算失败不应影响主趋势结果
+            logger.debug(f"{code} 资金流 SMI 计算失败: {exc}")
 
         return result
 
@@ -593,6 +622,18 @@ class StockTrendAnalyzer:
         result.rs_chg_pct = round((stock_ret - bench_ret) * 100.0, 2)
         if (1.0 + bench_ret) != 0:
             result.rs_ratio = round((1.0 + stock_ret) / (1.0 + bench_ret), 4)
+        # 多周期超额收益（vs 大盘）：历史不足某窗口则保持 0（fail-open）
+        def _excess(win: int) -> float:
+            if avail <= win:
+                return 0.0
+            a0, a1 = stock_close[-1 - win], stock_close[-1]
+            c0, c1 = bench_close[-1 - win], bench_close[-1]
+            if a0 <= 0 or c0 <= 0:
+                return 0.0
+            return round(((a1 / a0 - 1.0) - (c1 / c0 - 1.0)) * 100.0, 2)
+        result.rs_1m = _excess(21)
+        result.rs_3m = _excess(63)
+        result.rs_6m = _excess(126)
         rs_line = stock_close / bench_close
         rs_rising = rs_line[-1] > rs_line[-1 - look]
         if result.rs_chg_pct > 0 and rs_rising:
@@ -605,6 +646,61 @@ class StockTrendAnalyzer:
         verb = "跑赢" if result.rs_chg_pct >= 0 else "跑输"
         arrow = "RS上行" if rs_rising else "RS走平/下行"
         result.rs_desc = f"{verb}大盘 {sign}{result.rs_chg_pct:g}%（{look}日，{arrow}）"
+
+    def _analyze_weinstein_stage(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """温斯坦四阶段：以 30 周均线（≈150 交易日 SMA）的斜率 + 价位分类。
+
+        Stage 2 强势上涨：价在 30 周线上方且均线上行；
+        Stage 4 弱势下跌：价在 30 周线下方且均线下行；
+        Stage 3 见顶转折：价在 30 周线上方但均线走平/转弱；
+        Stage 1 底部转折：价在 30 周线下方但均线走平/转强。
+        历史不足 30 周线 + 斜率窗口时保持 stage=0（未知，fail-open）。
+        """
+        win, slope_win = 150, 10
+        closes = df['close'].to_numpy(dtype=float)
+        if len(closes) < win + slope_win:
+            return
+        ma = pd.Series(closes).rolling(win).mean()
+        ma_now = float(ma.iloc[-1])
+        ma_prev = float(ma.iloc[-1 - slope_win])
+        if not (ma_now > 0 and ma_prev > 0):
+            return
+        price = float(closes[-1])
+        slope_pct = (ma_now - ma_prev) / ma_prev * 100.0  # 30 周线近 10 日斜率%
+        above = price >= ma_now
+        rising = slope_pct > 0.5
+        falling = slope_pct < -0.5
+        if above and rising:
+            result.weinstein_stage, result.weinstein_desc = 2, "阶段2 强势上涨（价在30周线上方且均线上行）"
+        elif (not above) and falling:
+            result.weinstein_stage, result.weinstein_desc = 4, "阶段4 弱势下跌（价在30周线下方且均线下行）"
+        elif above:
+            result.weinstein_stage, result.weinstein_desc = 3, "阶段3 见顶转折（价在30周线上方但均线走平/转弱）"
+        else:
+            result.weinstein_stage, result.weinstein_desc = 1, "阶段1 底部转折（价在30周线下方但均线走平/转强）"
+
+    def _analyze_smi(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
+        """资金流 SMI：Chaikin Money Flow(20)，作为「聪明钱指数」代理。
+
+        MFM = ((C-L) - (H-C)) / (H-L)；MFV = MFM × 成交量；CMF = ΣMFV(20) / Σ成交量(20)。
+        >0 = 资金净流入，<0 = 净流出。数据不足保持 0（中性）。
+        """
+        win = 20
+        if len(df) < win or not {'high', 'low', 'close', 'volume'}.issubset(df.columns):
+            return
+        high = df['high'].astype(float)
+        low = df['low'].astype(float)
+        close = df['close'].astype(float)
+        vol = df['volume'].astype(float)
+        rng = (high - low)
+        mfm = ((close - low) - (high - close)) / rng.where(rng != 0)
+        mfv = mfm.fillna(0.0) * vol
+        denom = float(vol.rolling(win).sum().iloc[-1])
+        if not denom or denom <= 0:
+            return
+        cmf = float(mfv.rolling(win).sum().iloc[-1] / denom)
+        if cmf == cmf:  # 非 NaN
+            result.smi = round(cmf, 4)
 
     def _analyze_gap(self, df: pd.DataFrame, result: TrendAnalysisResult) -> None:
         """跳空缺口：开盘价相对昨收的缺口。从最新一根往回找**最近一次**显著缺口

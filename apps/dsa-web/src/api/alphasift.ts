@@ -47,6 +47,13 @@ export type AlphaSiftCandidate = {
   changePct?: number | null;
   amount?: number | null;
   industry?: string;
+  // 相对强度（对照大盘）：PWR 百分位 0-100 + 多周期超额收益%（DSA 原生选股引擎产出）
+  pwr?: number | null;
+  rs1m?: number | null;
+  rs3m?: number | null;
+  rs6m?: number | null;
+  stage?: number | null; // 温斯坦阶段 1-4（0/缺省=未知）
+  smi?: number | null; // 资金流 SMI（Chaikin Money Flow），>0 净流入
   factorScores?: Record<string, number>;
   postAnalysisSummaries?: Record<string, string>;
   postAnalysisTags?: string[];

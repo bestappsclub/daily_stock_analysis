@@ -87,7 +87,7 @@ describe('StockScreeningPage', () => {
     render(<StockScreeningPage />);
 
     expect(await screen.findByText('选股已开启')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('策略参数'), {
+    fireEvent.change(screen.getByLabelText('策略参数（手动）'), {
       target: { value: 'custom_strategy_alpha' },
     });
 
@@ -125,17 +125,21 @@ describe('StockScreeningPage', () => {
 
     expect(await screen.findByText('选股已开启')).toBeInTheDocument();
 
-    const marketSelect = screen.getByLabelText('市场') as HTMLSelectElement;
-    expect(Array.from(marketSelect.options).map((option) => option.value)).toEqual(['cn', 'hk', 'us', 'sg']);
+    // 市场改为分段按钮（A股/港股/美股/新加坡）
+    ['A 股', '港股', '美股', '新加坡'].forEach((label) => {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    });
 
+    // 策略改为下拉选择（替代策略卡片按钮）
+    const strategySelect = screen.getByRole('combobox') as HTMLSelectElement;
     [
       ['平衡选股', 'balanced_alpha'],
       ['资金热度', 'capital_heat'],
       ['超跌', 'oversold_reversal'],
       ['缩量回踩', 'shrink_pullback'],
-    ].forEach(([label, id]) => {
-      fireEvent.click(screen.getByRole('button', { name: new RegExp(label) }));
-      expect(screen.getByDisplayValue(id)).toBeInTheDocument();
+    ].forEach(([, id]) => {
+      fireEvent.change(strategySelect, { target: { value: id } });
+      expect(strategySelect.value).toBe(id);
     });
 
     fireEvent.click(screen.getByRole('button', { name: /运行选股/ }));
@@ -184,7 +188,7 @@ describe('StockScreeningPage', () => {
     expect(await screen.findByText('旧策略股票')).toBeInTheDocument();
     expect(screen.getByText('选股完成')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /资金热度/ }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'capital_heat' } });
 
     expect(screen.queryByText('旧策略股票')).not.toBeInTheDocument();
     expect(screen.getByText('等待运行')).toBeInTheDocument();

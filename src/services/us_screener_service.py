@@ -79,6 +79,12 @@ _STRATEGY_TEMPLATES: List[Dict[str, Any]] = [
     {"suffix": "gap_down", "name": "向下跳空", "description": "近一周内开盘向下跳空（开盘低于昨收），当天的优先。", "category": "gap", "tags": ["缺口", "跳空", "向下", "当天"]},
     {"suffix": "rs_leaders", "name": "相对强弱领涨", "description": "相对大盘走强（跑赢且 RS 线上行）的多头标的，按超额收益排序。", "category": "relative_strength", "tags": ["相对强弱", "RS", "领涨", "跑赢大盘"]},
     {"suffix": "trend_confirmed", "name": "ADX趋势确认", "description": "多头趋势且 ADX 确认（趋势强、非震荡）的高质量标的。", "category": "trend", "tags": ["ADX", "趋势确认", "趋势强度", "多头"]},
+    {"suffix": "stage2_strong_up", "name": "阶段2 强势上涨", "description": "温斯坦阶段2：价在30周线上方且均线上行（主升段），按相对强度排序。", "category": "stage", "tags": ["温斯坦", "阶段2", "强势", "主升", "PT"]},
+    {"suffix": "stage1_turn_up", "name": "阶段1 底部转折", "description": "温斯坦阶段1：价在30周线下方但均线走平/转强（筑底转折）。", "category": "stage", "tags": ["温斯坦", "阶段1", "底部", "转折", "PT"]},
+    {"suffix": "stage3_turn_down", "name": "阶段3 见顶转折", "description": "温斯坦阶段3：价在30周线上方但均线走平/转弱（顶部派发），最弱在前。", "category": "stage", "tags": ["温斯坦", "阶段3", "见顶", "派发", "PT"]},
+    {"suffix": "stage4_strong_down", "name": "阶段4 弱势下跌", "description": "温斯坦阶段4：价在30周线下方且均线下行（下跌段），最弱在前。", "category": "stage", "tags": ["温斯坦", "阶段4", "弱势", "下跌", "PT"]},
+    {"suffix": "top_signal", "name": "见顶卖出", "description": "顶部派发/见顶信号：阶段3/4、DK 卖点（K）或空头结构，按弱势排序（最该卖在前）。", "category": "sell", "tags": ["见顶", "卖出", "派发", "风险", "Top Signal"]},
+    {"suffix": "smart_money", "name": "资金流入", "description": "资金流 SMI（Chaikin Money Flow）为正、聪明钱净流入的标的，按资金流强度排序。", "category": "money_flow", "tags": ["资金流", "SMI", "聪明钱", "CMF"]},
 ]
 
 
@@ -189,7 +195,9 @@ class MarketScreenerService:
                 detail={"error": "screen_no_universe", "message": f"{self._cfg['label']}股票池为空，请检查 {self._prefix}_UNIVERSE(_FILE) 配置。"},
             )
 
-        history_days = _env_int(f"{self._prefix}_HISTORY_DAYS", 150)
+        # 默认 280 日历日（≈190 交易日），以满足温斯坦 30 周线（~150 交易日）+ 斜率窗口；
+        # 可用 {PREFIX}_HISTORY_DAYS 覆盖（调小更快但 stage/6 月 RS 会降级为未知）。
+        history_days = _env_int(f"{self._prefix}_HISTORY_DAYS", 280)
         try:
             frames = self._load_frames(universe, history_days, warnings)
         except Exception as exc:  # noqa: BLE001 - 数据层失败需可降级提示
@@ -206,8 +214,8 @@ class MarketScreenerService:
         if len(frames) < len(universe):
             warnings.append(f"{len(universe) - len(frames)}/{len(universe)} 只标的无可用行情，已跳过。")
 
-        # 基准指数（相对强弱 RS）：抓一次喂给所有标的；缺失则 RS 中性、fail-open
-        benchmark_df = self._load_benchmark(history_days, warnings)
+        # 基准指数（相对强弱 RS）：抓一次喂给所有标的；指数源失败降级为样本等权代理（用 frames）
+        benchmark_df = self._load_benchmark(history_days, warnings, frames=frames)
 
         scored: List[TrendAnalysisResult] = []
         for code, df in frames.items():
@@ -215,6 +223,9 @@ class MarketScreenerService:
                 scored.append(self.analyzer.analyze(df, code, benchmark_df=benchmark_df))
             except Exception as exc:  # noqa: BLE001 - 单只分析失败跳过
                 logger.debug("Screener 趋势分析失败 %s: %s", code, exc)
+
+        # 横截面相对强度百分位 PWR（对标大盘）：在全体已分析标的内排名后填充
+        self._assign_pwr(scored)
 
         suffix = strategy[len(self.market) + 1:]  # 去掉 "us_"/"sg_" 前缀
         ranked = self._apply_strategy(suffix, scored)
@@ -296,38 +307,74 @@ class MarketScreenerService:
             return batch_download_cn_daily(symbols, days=history_days)
         return batch_download_us_daily(symbols, days=history_days)
 
-    # --- 相对强弱 RS 的基准指数（抓一次，喂给趋势引擎；失败 fail-open 返回 None） ---
-    def _load_benchmark(self, history_days: int, warnings: List[str]) -> Optional[pd.DataFrame]:
-        """抓本市场基准指数日线（含 'date'/'close'），用于个股相对强弱 RS。
+    # --- 相对强弱 RS 的基准指数（抓一次，喂给趋势引擎；多级降级，绝不中断选股） ---
+    def _load_benchmark(self, history_days: int, warnings: List[str],
+                        frames: Optional[Dict[str, pd.DataFrame]] = None) -> Optional[pd.DataFrame]:
+        """基准指数日线（含 'date'/'close'），用于个股相对强弱 RS。多级降级：
 
-        us/sg/hk 走 yfinance（^GSPC/^STI/^HSI）；cn 走 akshare 指数（沪深300）。
-        指数代码可经 ``<PREFIX>_BENCHMARK`` 覆盖，留空则禁用 RS。任何失败都不中断选股，
-        仅返回 None 并记一条 warning（RS 字段保持中性）。
+        1) 真实大盘指数：us/sg/hk 走 yfinance（^GSPC/^STI/^HSI），cn 走 akshare（沪深300）；
+        2) 指数源失败 → **样本等权代理指数**（用本次股票池行情 ``frames`` 等权合成），
+           使 RS 在外部指数源限流/中断时仍可用（离线、不依赖外部指数）；
+        3) 代理也无法合成 → 返回 None（RS 字段保持中性）。
+        指数代码经 ``<PREFIX>_BENCHMARK`` 覆盖；显式置空（``<PREFIX>_BENCHMARK=``）= 关闭 RS（不走代理）。
         """
-        # 显式设为空（<PREFIX>_BENCHMARK=）= 关闭 RS；未设置才用市场默认基准指数
-        raw = os.getenv(f"{self._prefix}_BENCHMARK")
-        symbol = raw.strip() if raw is not None else str(self._cfg.get("benchmark") or "")
+        env_val = os.getenv(f"{self._prefix}_BENCHMARK")
+        if env_val is not None and env_val.strip() == "":
+            return None  # 显式关闭 RS
+        symbol = env_val.strip() if env_val is not None else str(self._cfg.get("benchmark") or "")
         if not symbol:
-            return None
+            return self._equal_weight_benchmark(frames)
         try:
             if self.market == "cn":
                 import akshare as ak  # 局部导入，避免无 akshare 环境下影响 us/sg/hk
                 start = (date.today() - timedelta(days=history_days)).strftime("%Y%m%d")
                 end = date.today().strftime("%Y%m%d")
-                raw = ak.index_zh_a_hist(symbol=symbol, period="daily", start_date=start, end_date=end)
-                if raw is None or raw.empty:
+                idx = ak.index_zh_a_hist(symbol=symbol, period="daily", start_date=start, end_date=end)
+                if idx is None or idx.empty:
                     raise ValueError("akshare 指数返回空")
-                bench = raw.rename(columns={"日期": "date", "收盘": "close"})[["date", "close"]].copy()
+                bench = idx.rename(columns={"日期": "date", "收盘": "close"})[["date", "close"]].copy()
                 bench["date"] = pd.to_datetime(bench["date"]).dt.date
                 return bench.sort_values("date").reset_index(drop=True)
-            frames = batch_download_us_daily([symbol], days=history_days)
-            df = frames.get(symbol)
+            downloaded = batch_download_us_daily([symbol], days=history_days)
+            df = downloaded.get(symbol)
             if df is None or df.empty:
                 raise ValueError("yfinance 指数返回空")
             return df[["date", "close"]].copy()
-        except Exception as exc:  # noqa: BLE001 - 基准缺失不影响选股，仅 RS 中性
+        except Exception as exc:  # noqa: BLE001 - 指数源失败降级为等权代理，绝不中断选股
+            logger.warning("Screener 基准指数 %s 获取失败，尝试样本等权代理: %s", symbol, exc)
+            proxy = self._equal_weight_benchmark(frames)
+            if proxy is not None:
+                warnings.append(f"基准指数 {symbol} 获取失败，相对强弱 RS 改用样本等权代理指数。")
+                return proxy
             warnings.append(f"基准指数 {symbol} 获取失败，本次相对强弱 RS 不可用：{exc}")
-            logger.warning("Screener 基准指数 %s 获取失败: %s", symbol, exc)
+            return None
+
+    @staticmethod
+    def _equal_weight_benchmark(frames: Optional[Dict[str, pd.DataFrame]]) -> Optional[pd.DataFrame]:
+        """样本等权代理指数：每只股票收盘归一到自身首日，再按日期取均值。
+
+        作为真实大盘指数不可用时的 RS 基准降级方案。样本不足（<5 只）则返回 None。
+        """
+        if not frames:
+            return None
+        try:
+            norm: List[pd.Series] = []
+            for df in frames.values():
+                if df is None or df.empty or "date" not in df.columns or "close" not in df.columns:
+                    continue
+                s = df.dropna(subset=["close"]).sort_values("date")
+                if len(s) < 2 or float(s["close"].iloc[0]) <= 0:
+                    continue
+                norm.append(pd.Series(
+                    s["close"].to_numpy(dtype=float) / float(s["close"].iloc[0]),
+                    index=pd.to_datetime(s["date"]).dt.date.to_numpy(),
+                ))
+            if len(norm) < 5:  # 样本太少，代理无统计意义
+                return None
+            bench = pd.concat(norm, axis=1).mean(axis=1, skipna=True)
+            return pd.DataFrame({"date": bench.index, "close": bench.values}).sort_values(
+                "date").reset_index(drop=True)
+        except Exception:  # noqa: BLE001 - 代理合成失败即放弃，RS 中性
             return None
 
     # --- 行情加载（本地缓存优先，缺失/过期才 live 补抓并回写） ---
@@ -462,6 +509,32 @@ class MarketScreenerService:
             key = lambda t: (-getattr(t, "gap_days_since", 99), abs(getattr(t, "gap_pct", 0.0)), t.signal_score)  # noqa: E731
             return sorted(filtered, key=key, reverse=True)
 
+        # 温斯坦四阶段（analyzer 算 weinstein_stage）：阶段筛选要精确，命中为空即返回空（不降级）。
+        stage_map = {"stage1_turn_up": 1, "stage2_strong_up": 2, "stage3_turn_down": 3, "stage4_strong_down": 4}
+        if suffix in stage_map:
+            want_stage = stage_map[suffix]
+            filtered = [t for t in scored if getattr(t, "weinstein_stage", 0) == want_stage]
+            if want_stage in (3, 4):  # 见顶/下跌：最弱在前（RS 低、评分低）
+                return sorted(filtered, key=lambda t: (getattr(t, "rs_chg_pct", 0.0), t.signal_score))
+            # 底部/强势：强者在前（RS 高、评分高、趋势强）
+            return sorted(filtered, key=lambda t: (getattr(t, "rs_chg_pct", 0.0), t.signal_score, t.trend_strength), reverse=True)
+
+        # 见顶卖出（Top Signal）：阶段3/4 或 DK 卖点(K) 或空头结构，按弱势排序（最该卖在前）。命中为空即返回空。
+        if suffix == "top_signal":
+            filtered = [
+                t for t in scored
+                if getattr(t, "weinstein_stage", 0) in (3, 4)
+                or getattr(t, "dk_signal", "") == "K"
+                or getattr(t, "structure", "") == "bear"
+            ]
+            return sorted(filtered, key=lambda t: (getattr(t, "rs_chg_pct", 0.0), t.signal_score))
+
+        # 资金流入（SMI/CMF）：资金净流入(smi>0)，按资金流强度排序；命中为空降级为全集按 smi 排序。
+        if suffix == "smart_money":
+            filtered = [t for t in scored if getattr(t, "smi", 0.0) > 0]
+            pool = filtered if filtered else scored
+            return sorted(pool, key=lambda t: (getattr(t, "smi", 0.0), t.signal_score), reverse=True)
+
         if suffix == "rs_leaders":
             # 相对强弱领涨：跑赢大盘且 RS 上行（leading）的多头标的，按超额收益排序。
             # 命中为空（含无基准指数）降级为全集按 rs_chg_pct 排序。
@@ -505,6 +578,26 @@ class MarketScreenerService:
         pool = filtered if filtered else scored
         return sorted(pool, key=key, reverse=True)
 
+    @staticmethod
+    def _assign_pwr(scored: List[TrendAnalysisResult]) -> None:
+        """横截面相对强度百分位 PWR(0-100)：按多周期超额收益在本批内排名。
+
+        取值优先级 rs_3m → rs_1m → rs_chg_pct（fail-open）。仅对有相对强弱数据的标的
+        评级；无 benchmark/历史不足者保持 pwr=0（未评级）。
+        """
+        def _metric(tr: TrendAnalysisResult) -> float:
+            return tr.rs_3m or tr.rs_1m or tr.rs_chg_pct or 0.0
+
+        graded = [tr for tr in scored if _metric(tr) != 0.0]
+        n = len(graded)
+        if n == 0:
+            return
+        if n == 1:
+            graded[0].pwr = 50
+            return
+        for i, tr in enumerate(sorted(graded, key=_metric)):
+            tr.pwr = round(i / (n - 1) * 100)
+
     # --- 候选构造 ---
     @staticmethod
     def _to_candidate_dict(tr: TrendAnalysisResult, rank: int) -> Dict[str, Any]:
@@ -543,6 +636,13 @@ class MarketScreenerService:
             "risk_level": "",
             "risk_flags": list(tr.risk_factors or []),
             "price": round(tr.current_price, 4) if tr.current_price else None,
+            # 相对强度（对照大盘）：PWR 百分位 + 多周期超额收益%。键名无下划线，camelCase 透传不变形。
+            "pwr": tr.pwr,
+            "rs1m": tr.rs_1m,
+            "rs3m": tr.rs_3m,
+            "rs6m": tr.rs_6m,
+            "stage": tr.weinstein_stage,
+            "smi": tr.smi,
             "factor_scores": {
                 "signal_score": tr.signal_score,
                 "trend_strength": round(tr.trend_strength, 2),
