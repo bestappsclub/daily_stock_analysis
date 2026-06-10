@@ -1505,6 +1505,13 @@ def _normalize_candidate(raw: Any, rank: int) -> Dict[str, Any]:
         "change_pct": _first_present(item, source, "change_pct"),
         "amount": _first_present(item, source, "amount"),
         "industry": item.get("industry") or source.get("industry") or "",
+        # 相对强度 / 阶段 / 资金流（DSA 原生选股引擎产出；键名无下划线，camelCase 透传不变形）
+        "pwr": _first_present(item, source, "pwr"),
+        "rs1m": _first_present(item, source, "rs1m", "rs_1m"),
+        "rs3m": _first_present(item, source, "rs3m", "rs_3m"),
+        "rs6m": _first_present(item, source, "rs6m", "rs_6m"),
+        "stage": _first_present(item, source, "stage", "weinstein_stage"),
+        "smi": _first_present(item, source, "smi"),
         "factor_scores": item.get("factor_scores") or source.get("factor_scores") or {},
         "dsa_context": dsa_context,
         "dsa_news": dsa_news,
