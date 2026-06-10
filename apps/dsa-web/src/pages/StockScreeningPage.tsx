@@ -1,13 +1,31 @@
 import type React from 'react';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, CircleAlert, Play, PlusCircle, RefreshCw, Search, SlidersHorizontal } from 'lucide-react';
+import { CheckCircle2, CircleAlert, Play, PlusCircle, RefreshCw, Search, Star } from 'lucide-react';
 import {
   alphasiftApi,
   type AlphaSiftCandidate,
   type AlphaSiftScreenResponse,
   type AlphaSiftStrategy,
 } from '../api/alphasift';
-import { AppPage, Button, InlineAlert } from '../components/common';
+import { AppPage, Button, Collapsible, InlineAlert, Select } from '../components/common';
+import { cn } from '../utils/cn';
+
+const WATCHLIST_KEY = 'win_wl';
+
+// 红涨绿跌（CN 习惯）：涨=红(danger)，跌=绿(success)。仅作用于涨跌方向色。
+const chgClass = (value: unknown): string => {
+  const v = Number(value);
+  if (value == null || value === '' || Number.isNaN(v)) return 'text-secondary-text';
+  if (v > 0) return 'text-danger';
+  if (v < 0) return 'text-success';
+  return 'text-secondary-text';
+};
+
+const formatChangePct = (value: unknown): string => {
+  if (value == null || value === '' || Number.isNaN(Number(value))) return '-';
+  const v = Number(value);
+  return `${v > 0 ? '+' : ''}${v.toFixed(2)}%`;
+};
 
 const MARKETS = [
   { id: 'cn', label: 'A 股' },
@@ -241,11 +259,47 @@ const StockScreeningPage: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState('');
   const [syncFull, setSyncFull] = useState(false);
+  const [watchlist, setWatchlist] = useState<Set<string>>(() => {
+    try {
+      return new Set<string>(JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '[]'));
+    } catch {
+      return new Set<string>();
+    }
+  });
+  const [onlyWatch, setOnlyWatch] = useState(false);
+
+  const toggleWatch = useCallback((code: string) => {
+    setWatchlist((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) {
+        next.delete(code);
+      } else {
+        next.add(code);
+      }
+      try {
+        localStorage.setItem(WATCHLIST_KEY, JSON.stringify([...next]));
+      } catch {
+        /* ignore quota / privacy-mode errors */
+      }
+      return next;
+    });
+  }, []);
 
   const selectedStrategy = useMemo(() => strategies.find((item) => item.id === strategy), [strategies, strategy]);
   const selectedStrategyTitle = selectedStrategy?.name || selectedStrategy?.title || '自定义策略';
-  const selectedStrategyTag = selectedStrategy?.category || selectedStrategy?.tag || selectedStrategy?.tags?.[0] || '自定义';
   const displayedStrategy = selectedStrategy ? selectedStrategyTitle : `自定义策略 (${strategy})`;
+  const strategyOptions = useMemo(
+    () => strategies.map((item) => ({ value: item.id, label: item.name || item.title || item.id })),
+    [strategies],
+  );
+  const visibleCandidates = useMemo(
+    () => (onlyWatch ? candidates.filter((item) => watchlist.has(item.code)) : candidates),
+    [candidates, onlyWatch, watchlist],
+  );
+  const watchCount = useMemo(
+    () => candidates.filter((item) => watchlist.has(item.code)).length,
+    [candidates, watchlist],
+  );
   const screenMessages = useMemo(() => getScreenMessages(screenMeta), [screenMeta]);
   const llmDegraded = screenMeta?.llmRanked === false;
   const alertMessages = llmDegraded
@@ -437,79 +491,60 @@ const StockScreeningPage: React.FC = () => {
 
       {error ? <InlineAlert variant="danger" title="调用失败" message={error} /> : null}
 
-      <section className="rounded-2xl border border-cyan/35 bg-card/95 p-4 shadow-soft-card">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">选择策略</h2>
-            <p className="mt-1 text-xs text-secondary-text">
-              先选市场：A股走 AlphaSift；<span className="text-cyan">美股 / 新加坡为 DSA 原生（含多头结构 / 空头结构 / DK买点）</span>。切换市场会刷新下方策略。
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 text-xs font-medium text-secondary-text">
-              市场
-              <select
-                className="h-9 rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-foreground outline-none transition-colors focus:border-cyan"
-                value={market}
-                onChange={(event) => handleMarketChange(event.target.value)}
+      <section className="rounded-2xl border border-border bg-card/95 p-4 shadow-soft-card">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          {/* 市场分段控件 */}
+          <div className="inline-flex rounded-xl border border-border bg-surface p-1">
+            {MARKETS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleMarketChange(item.id)}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors',
+                  market === item.id ? 'bg-cyan/15 text-cyan' : 'text-secondary-text hover:text-foreground',
+                )}
               >
-                {MARKETS.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <span className="rounded-full border border-cyan/30 bg-cyan/10 px-3 py-1 text-xs font-semibold text-cyan">
-              {selectedStrategyTag}
-            </span>
+                {item.label}
+              </button>
+            ))}
           </div>
+
+          {/* 规则下拉（替代策略卡片网格） */}
+          <div className="min-w-56 flex-1">
+            <Select
+              value={selectedStrategy ? strategy : ''}
+              onChange={handleStrategyChange}
+              options={strategyOptions}
+              searchable
+              placeholder={loadingStrategies ? '正在读取规则…' : '选择选股规则'}
+              searchPlaceholder="搜索规则…"
+              emptyText={strategyLoadError || 'AlphaSift 规则暂未载入'}
+              disabled={loadingStrategies || strategyOptions.length === 0}
+            />
+          </div>
+
+          <Button
+            className="h-11 min-w-32"
+            isLoading={loading}
+            loadingText="筛选中..."
+            disabled={!isScreeningEnabled || loading}
+            onClick={() => void handleSubmit()}
+          >
+            <Play className="h-4 w-4" />
+            运行选股
+          </Button>
         </div>
 
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-          {loadingStrategies ? (
-            <div className="rounded-xl border border-dashed border-border bg-surface/70 p-4 text-sm text-secondary-text">
-              正在读取可用策略...
-            </div>
-          ) : strategies.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border bg-surface/70 p-4 text-sm text-secondary-text">
-              {strategyLoadError || 'AlphaSift 策略列表暂未载入，可在下方手动输入策略参数。'}
-            </div>
-          ) : (
-            strategies.map((item) => {
-              const selected = item.id === strategy;
-              return (
-                <button
-                  key={item.id}
-                  className={`min-h-28 rounded-xl border p-4 text-left transition-all ${
-                    selected
-                      ? 'border-cyan bg-cyan/10 shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_16px_36px_hsl(var(--primary)/0.12)]'
-                      : 'border-border/80 bg-surface/70 hover:border-cyan/45 hover:bg-hover/70'
-                  }`}
-                  type="button"
-                  onClick={() => handleStrategyChange(item.id)}
-                >
-                  <span className="text-base font-semibold text-foreground">{item.name || item.title || item.id}</span>
-                  <span className="mt-2 block text-sm leading-6 text-secondary-text">{item.description || item.id}</span>
-                  <span className="mt-3 inline-flex text-xs font-semibold text-cyan">
-                    {item.category || item.tag || item.tags?.[0] || item.id}
-                  </span>
-                </button>
-              );
-            })
-          )}
-        </div>
+        {selectedStrategy?.description ? (
+          <p className="mt-2.5 text-xs leading-5 text-secondary-text">{selectedStrategy.description}</p>
+        ) : null}
       </section>
 
-      <section className="rounded-2xl border border-border bg-card/95 p-4 shadow-soft-card">
-        <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground">
-          <SlidersHorizontal className="h-4 w-4 text-cyan" />
-          参数设置
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_180px_auto] lg:items-end">
+      <Collapsible title="高级设置">
+        <div className="grid gap-4 pt-2 lg:grid-cols-[1.2fr_160px_auto] lg:items-end">
           <label className="space-y-2 text-xs font-medium text-secondary-text">
-            策略参数
+            策略参数（手动）
             <input
               className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground outline-none transition-colors focus:border-cyan"
               value={strategy}
@@ -557,22 +592,9 @@ const StockScreeningPage: React.FC = () => {
               </label>
             </div>
           )}
-
-          <Button
-            className="h-11 min-w-40"
-            isLoading={loading}
-            loadingText="筛选中..."
-            disabled={!isScreeningEnabled || loading}
-            onClick={() => void handleSubmit()}
-          >
-            <Play className="h-4 w-4" />
-            运行选股
-          </Button>
         </div>
-        {syncMessage && (
-          <p className="mt-3 text-xs text-success">{syncMessage}</p>
-        )}
-      </section>
+        {syncMessage && <p className="mt-3 text-xs text-success">{syncMessage}</p>}
+      </Collapsible>
 
       <section className="rounded-2xl border border-border bg-card/95 p-4 shadow-soft-card">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -625,16 +647,37 @@ const StockScreeningPage: React.FC = () => {
               AlphaSift 返回候选后，DSA 会对前几名补充行情、基本面、新闻和辅助摘要。
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-xs text-secondary-text">
-            <Search className="h-4 w-4 text-cyan" />
-            {candidates.length} 条候选
+          <div className="flex items-center gap-2">
+            {candidates.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setOnlyWatch((value) => !value)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-medium transition-colors',
+                  onlyWatch
+                    ? 'border-warning/40 bg-warning/10 text-warning'
+                    : 'border-border bg-surface text-secondary-text hover:text-foreground',
+                )}
+              >
+                <Star className="h-3.5 w-3.5" fill={onlyWatch ? 'currentColor' : 'none'} />
+                仅看自选{watchCount > 0 ? ` (${watchCount})` : ''}
+              </button>
+            ) : null}
+            <div className="flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-2 text-xs text-secondary-text">
+              <Search className="h-4 w-4 text-cyan" />
+              {visibleCandidates.length} 条候选
+            </div>
           </div>
         </div>
 
-        {candidates.length === 0 ? (
+        {visibleCandidates.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border bg-surface/70 px-5 py-10 text-center">
             <p className="text-sm font-medium text-foreground">暂无结果</p>
-            <p className="mt-2 text-sm text-secondary-text">开启 AlphaSift 后点击“运行选股”生成候选列表。</p>
+            <p className="mt-2 text-sm text-secondary-text">
+              {onlyWatch && candidates.length > 0
+                ? '当前候选里没有已加入自选的股票，点上方“仅看自选”取消筛选。'
+                : '开启 AlphaSift 后点击“运行选股”生成候选列表。'}
+            </p>
           </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-border">
