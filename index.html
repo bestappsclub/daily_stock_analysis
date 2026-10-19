@@ -290,6 +290,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
     <div class="actions">
       <button class="btn primary" id="play" type="button">Play</button>
       <button class="btn ghost" id="openChar" type="button">Character</button>
+      <button class="btn ghost" id="openMP" type="button">Multiplayer</button>
     </div>
     <p id="hint"></p>
     <section class="worlds" aria-labelledby="wTitle">
@@ -1848,6 +1849,69 @@ function amusementPark(cx,cz){const cy=flattenArea(cx,cz,36,true),v={x:cx+.5,z:c
   // visitors
   for(const[dx,dz]of[[0,20],[-10,0],[10,0],[0,-10],[-20,30],[20,30],[0,30],[-16,-8]])v.homes.push({x:cx+dx+.5,y:cy+1,z:cz+dz+.5});
   addStop('Amusement park',cx+6,cz+39);villages.push(v);return true;}
+/* ---------- multiplayer: play together in one world, connected peer to peer with a short code ---------- */
+const MP={peer:null,host:false,guest:false,conns:[],code:null,id:null,others:new Map(),sendT:0,timeT:0,applying:false,status:'',hostName:''};let mpUser=0;
+function mpLoad(cb){if(window.Peer)return cb();MP.status='Loading multiplayer…';renderMP();const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
+  sc.onload=cb;sc.onerror=()=>{MP.status='Could not load multiplayer. Check your internet connection (it works best on the public website).';renderMP();};document.head.appendChild(sc);}
+function mpNewCode(){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<5;i++)c+=A[Math.random()*A.length|0];return c;}
+function mpSend(msg,except){for(const c of MP.conns)if(c!==except&&c.open){try{c.send(msg);}catch(e){}}}
+function mpInit(){try{stashDim();}catch(e){}return{t:'init',type:worldType,seed,edits:[...editsByDim[0].entries()],tod:timeOfDay,day:dayNum,host:charCfg.name};}
+function mpHost(){if(MP.peer)return;mpLoad(()=>{MP.code=mpNewCode();MP.status='Opening your world…';renderMP();
+  const p=new Peer('blockland-'+MP.code.toLowerCase());MP.peer=p;
+  p.on('open',id=>{MP.host=true;MP.id=id;MP.status='Your world is open! Tell your friends to press Multiplayer and type this code: '+MP.code;renderMP();say('🌐 Your world is open for friends. Code: '+MP.code,'sys');});
+  p.on('connection',c=>{c.on('open',()=>{MP.conns.push(c);try{c.send(mpInit());}catch(e){}renderMP();});
+    c.on('data',d=>mpOnData(d,c));
+    c.on('close',()=>{MP.conns=MP.conns.filter(x=>x!==c);for(const[k,o]of MP.others)if(o.conn===c){mpRemove(k);mpSend({t:'bye',id:k});}renderMP();});});
+  p.on('error',e=>{MP.status='Problem: '+(e.type==='unavailable-id'?'that code is in use, press the button again':(e.type||e));if(e.type==='unavailable-id'){try{p.destroy();}catch(_){}MP.peer=null;}renderMP();});});}
+function mpJoin(code){code=String(code||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');if(code.length<4){MP.status='Type the code your friend gave you.';renderMP();return;}
+  if(MP.peer)return;mpLoad(()=>{MP.status='Connecting to world '+code+'…';renderMP();const p=new Peer();MP.peer=p;
+    p.on('open',id=>{MP.id=id;const c=p.connect('blockland-'+code.toLowerCase(),{reliable:true,serialization:'json'});
+      c.on('open',()=>{MP.conns=[c];MP.code=code;MP.status='Connected! Loading the world…';renderMP();});
+      c.on('data',d=>mpOnData(d,c));
+      c.on('close',()=>{if(MP.guest){flash('The host left the game. Going back to your own world…');setTimeout(()=>location.reload(),2000);}});});
+    p.on('error',e=>{MP.status=e.type==='peer-unavailable'?'No open world found with code '+code+'. Check the code, and make sure your friend pressed "Open my world".':('Problem: '+(e.type||e));try{p.destroy();}catch(_){}MP.peer=null;renderMP();});});}
+function mpEnterShared(d){saveNow();MP.guest=true;MP.hostName=d.host||'your friend';if(P.riding)dismount();if(P.ride)P.ride=null;
+  clearMobs();clearDrops();while(arrows.length)killArrow(arrows.length-1);wq.clear();
+  worldType=d.type;seed=d.seed;editsByDim[0]=new Map(d.edits||[]);editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);
+  timeOfDay=d.tod||.06;dayNum=d.day||1;generate();worldReady=false;queueAll();placePlayer(null);populateOverworld();setMode(P.spec?'survival':mode);invChanged();
+  say('🌐 You joined '+MP.hostName+'\'s world! Your own worlds are safe and come back when you leave.','sys');flash('You joined '+MP.hostName+'\'s world!');renderMP();startPlay();}
+function mpPlayer(id,d){let o=MP.others.get(id);
+  if(!o){const look=Object.assign({},DEFAULT_CHAR,d.look||{});const m=biped(look);scene.add(m.g);const tag=labelSprite(d.n||'Player');tag.position.y=2.1;m.g.add(tag);
+    o={m,tag,n:d.n,x:d.x,y:d.y,z:d.z,yaw:d.yaw||0,tx:d.x,ty:d.y,tz:d.z,tyaw:d.yaw||0,ph:0,conn:null,last:performance.now(),dim:0};MP.others.set(id,o);
+    say('🌐 '+(d.n||'A player')+' joined the world','sys');renderMP();}
+  if(d.n&&d.n!==o.n){o.n=d.n;o.m.g.remove(o.tag);o.tag=labelSprite(d.n);o.tag.position.y=2.1;o.m.g.add(o.tag);}
+  o.tx=d.x;o.ty=d.y;o.tz=d.z;o.tyaw=d.yaw||0;o.dim=d.d||0;o.last=performance.now();return o;}
+function mpRemove(id){const o=MP.others.get(id);if(!o)return;scene.remove(o.m.g);MP.others.delete(id);say('🌐 '+(o.n||'A player')+' left the world','sys');renderMP();}
+function mpOnData(d,c){if(!d||typeof d!=='object')return;
+  if(d.t==='init'&&!MP.host){mpEnterShared(d);return;}
+  if(d.t==='b'){if(typeof d.x!=='number'||typeof d.id!=='number')return;MP.applying=true;try{if(dim===0)setBlock(d.x,d.y,d.z,d.id);else editsByDim[0].set(d.x+','+d.y+','+d.z,d.id);}finally{MP.applying=false;}if(MP.host)mpSend(d,c);return;}
+  if(d.t==='p'){const o=mpPlayer(d.id,d);if(MP.host){o.conn=c;mpSend(d,c);}return;}
+  if(d.t==='c'){say('<'+String(d.n||'Player').slice(0,16)+'> '+String(d.text||'').slice(0,200),'me');if(MP.host)mpSend(d,c);return;}
+  if(d.t==='time'&&MP.guest){timeOfDay=d.tod;dayNum=d.day;return;}
+  if(d.t==='bye'){mpRemove(d.id);return;}}
+function mpTick(dt){if(!MP.conns.length&&!MP.others.size)return;
+  MP.sendT-=dt;if(MP.sendT<=0&&MP.id){MP.sendT=.1;mpSend({t:'p',id:MP.id,n:charCfg.name,x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),yaw:+yaw.toFixed(2),d:dim,
+      look:{skin:charCfg.skin,hair:charCfg.hair,style:charCfg.style,shirt:charCfg.shirt,pants:charCfg.pants,shoes:charCfg.shoes}});}
+  if(MP.host){MP.timeT-=dt;if(MP.timeT<=0){MP.timeT=5;mpSend({t:'time',tod:timeOfDay,day:dayNum});}}
+  const now=performance.now();for(const[id,o]of MP.others){if(now-o.last>15000){mpRemove(id);continue;}const k=Math.min(1,dt*10),dx=o.tx-o.x,dz=o.tz-o.z;
+    o.x+=dx*k;o.y+=(o.ty-o.y)*k;o.z+=dz*k;const dy=((o.tyaw-o.yaw+Math.PI*3)%(Math.PI*2))-Math.PI;o.yaw+=dy*k;
+    const sp=Math.hypot(dx,dz)*10;o.ph+=Math.min(sp,6)*dt*1.6;const sw=Math.sin(o.ph)*Math.min(1,sp/3)*.7,m=o.m;
+    m.g.position.set(o.x,o.y,o.z);m.g.rotation.y=o.yaw;m.legL.rotation.x=sw;m.legR.rotation.x=-sw;m.armL.rotation.x=-sw*.6;m.armR.rotation.x=sw*.6;
+    m.g.visible=dim===o.dim;shade(m,lightAt(o.x,o.y+1.4,o.z));}}
+function openMP(){primaryUp();for(const k in keys)keys[k]=false;showScreen('bank');$('bankTitle').textContent='Multiplayer';renderMP();if(document.pointerLockElement)document.exitPointerLock();}
+function renderMP(){if(ui!=='bank'||$('bankTitle').textContent!=='Multiplayer')return;const L=$('bankList');L.innerHTML='';
+  $('bankNote').textContent=(MP.status?MP.status+' ':'')+(MP.guest?'You are playing in '+MP.hostName+'\'s world.':MP.host?'':'Play in the same world with friends. One person opens their world and gets a code; friends type the code to join. Everyone sees each other, the blocks you break and build, and the chat.');
+  const row=(html,btns)=>{const r=document.createElement('div');r.className='brow';r.innerHTML='<div class="titem"><span>'+html+'</span></div>';for(const b of btns)r.appendChild(b);L.appendChild(r);return r;};
+  const btn=(t,primary,fn)=>{const b=document.createElement('button');b.type='button';b.className='btn '+(primary?'primary':'ghost');b.textContent=t;b.addEventListener('click',fn);return b;};
+  if(!MP.peer){row('Open my world<small>Friends can join the world you are playing in now</small>',[btn('Open my world',true,()=>mpHost())]);
+    const inp=document.createElement('input');inp.type='text';inp.maxLength=8;inp.placeholder='CODE';inp.setAttribute('aria-label','World code');inp.style.cssText='width:7em;text-transform:uppercase;font:inherit;padding:.4em .6em;border-radius:8px;border:1px solid #556;background:#111a;color:inherit';
+    inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')mpJoin(inp.value);});
+    row('Join a friend\'s world<small>Type the code they give you</small>',[inp,btn('Join',false,()=>mpJoin(inp.value))]);}
+  else if(MP.host&&MP.code)row('Your world code: <b style="font-size:1.4em;letter-spacing:.15em">'+MP.code+'</b><small>'+MP.others.size+' friend'+(MP.others.size===1?'':'s')+' playing with you</small>',[btn('Play',true,()=>closeBank())]);
+  else if(MP.guest)row('Playing in '+MP.hostName+'\'s world<small>Leave the game or reload the page to go back to your own world</small>',[btn('Play',true,()=>closeBank())]);
+  if(MP.others.size)row('Players: '+[charCfg.name+' (you)',...[...MP.others.values()].map(o=>o.n||'Player')].join(', '),[]);}
+window.addEventListener('beforeunload',()=>{try{mpSend({t:'bye',id:MP.id});}catch(e){}});
+{const _ua=useAction,_ba=breakAt;useAction=function(){mpUser++;try{return _ua.apply(this,arguments);}finally{mpUser--;}};breakAt=function(){mpUser++;try{return _ba.apply(this,arguments);}finally{mpUser--;}};}
 function arenaSay(t){say('Arena: '+t,'npc');flash(t);}
 function startFight(i){if(fight||!arenaV)return false;const F=FIGHTS[fIdx(i)],A=arenaV,fm=formFor(i);fightForm=null;fight={F,t:0,end:0,mobs:[],bet:arenaBet,fm};arenaBet=null;
   const side=(list,team,sx)=>{let k=0;const n=list.reduce((a,b)=>a+b[1],0);for(const[t,c]of list)for(let j=0;j<c;j++){const x=A.x+sx*7.5+(Math.random()-.5)*1.5,z=A.z+(k++-(n-1)/2)*1.3;
@@ -2549,7 +2613,7 @@ function growTree(x,y,z,id){for(let k=1;k<=(id===74?7:5);k++){const b=get(x,y+k,
   let i=0;for(let dx=-R;dx<=R;dx++)for(let dy=0;dy<=H;dy++)for(let dz=-R;dz<=R;dz++){const xx=x+dx,yy=y+dy,zz=z+dz,nb=get(xx,yy,zz);
     if(nb!==before[i]&&yy<WY)setQuiet(xx,yy,zz,nb);i++;}
   rebuildAround(x-R,z-R,x+R,z+R);return true;}
-function setBlock(x,y,z,id){world[idx(x,y,z)]=id;const key=x+','+y+','+z;edits.set(key,id);if(id===LAVA)lavaSpots.add(key);else lavaSpots.delete(key);if(GROWS(id))crops.add(key);else crops.delete(key);if(id===FIRE)fires.set(key,fireLife(x,y,z));else fires.delete(key);wqNear(x,y,z);
+function setBlock(x,y,z,id){world[idx(x,y,z)]=id;const key=x+','+y+','+z;if(mpUser&&!MP.applying&&dim===0&&MP.conns.length)mpSend({t:'b',x,y,z,id});edits.set(key,id);if(id===LAVA)lavaSpots.add(key);else lavaSpots.delete(key);if(GROWS(id))crops.add(key);else crops.delete(key);if(id===FIRE)fires.set(key,fireLife(x,y,z));else fires.delete(key);wqNear(x,y,z);
   const set=new Set();for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const xx=x+dx,zz=z+dz;if(xx<0||zz<0||xx>=WX||zz>=WZ)continue;set.add(((xx/CS)|0)+((zz/CS)|0)*NC);}
   relight(x,z,set);
   set.forEach(k=>{dirty.delete(k);buildChunk(k%NC,(k/NC)|0);});save();}
@@ -3623,8 +3687,8 @@ function chestArr(key){if(chests[key])return chests[key];const type=CHEST_T.get(
    ========================================================= */
 let saveT;
 const pack=s=>s?(s.ench?[s.id,s.count,s.dur!=null?s.dur:-1,s.ench]:s.dur!=null?[s.id,s.count,s.dur]:[s.id,s.count]):0,unpack=a=>{if(!a)return null;const o={id:a[0],count:a[1]};if(a.length>2&&a[2]>=0)o.dur=a[2];if(a[3])o.ench=a[3];return o;};
-function save(){clearTimeout(saveT);saveT=setTimeout(saveNow,500);}
-function saveNow(){try{stashDim();const ser=m=>{const e=[];m.forEach((id,k)=>{const p=k.split(',').map(Number);e.push([p[0],p[1],p[2],id]);});return e;},serC=c=>{const o={};for(const k in c)o[k]=c[k].map(pack);return o;};
+function save(){if(MP.guest)return;clearTimeout(saveT);saveT=setTimeout(saveNow,500);}
+function saveNow(){if(MP.guest)return;try{stashDim();const ser=m=>{const e=[];m.forEach((id,k)=>{const p=k.split(',').map(Number);e.push([p[0],p[1],p[2],id]);});return e;},serC=c=>{const o={};for(const k in c)o[k]=c[k].map(pack);return o;};
   localStorage.setItem(saveKey(worldType),JSON.stringify({v:3,type:worldType,one:oneCount,seed,dim,edits:ser(editsByDim[0]),chests:serC(chestsByDim[0]),edits1:ser(editsByDim[1]),chests1:serC(chestsByDim[1]),inv:inv.map(pack),armor:armor.map(pack),hp:P.hp,food:P.food,mode,t:timeOfDay,day:dayNum,
     p:[+P.x.toFixed(2),+P.y.toFixed(2),+P.z.toFixed(2),+yaw.toFixed(3),+pitch.toFixed(3)],fly:P.fly,spec:!!P.spec,speed:P.speed||1,home:customSpawn?[customSpawn.x,customSpawn.y,customSpawn.z]:null,dead:P.dead,bed:bedPos?[bedPos.x,bedPos.y,bedPos.z]:null,nights:nightsOn,bank:bankAcc,job,captured:capturedBandits,
     pets:petsData()}));}catch(e){}}
@@ -3892,6 +3956,7 @@ function openBank(){$('bankTitle').textContent='Bank';primaryUp();for(const k in
   showScreen('bank');renderBank(paid);if(document.pointerLockElement)document.exitPointerLock();}
 function closeBank(){save();startPlay();}
 $('bankClose').addEventListener('click',closeBank);
+$('openMP').addEventListener('click',openMP);
 
 /* ---------- enchanting: pay with ores for random magic; librarians sell enchanted books ---------- */
 const ENCH_COSTS=[{id:133,n:4,lv:[1,1],label:'Iron'},{id:180,n:8,lv:[1,2],label:'Lapis'},{id:134,n:4,lv:[1,2],label:'Gold'},{id:135,n:2,lv:[2,3],label:'Diamond'},{id:166,n:5,lv:[3,4],label:'Emerald'}];
@@ -4312,7 +4377,7 @@ function talk(text){const nm=text.match(/^\s*(?:\/name\s+|\/nick\s+|my name is\s
   if(nm&&setPlayerName(nm[1])){say('Your name is now '+charCfg.name+'.','sys');flash('Hello, '+charCfg.name+'!');
     const v=mobs.filter(m=>!m.dying&&(m.T.villager||m.T.soldier||m.T.golem)&&Math.hypot(m.x-P.x,m.z-P.z)<14).sort((a,b)=>Math.hypot(a.x-P.x,a.z-P.z)-Math.hypot(b.x-P.x,b.z-P.z))[0];
     if(v)setTimeout(()=>mobSay(v,pick1(['Nice to meet you, '+charCfg.name+'!','Hello, '+charCfg.name+'! What a great name.','I\'ll remember that, '+charCfg.name+'.'])),600);return;}
-  say('<'+charCfg.name+'> '+text,'me');const t=text.toLowerCase();
+  say('<'+charCfg.name+'> '+text,'me');if(MP.conns.length)mpSend({t:'c',n:charCfg.name,text:String(text).slice(0,200)});const t=text.toLowerCase();
   const near=mobs.filter(m=>!m.dying&&(m.T.villager||m.T.golem||m.T.soldier||isPet(m)||m.jailed)&&Math.hypot(m.x-P.x,m.z-P.z)<16&&Math.abs(m.y-P.y)<10)
     .sort((a,b)=>Math.hypot(a.x-P.x,a.z-P.z)-Math.hypot(b.x-P.x,b.z-P.z));
   if(!near.length){setTimeout(()=>say('Nobody is close enough to hear you.','sys'),300);return;}
@@ -4483,7 +4548,7 @@ function frame(now){
     autosave+=dt;if(autosave>6){autosave=0;save();}}
   else if(!started)yaw+=dt*.05;
   if(ui==='play'||ui==='inv'||!started||ui==='menu')updateMobs(sim?dt:0);
-  updateBubbles(dt);idleChat(dt);keyLook(dt);dinerTick(dt);fishingTick(dt);factoryTick(dt);arenaTick(dt);fireDeptTick(dt);ridesTick(dt);if(ui==='play')raidTick(dt);
+  updateBubbles(dt);idleChat(dt);keyLook(dt);dinerTick(dt);fishingTick(dt);factoryTick(dt);arenaTick(dt);fireDeptTick(dt);ridesTick(dt);mpTick(dt);if(ui==='play')raidTick(dt);
   updateParts(dt);updateDrops(sim?dt:0);if(sim)updateArrows(dt);
   if(P.riding&&P.riding.T.vehicle){const h=P.riding;P.x=h.x-Math.sin(h.yaw)*1.4;P.y=h.y+.45;P.z=h.z-Math.cos(h.yaw)*1.4;P.vx=P.vz=P.vy=0;P.peak=P.y;}
   else if(P.riding){const h=P.riding;P.x=h.x;P.y=h.y+(h.baby>0?.5:.95);P.z=h.z;P.vx=P.vz=P.vy=0;P.peak=P.y;}
