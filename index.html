@@ -1868,7 +1868,7 @@ function mpHost(){if(MP.peer)return;mpLoad(()=>{MP.code=mpNewCode();MP.status='O
   const p=new Peer('blockland-'+MP.code.toLowerCase(),MP_OPTS);MP.peer=p;renderMP();
   MP.wait=setTimeout(()=>{if(!MP.host)mpReset(mpFail({type:'timeout'}));},15000);
   p.on('open',id=>{clearTimeout(MP.wait);MP.host=true;MP.id=id;MP.status='Your world is open! Tell your friends to press Multiplayer and type this code: '+MP.code;renderMP();say('🌐 Your world is open for friends. Code: '+MP.code,'sys');});
-  p.on('connection',c=>{c.on('open',()=>{MP.conns.push(c);try{c.send(mpInit());}catch(e){}renderMP();});
+  p.on('connection',c=>{c.on('open',()=>{MP.conns.push(c);try{c.send(mpInit());}catch(e){}mpSendMe();say('🌐 A friend is joining your world…','sys');renderMP();});
     c.on('data',d=>mpOnData(d,c));
     c.on('close',()=>{MP.conns=MP.conns.filter(x=>x!==c);for(const[k,o]of MP.others)if(o.conn===c){mpRemove(k);mpSend({t:'bye',id:k});}renderMP();});});
   p.on('error',e=>{if(MP.host&&(e.type==='peer-unavailable'||e.type==='webrtc'))return;if(MP.host){MP.status='Connection problem: '+(e.type||e);renderMP();return;}mpReset(mpFail(e));});
@@ -1885,7 +1885,7 @@ function mpEnterShared(d){clearTimeout(MP.wait);saveNow();MP.guest=true;MP.hostN
   clearMobs();clearDrops();while(arrows.length)killArrow(arrows.length-1);wq.clear();
   worldType=d.type;seed=d.seed;editsByDim[0]=new Map(d.edits||[]);editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);
   timeOfDay=d.tod||.06;dayNum=d.day||1;generate();worldReady=false;queueAll();placePlayer(null);populateOverworld();setMode(P.spec?'survival':mode);invChanged();
-  say('🌐 You joined '+MP.hostName+'\'s world! Your own worlds are safe and come back when you leave.','sys');flash('You joined '+MP.hostName+'\'s world!');renderMP();startPlay();}
+  say('🌐 You joined '+MP.hostName+'\'s world! Your own worlds are safe and come back when you leave.','sys');flash('You joined '+MP.hostName+'\'s world!');renderMP();startPlay();mpSendMe();}
 function mpPlayer(id,d){let o=MP.others.get(id);
   if(!o){const look=Object.assign({},DEFAULT_CHAR,d.look||{});const m=biped(look);scene.add(m.g);const tag=labelSprite(d.n||'Player');tag.position.y=2.1;m.g.add(tag);
     o={m,tag,n:d.n,x:d.x,y:d.y,z:d.z,yaw:d.yaw||0,tx:d.x,ty:d.y,tz:d.z,tyaw:d.yaw||0,ph:0,conn:null,last:performance.now(),dim:0};MP.others.set(id,o);
@@ -1900,10 +1900,11 @@ function mpOnData(d,c){if(!d||typeof d!=='object')return;
   if(d.t==='c'){say('<'+String(d.n||'Player').slice(0,16)+'> '+String(d.text||'').slice(0,200),'me');if(MP.host)mpSend(d,c);return;}
   if(d.t==='time'&&MP.guest){timeOfDay=d.tod;dayNum=d.day;return;}
   if(d.t==='bye'){mpRemove(d.id);return;}}
-function mpTick(dt){if(!MP.conns.length&&!MP.others.size)return;
-  MP.sendT-=dt;if(MP.sendT<=0&&MP.id){MP.sendT=.1;mpSend({t:'p',id:MP.id,n:charCfg.name,x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),yaw:+yaw.toFixed(2),d:dim,
+function mpSendMe(){if(!MP.id||!MP.conns.length)return;mpSend({t:'p',id:MP.id,n:charCfg.name,x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),yaw:+yaw.toFixed(2),d:dim,
       look:{skin:charCfg.skin,hair:charCfg.hair,style:charCfg.style,shirt:charCfg.shirt,pants:charCfg.pants,shoes:charCfg.shoes}});}
-  if(MP.host){MP.timeT-=dt;if(MP.timeT<=0){MP.timeT=5;mpSend({t:'time',tod:timeOfDay,day:dayNum});}}
+// network sends run on a timer, not the draw loop, so they keep going in menus, paused screens and background tabs
+setInterval(()=>{if(!MP.conns.length)return;mpSendMe();if(MP.host){MP.timeT=(MP.timeT||0)-.12;if(MP.timeT<=0){MP.timeT=5;mpSend({t:'time',tod:timeOfDay,day:dayNum});}}},120);
+function mpTick(dt){if(!MP.conns.length&&!MP.others.size)return;
   const now=performance.now();for(const[id,o]of MP.others){if(now-o.last>15000){mpRemove(id);continue;}const k=Math.min(1,dt*10),dx=o.tx-o.x,dz=o.tz-o.z;
     o.x+=dx*k;o.y+=(o.ty-o.y)*k;o.z+=dz*k;const dy=((o.tyaw-o.yaw+Math.PI*3)%(Math.PI*2))-Math.PI;o.yaw+=dy*k;
     const sp=Math.hypot(dx,dz)*10;o.ph+=Math.min(sp,6)*dt*1.6;const sw=Math.sin(o.ph)*Math.min(1,sp/3)*.7,m=o.m;
@@ -1919,7 +1920,7 @@ function renderMP(){if(ui!=='bank'||$('bankTitle').textContent!=='Multiplayer')r
     const inp=document.createElement('input');inp.type='text';inp.maxLength=8;inp.placeholder='CODE';inp.setAttribute('aria-label','World code');inp.style.cssText='width:7em;text-transform:uppercase;font:inherit;padding:.4em .6em;border-radius:8px;border:1px solid #556;background:#111a;color:inherit';
     inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')mpJoin(inp.value);});
     row('Join a friend\'s world<small>Type the code they give you</small>',[inp,btn('Join',false,()=>mpJoin(inp.value))]);}
-  else if(MP.host&&MP.code)row('Your world code: <b style="font-size:1.4em;letter-spacing:.15em">'+MP.code+'</b><small>'+MP.others.size+' friend'+(MP.others.size===1?'':'s')+' playing with you</small>',[btn('Play',true,()=>closeBank())]);
+  else if(MP.host&&MP.code)row('Your world code: <b style="font-size:1.4em;letter-spacing:.15em">'+MP.code+'</b><small>'+Math.max(MP.conns.length,MP.others.size)+' friend'+(Math.max(MP.conns.length,MP.others.size)===1?'':'s')+' playing with you</small>',[btn('Play',true,()=>closeBank())]);
   else if(MP.guest)row('Playing in '+MP.hostName+'\'s world<small>Leave the game or reload the page to go back to your own world</small>',[btn('Play',true,()=>closeBank())]);
   if(!/github\.io/.test(location.hostname)){const a=document.createElement('a');a.href=MP_SITE;a.target='_blank';a.rel='noopener';a.textContent='Open the public website';a.className='btn ghost';row('Multiplayer works best on the public website<small>The Claude link can block the connection</small>',[a]);}
   if(MP.others.size)row('Players: '+[charCfg.name+' (you)',...[...MP.others.values()].map(o=>o.n||'Player')].join(', '),[]);}
