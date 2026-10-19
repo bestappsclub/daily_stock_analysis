@@ -1856,21 +1856,30 @@ function mpLoad(cb){if(window.Peer)return cb();MP.status='Loading multiplayer…
 function mpNewCode(){const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let c='';for(let i=0;i<5;i++)c+=A[Math.random()*A.length|0];return c;}
 function mpSend(msg,except){for(const c of MP.conns)if(c!==except&&c.open){try{c.send(msg);}catch(e){}}}
 function mpInit(){try{stashDim();}catch(e){}return{t:'init',type:worldType,seed,edits:[...editsByDim[0].entries()],tod:timeOfDay,day:dayNum,host:charCfg.name};}
-function mpHost(){if(MP.peer)return;mpLoad(()=>{MP.code=mpNewCode();MP.status='Opening your world…';renderMP();
-  const p=new Peer('blockland-'+MP.code.toLowerCase());MP.peer=p;
-  p.on('open',id=>{MP.host=true;MP.id=id;MP.status='Your world is open! Tell your friends to press Multiplayer and type this code: '+MP.code;renderMP();say('🌐 Your world is open for friends. Code: '+MP.code,'sys');});
+const MP_OPTS={debug:1,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:global.stun.twilio.com:3478'}]}};
+const MP_SITE='https://bestappsclub.github.io/daily_stock_analysis/';
+function mpReset(msg){try{MP.peer&&MP.peer.destroy();}catch(e){}MP.peer=null;MP.host=false;MP.code=null;MP.conns=[];clearTimeout(MP.wait);MP.status=msg||'';renderMP();}
+function mpFail(e){const t=e&&e.type||String(e||'');
+  return t==='unavailable-id'?'That code was taken. Press the button again.':t==='peer-unavailable'?'':
+    (t==='network'||t==='server-error'||t==='socket-error'||t==='socket-closed'||t==='browser-incompatible'||t==='timeout')?'Could not reach the multiplayer server ('+t+'). If you are playing on the Claude link, open the public website instead: '+MP_SITE+' . Otherwise check your internet and try again.':'Problem: '+t+'. Try again.';}
+function mpHost(){if(MP.peer)return;mpLoad(()=>{MP.code=mpNewCode();MP.status='Opening your world… (this takes a few seconds)';renderMP();
+  const p=new Peer('blockland-'+MP.code.toLowerCase(),MP_OPTS);MP.peer=p;renderMP();
+  MP.wait=setTimeout(()=>{if(!MP.host)mpReset(mpFail({type:'timeout'}));},15000);
+  p.on('open',id=>{clearTimeout(MP.wait);MP.host=true;MP.id=id;MP.status='Your world is open! Tell your friends to press Multiplayer and type this code: '+MP.code;renderMP();say('🌐 Your world is open for friends. Code: '+MP.code,'sys');});
   p.on('connection',c=>{c.on('open',()=>{MP.conns.push(c);try{c.send(mpInit());}catch(e){}renderMP();});
     c.on('data',d=>mpOnData(d,c));
     c.on('close',()=>{MP.conns=MP.conns.filter(x=>x!==c);for(const[k,o]of MP.others)if(o.conn===c){mpRemove(k);mpSend({t:'bye',id:k});}renderMP();});});
-  p.on('error',e=>{MP.status='Problem: '+(e.type==='unavailable-id'?'that code is in use, press the button again':(e.type||e));if(e.type==='unavailable-id'){try{p.destroy();}catch(_){}MP.peer=null;}renderMP();});});}
+  p.on('error',e=>{if(MP.host&&(e.type==='peer-unavailable'||e.type==='webrtc'))return;if(MP.host){MP.status='Connection problem: '+(e.type||e);renderMP();return;}mpReset(mpFail(e));});
+  p.on('disconnected',()=>{if(MP.host){try{p.reconnect();}catch(e){}}});});}
 function mpJoin(code){code=String(code||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'');if(code.length<4){MP.status='Type the code your friend gave you.';renderMP();return;}
-  if(MP.peer)return;mpLoad(()=>{MP.status='Connecting to world '+code+'…';renderMP();const p=new Peer();MP.peer=p;
+  if(MP.peer)return;mpLoad(()=>{MP.status='Connecting to world '+code+'…';renderMP();const p=new Peer(MP_OPTS);MP.peer=p;renderMP();
+    MP.wait=setTimeout(()=>{if(!MP.guest)mpReset(mpFail({type:'timeout'}));},20000);
     p.on('open',id=>{MP.id=id;const c=p.connect('blockland-'+code.toLowerCase(),{reliable:true,serialization:'json'});
       c.on('open',()=>{MP.conns=[c];MP.code=code;MP.status='Connected! Loading the world…';renderMP();});
       c.on('data',d=>mpOnData(d,c));
       c.on('close',()=>{if(MP.guest){flash('The host left the game. Going back to your own world…');setTimeout(()=>location.reload(),2000);}});});
-    p.on('error',e=>{MP.status=e.type==='peer-unavailable'?'No open world found with code '+code+'. Check the code, and make sure your friend pressed "Open my world".':('Problem: '+(e.type||e));try{p.destroy();}catch(_){}MP.peer=null;renderMP();});});}
-function mpEnterShared(d){saveNow();MP.guest=true;MP.hostName=d.host||'your friend';if(P.riding)dismount();if(P.ride)P.ride=null;
+    p.on('error',e=>{if(MP.guest)return;mpReset(e.type==='peer-unavailable'?'No open world found with code '+code+'. Check the code, and make sure your friend pressed "Open my world" and is still playing.':mpFail(e));});});}
+function mpEnterShared(d){clearTimeout(MP.wait);saveNow();MP.guest=true;MP.hostName=d.host||'your friend';if(P.riding)dismount();if(P.ride)P.ride=null;
   clearMobs();clearDrops();while(arrows.length)killArrow(arrows.length-1);wq.clear();
   worldType=d.type;seed=d.seed;editsByDim[0]=new Map(d.edits||[]);editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);
   timeOfDay=d.tod||.06;dayNum=d.day||1;generate();worldReady=false;queueAll();placePlayer(null);populateOverworld();setMode(P.spec?'survival':mode);invChanged();
@@ -1903,12 +1912,14 @@ function renderMP(){if(ui!=='bank'||$('bankTitle').textContent!=='Multiplayer')r
   $('bankNote').textContent=(MP.status?MP.status+' ':'')+(MP.guest?'You are playing in '+MP.hostName+'\'s world.':MP.host?'':'Play in the same world with friends. One person opens their world and gets a code; friends type the code to join. Everyone sees each other, the blocks you break and build, and the chat.');
   const row=(html,btns)=>{const r=document.createElement('div');r.className='brow';r.innerHTML='<div class="titem"><span>'+html+'</span></div>';for(const b of btns)r.appendChild(b);L.appendChild(r);return r;};
   const btn=(t,primary,fn)=>{const b=document.createElement('button');b.type='button';b.className='btn '+(primary?'primary':'ghost');b.textContent=t;b.addEventListener('click',fn);return b;};
+  if(MP.peer&&!MP.host&&!MP.guest)row('Please wait…<small>'+(MP.code?'Getting your code':'Connecting')+'</small>',[btn('Cancel',false,()=>mpReset(''))]);
   if(!MP.peer){row('Open my world<small>Friends can join the world you are playing in now</small>',[btn('Open my world',true,()=>mpHost())]);
     const inp=document.createElement('input');inp.type='text';inp.maxLength=8;inp.placeholder='CODE';inp.setAttribute('aria-label','World code');inp.style.cssText='width:7em;text-transform:uppercase;font:inherit;padding:.4em .6em;border-radius:8px;border:1px solid #556;background:#111a;color:inherit';
     inp.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')mpJoin(inp.value);});
     row('Join a friend\'s world<small>Type the code they give you</small>',[inp,btn('Join',false,()=>mpJoin(inp.value))]);}
   else if(MP.host&&MP.code)row('Your world code: <b style="font-size:1.4em;letter-spacing:.15em">'+MP.code+'</b><small>'+MP.others.size+' friend'+(MP.others.size===1?'':'s')+' playing with you</small>',[btn('Play',true,()=>closeBank())]);
   else if(MP.guest)row('Playing in '+MP.hostName+'\'s world<small>Leave the game or reload the page to go back to your own world</small>',[btn('Play',true,()=>closeBank())]);
+  if(!/github\.io/.test(location.hostname)){const a=document.createElement('a');a.href=MP_SITE;a.target='_blank';a.rel='noopener';a.textContent='Open the public website';a.className='btn ghost';row('Multiplayer works best on the public website<small>The Claude link can block the connection</small>',[a]);}
   if(MP.others.size)row('Players: '+[charCfg.name+' (you)',...[...MP.others.values()].map(o=>o.n||'Player')].join(', '),[]);}
 window.addEventListener('beforeunload',()=>{try{mpSend({t:'bye',id:MP.id});}catch(e){}});
 {const _ua=useAction,_ba=breakAt;useAction=function(){mpUser++;try{return _ua.apply(this,arguments);}finally{mpUser--;}};breakAt=function(){mpUser++;try{return _ba.apply(this,arguments);}finally{mpUser--;}};}
