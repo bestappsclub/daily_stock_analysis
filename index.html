@@ -38,6 +38,15 @@ button{font-family:inherit;color:inherit}
   -webkit-mask:radial-gradient(circle,transparent 12px,#000 13px);mask:radial-gradient(circle,transparent 12px,#000 13px);opacity:.85}
 #info{position:fixed;left:16px;top:calc(12px + env(safe-area-inset-top,0px));font:400 12px/1.5 var(--display);
   letter-spacing:.05em;background:rgba(19,26,40,.55);padding:6px 9px;border-radius:3px;font-variant-numeric:tabular-nums;white-space:pre}
+#mpPanel{position:fixed;right:16px;top:calc(60px + env(safe-area-inset-top,0px));width:232px;background:rgba(19,26,40,.72);border:1px solid rgba(242,184,75,.35);
+  border-radius:8px;padding:8px 10px;font:400 12px/1.45 var(--display);color:#f4f0e6;font-variant-numeric:tabular-nums}
+#mpPanel b{color:#f2b84b;font-weight:600}
+#mpRadar{display:block;margin:0 auto 6px;width:140px;height:140px}
+.mpP{display:grid;grid-template-columns:18px 1fr;gap:0 6px;padding:4px 0;border-top:1px solid rgba(255,255,255,.1)}
+.mpP:first-child{border-top:0}
+.mpA{font-size:15px;line-height:18px;text-align:center;transition:transform .12s linear}
+.mpP small{grid-column:2;opacity:.8}
+.mpDot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
 #vig{position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(200,20,10,.65));opacity:0;transition:opacity .45s}
 #water{position:fixed;inset:0;background:rgba(30,80,160,.28);display:none}
 #fireov{position:fixed;inset:0;display:none;background:linear-gradient(0deg,rgba(255,120,20,.6),rgba(255,70,0,.18) 38%,transparent 62%)}
@@ -253,6 +262,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <div id="cross" aria-hidden="true"></div>
   <div id="prog" hidden></div>
   <div id="info"></div>
+  <div id="mpPanel" hidden><canvas id="mpRadar" width="280" height="280" aria-label="Map of where players are"></canvas><div id="mpList" aria-live="off"></div></div>
   <img id="held" alt="">
   <div id="bottom">
     <div id="label" aria-live="polite"></div>
@@ -1886,11 +1896,14 @@ function mpEnterShared(d){clearTimeout(MP.wait);saveNow();MP.guest=true;MP.hostN
   worldType=d.type;seed=d.seed;editsByDim[0]=new Map(d.edits||[]);editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);
   timeOfDay=d.tod||.06;dayNum=d.day||1;generate();worldReady=false;queueAll();placePlayer(null);populateOverworld();setMode(P.spec?'survival':mode);invChanged();
   say('🌐 You joined '+MP.hostName+'\'s world! Your own worlds are safe and come back when you leave.','sys');flash('You joined '+MP.hostName+'\'s world!');renderMP();startPlay();mpSendMe();}
+function mpTag(n){const t=labelSprite(n||'Player');t.material.depthTest=false;t.material.depthWrite=false;t.renderOrder=999;t.position.y=2.1;t.userData.base=t.scale.clone();return t;}
+const MP_COLS=['#4fc3f7','#ff7a7a','#7ddc6a','#c792ea','#ffb74d','#f06292','#4dd0c4','#e6ee6a'],mpColMap=new Map();
+function mpColor(id){if(!mpColMap.has(id))mpColMap.set(id,MP_COLS[mpColMap.size%MP_COLS.length]);return mpColMap.get(id);}
 function mpPlayer(id,d){let o=MP.others.get(id);
-  if(!o){const look=Object.assign({},DEFAULT_CHAR,d.look||{});const m=biped(look);scene.add(m.g);const tag=labelSprite(d.n||'Player');tag.position.y=2.1;m.g.add(tag);
+  if(!o){const look=Object.assign({},DEFAULT_CHAR,d.look||{});const m=biped(look);scene.add(m.g);const tag=mpTag(d.n);m.g.add(tag);
     o={m,tag,n:d.n,x:d.x,y:d.y,z:d.z,yaw:d.yaw||0,tx:d.x,ty:d.y,tz:d.z,tyaw:d.yaw||0,ph:0,conn:null,last:performance.now(),dim:0};MP.others.set(id,o);
     say('🌐 '+(d.n||'A player')+' joined the world','sys');renderMP();}
-  if(d.n&&d.n!==o.n){o.n=d.n;o.m.g.remove(o.tag);o.tag=labelSprite(d.n);o.tag.position.y=2.1;o.m.g.add(o.tag);}
+  if(d.n&&d.n!==o.n){o.n=d.n;o.m.g.remove(o.tag);o.tag=mpTag(d.n);o.m.g.add(o.tag);}
   o.tx=d.x;o.ty=d.y;o.tz=d.z;o.tyaw=d.yaw||0;o.dim=d.d||0;o.last=performance.now();return o;}
 function mpRemove(id){const o=MP.others.get(id);if(!o)return;scene.remove(o.m.g);MP.others.delete(id);say('🌐 '+(o.n||'A player')+' left the world','sys');renderMP();}
 function mpOnData(d,c){if(!d||typeof d!=='object')return;
@@ -1904,12 +1917,40 @@ function mpSendMe(){if(!MP.id||!MP.conns.length)return;mpSend({t:'p',id:MP.id,n:
       look:{skin:charCfg.skin,hair:charCfg.hair,style:charCfg.style,shirt:charCfg.shirt,pants:charCfg.pants,shoes:charCfg.shoes}});}
 // network sends run on a timer, not the draw loop, so they keep going in menus, paused screens and background tabs
 setInterval(()=>{if(!MP.conns.length)return;mpSendMe();if(MP.host){MP.timeT=(MP.timeT||0)-.12;if(MP.timeT<=0){MP.timeT=5;mpSend({t:'time',tod:timeOfDay,day:dayNum});}}},120);
-function mpTick(dt){if(!MP.conns.length&&!MP.others.size)return;
+function mpTick(dt){if(!MP.conns.length&&!MP.others.size){mpPanelTick(dt);return;}
   const now=performance.now();for(const[id,o]of MP.others){if(now-o.last>15000){mpRemove(id);continue;}const k=Math.min(1,dt*10),dx=o.tx-o.x,dz=o.tz-o.z;
     o.x+=dx*k;o.y+=(o.ty-o.y)*k;o.z+=dz*k;const dy=((o.tyaw-o.yaw+Math.PI*3)%(Math.PI*2))-Math.PI;o.yaw+=dy*k;
     const sp=Math.hypot(dx,dz)*10;o.ph+=Math.min(sp,6)*dt*1.6;const sw=Math.sin(o.ph)*Math.min(1,sp/3)*.7,m=o.m;
     m.g.position.set(o.x,o.y,o.z);m.g.rotation.y=o.yaw;m.legL.rotation.x=sw;m.legR.rotation.x=-sw;m.armL.rotation.x=-sw*.6;m.armR.rotation.x=sw*.6;
-    m.g.visible=dim===o.dim;shade(m,lightAt(o.x,o.y+1.4,o.z));}}
+    m.g.visible=dim===o.dim;shade(m,lightAt(o.x,o.y+1.4,o.z));
+    const dist=Math.hypot(o.x-P.x,o.y-P.y,o.z-P.z),k2=Math.max(1,dist/14);if(o.tag.userData.base)o.tag.scale.set(o.tag.userData.base.x*k2,o.tag.userData.base.y*k2,1);}
+  mpPanelTick(dt);}
+function mpNear(x,z){let best=null,bd=48;for(const p of places){const d=Math.hypot(p.x-x,p.z-z);if(d<bd){bd=d;best=p.name;}}return best;}
+function mpRel(o){const dx=o.x-P.x,dz=o.z-P.z,fw=-dx*Math.sin(yaw)-dz*Math.cos(yaw),rt=dx*Math.cos(yaw)-dz*Math.sin(yaw);return{fw,rt,ang:Math.atan2(rt,fw),flat:Math.hypot(dx,dz)};}
+function mpDimName(d){return d===0?'the Overworld':'the Nether';}
+let mpPanelT=0;
+function mpPanelTick(dt){const el=$('mpPanel');const on=(MP.host||MP.guest)&&ui!=='menu';if(el.hidden===on)el.hidden=!on;if(!on)return;
+  // radar every frame
+  const cv=$('mpRadar'),g=cv.getContext('2d'),W=cv.width,R=W/2-6,RANGE=64;g.clearRect(0,0,W,W);
+  g.fillStyle='rgba(10,14,24,.75)';g.beginPath();g.arc(W/2,W/2,R,0,7);g.fill();g.strokeStyle='rgba(242,184,75,.5)';g.lineWidth=2;g.stroke();
+  g.strokeStyle='rgba(255,255,255,.12)';g.beginPath();g.arc(W/2,W/2,R/2,0,7);g.stroke();
+  g.fillStyle='rgba(244,240,230,.55)';g.font='600 18px system-ui';g.textAlign='center';g.textBaseline='middle';
+  g.save();g.translate(W/2,W/2);g.rotate(yaw);g.fillText('N',0,-R+14);g.restore();
+  for(const[id,o]of MP.others){const r=mpRel(o);let px=r.rt/RANGE*R,py=-r.fw/RANGE*R;const L=Math.hypot(px,py),edge=L>R-8;if(edge){px*=(R-8)/L;py*=(R-8)/L;}
+    g.fillStyle=mpColor(id);g.globalAlpha=o.dim===dim?1:.4;g.beginPath();g.arc(W/2+px,W/2+py,edge?7:9,0,7);g.fill();g.globalAlpha=1;
+    g.strokeStyle='#101622';g.lineWidth=2;g.stroke();g.fillStyle='#f4f0e6';g.font='600 16px system-ui';g.fillText((o.n||'P').slice(0,10),W/2+px,W/2+py-(edge?16:18));}
+  g.fillStyle='#f2b84b';g.beginPath();g.moveTo(W/2,W/2-11);g.lineTo(W/2+8,W/2+8);g.lineTo(W/2,W/2+3);g.lineTo(W/2-8,W/2+8);g.closePath();g.fill();
+  // list a few times a second
+  mpPanelT-=dt;if(mpPanelT>0)return;mpPanelT=.2;
+  const f=v=>Math.floor(v),esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const me=mpNear(P.x,P.z);
+  let h='<div class="mpP"><span class="mpA" style="color:#f2b84b">●</span><span><b>'+esc(charCfg.name)+'</b> (you)</span><small>x '+f(P.x)+'  y '+f(P.y)+'  z '+f(P.z)+(me?' · near '+esc(me):'')+(dim!==0?' · in '+mpDimName(dim):'')+'</small></div>';
+  if(!MP.others.size)h+='<div class="mpP"><span></span><span>'+(MP.host?'Waiting for friends… Code: <b>'+esc(MP.code||'')+'</b>':'Waiting for players…')+'</span></div>';
+  for(const[id,o]of MP.others){const r=mpRel(o),d=Math.hypot(o.x-P.x,o.y-P.y,o.z-P.z),near=mpNear(o.x,o.z),dy=o.y-P.y,same=o.dim===dim;
+    const where=!same?'in '+mpDimName(o.dim):d<4?'right next to you':f(d)+' blocks away'+(dy>4?', above you':dy<-4?', below you':'');
+    h+='<div class="mpP"><span class="mpA" style="color:'+mpColor(id)+';transform:rotate('+(same?r.ang:0)+'rad)">'+(same?'▲':'◆')+'</span><span><span class="mpDot" style="background:'+mpColor(id)+'"></span><b>'+esc(o.n||'Player')+'</b> · '+where+'</span>'+
+      '<small>x '+f(o.x)+'  y '+f(o.y)+'  z '+f(o.z)+(near?' · near '+esc(near):'')+'</small></div>';}
+  $('mpList').innerHTML=h;}
 function openMP(){primaryUp();for(const k in keys)keys[k]=false;showScreen('bank');$('bankTitle').textContent='Multiplayer';renderMP();if(document.pointerLockElement)document.exitPointerLock();}
 function renderMP(){if(ui!=='bank'||$('bankTitle').textContent!=='Multiplayer')return;const L=$('bankList');L.innerHTML='';
   $('bankNote').textContent=(MP.status?MP.status+' ':'')+(MP.guest?'You are playing in '+MP.hostName+'\'s world.':MP.host?'':'Play in the same world with friends. One person opens their world and gets a code; friends type the code to join. Everyone sees each other, the blocks you break and build, and the chat.');
@@ -1923,7 +1964,8 @@ function renderMP(){if(ui!=='bank'||$('bankTitle').textContent!=='Multiplayer')r
   else if(MP.host&&MP.code)row('Your world code: <b style="font-size:1.4em;letter-spacing:.15em">'+MP.code+'</b><small>'+Math.max(MP.conns.length,MP.others.size)+' friend'+(Math.max(MP.conns.length,MP.others.size)===1?'':'s')+' playing with you</small>',[btn('Play',true,()=>closeBank())]);
   else if(MP.guest)row('Playing in '+MP.hostName+'\'s world<small>Leave the game or reload the page to go back to your own world</small>',[btn('Play',true,()=>closeBank())]);
   if(!/github\.io/.test(location.hostname)){const a=document.createElement('a');a.href=MP_SITE;a.target='_blank';a.rel='noopener';a.textContent='Open the public website';a.className='btn ghost';row('Multiplayer works best on the public website<small>The Claude link can block the connection</small>',[a]);}
-  if(MP.others.size)row('Players: '+[charCfg.name+' (you)',...[...MP.others.values()].map(o=>o.n||'Player')].join(', '),[]);}
+  if(MP.host||MP.guest){const f=Math.floor,esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    row('Players in this world ('+(MP.others.size+1)+')<small>'+esc(charCfg.name)+' (you): x '+f(P.x)+', y '+f(P.y)+', z '+f(P.z)+'</small>'+[...MP.others.values()].map(o=>{const n=mpNear(o.x,o.z);return'<small>'+esc(o.n||'Player')+': x '+f(o.x)+', y '+f(o.y)+', z '+f(o.z)+' · '+f(Math.hypot(o.x-P.x,o.y-P.y,o.z-P.z))+' blocks away'+(n?' · near '+esc(n):'')+(o.dim!==dim?' · in '+mpDimName(o.dim):'')+'</small>';}).join(''),[]);}}
 window.addEventListener('beforeunload',()=>{try{mpSend({t:'bye',id:MP.id});}catch(e){}});
 {const _ua=useAction,_ba=breakAt;useAction=function(){mpUser++;try{return _ua.apply(this,arguments);}finally{mpUser--;}};breakAt=function(){mpUser++;try{return _ba.apply(this,arguments);}finally{mpUser--;}};}
 function arenaSay(t){say('Arena: '+t,'npc');flash(t);}
