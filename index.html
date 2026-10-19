@@ -1693,7 +1693,9 @@ function teamPower(list){return list.reduce((s,[t,n])=>{const T=MT[t],d=Array.is
 // every fight gets a random "form" for each side, partly evening out the teams, and a side that keeps winning a fight gets weaker next time
 const arenaStats={};let fightForm=null;const fIdx=i=>((i%FIGHTS.length)+FIGHTS.length)%FIGHTS.length;
 function rollForm(i){const F=FIGHTS[fIdx(i)],pA=teamPower(F[1]),pB=teamPower(F[2]),st=arenaStats[F[0]]||{A:0,B:0},r=()=>.78+Math.random()*.5,bal=Math.pow(pB/pA,.42);
-  const d=Math.max(-4,Math.min(4,st.A-st.B));fightForm={i:fIdx(i),kA:bal*r()*Math.pow(.62,d),kB:r()/bal*Math.pow(.62,-d)};return fightForm;}
+  const d=Math.max(-3,Math.min(3,st.A-st.B)),fav=arenaRun.side,fA=fav==='A'?1.55:.62,fB=fav==='B'?1.55:.62;fightForm={i:fIdx(i),fav,kA:bal*r()*fA*Math.pow(.8,d),kB:r()/bal*fB*Math.pow(.8,-d)};return fightForm;}
+const arenaRun={side:Math.random()<.5?'A':'B',left:2+Math.floor(Math.random()*3)};
+function arenaRunNext(){if(--arenaRun.left<=0){arenaRun.side=arenaRun.side==='A'?'B':'A';arenaRun.left=2+Math.floor(Math.random()*3);}}
 function formFor(i){return fightForm&&fightForm.i===fIdx(i)?fightForm:rollForm(i);}
 function fightOdds(F,fm){if(!fm){const i=FIGHTS.indexOf(F);fm=formFor(i);}const a=teamPower(F[1])*fm.kA*fm.kA,b=teamPower(F[2])*fm.kB*fm.kB,r=x=>Math.max(1.5,Math.min(5,Math.round(x*2)/2));return[r(1+b/a),r(1+a/b)];}
 function openBets(m){primaryUp();for(const k in keys)keys[k]=false;joy.x=joy.y=0;showScreen('bank');$('bankTitle').textContent='Arena betting';renderBets(m);if(document.pointerLockElement)document.exitPointerLock();}
@@ -1932,7 +1934,7 @@ function arenaTick(dt){if(!arenaV||dim!==0)return;const d=Math.hypot(P.x-arenaV.
   if(fight){fight.t+=dt;const alive=t=>fight.mobs.filter(m=>m.team===t&&mobs.includes(m)&&!m.dying).length,a=alive('A'),b=alive('B');
     if(!fight.end){if(!a||!b||fight.t>150){fight.end=7;const nm=s=>s.split(' vs ');const[na,nb]=nm(fight.F[0]);
         const win=a&&!b?'A':b&&!a?'B':(!a&&!b&&fight.lastBoom)?fight.lastBoom:null,draw=!win;fight.winner=win||'draw';const w=win==='A'?na:nb;
-        arenaSay(draw?'It\'s a draw!':w[0].toUpperCase()+w.slice(1)+' win'+(!a&&!b?' with a giant blast!':'!'));settleBet(draw?'draw':win);if(!draw){const st=arenaStats[fight.F[0]]=arenaStats[fight.F[0]]||{A:0,B:0};st[win]++;}
+        arenaSay(draw?'It\'s a draw!':w[0].toUpperCase()+w.slice(1)+' win'+(!a&&!b?' with a giant blast!':'!'));settleBet(draw?'draw':win);arenaRunNext();if(!draw){const st=arenaStats[fight.F[0]]=arenaStats[fight.F[0]]||{A:0,B:0};st[win]++;}
         const fans=mobs.filter(m=>m.T.villager&&!m.dying&&Math.hypot(m.x-arenaV.x,m.z-arenaV.z)<24);for(let k=0;k<3&&fans.length;k++)mobSay(pick1(fans),pick1(['Hooray!','What a fight!','I knew they would win!','Again! Again!','Unbelievable!']));}
       else{cheerT-=dt;if(cheerT<=0&&d<50){cheerT=5+Math.random()*4;const fans=mobs.filter(m=>m.T.villager&&!m.dying&&!m.arena&&Math.hypot(m.x-arenaV.x,m.z-arenaV.z)<24);
         if(fans.length)mobSay(pick1(fans),pick1(['Go go go!','Ooooh!','Get them!','What a hit!','Behind you!','Come on, '+(Math.random()<.5?'west':'east')+' side!']));}}}
