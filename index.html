@@ -2448,12 +2448,13 @@ function waterTick(dt){wT-=dt;if(wT>0||!wq.size)return;wT=.25;const list=[];for(
     if(bb){bb[0]=Math.min(bb[0],c[0]);bb[1]=Math.min(bb[1],c[2]);bb[2]=Math.max(bb[2],c[0]);bb[3]=Math.max(bb[3],c[2]);}else groups.set(g,[c[0],c[2],c[0],c[2]]);}
   groups.forEach(bb=>rebuildAround(bb[0],bb[1],bb[2],bb[3]));}
 let fireT=0;
+const playerFires=new Set();
 function fireTick(dt){fireT-=dt;if(fireT>0||!fires.size)return;fireT=.5;const ch=[];
   for(const[k,life]of fires){const[x,y,z]=k.split(',').map(Number);
-    if(get(x,y,z)!==FIRE){fires.delete(k);continue;}
+    if(get(x,y,z)!==FIRE){fires.delete(k);playerFires.delete(k);continue;}
     if(life===Infinity)continue;
     const below=get(x,y-1,z),near=flamNear(x,y,z);
-    if(!(SOLID[below]&&!BL[below].cross)&&!near){if(ch.length<6)ch.push([x,y,z,0]);continue;}
+    if(!(SOLID[below]&&!BL[below].cross)&&!near&&!playerFires.has(k)){if(ch.length<6)ch.push([x,y,z,0]);continue;}
     const nl=life-.5;
     if(near&&ch.length<6&&Math.random()<.3){const d=DIRS6[Math.random()*6|0],nx=x+d[0],ny=y+d[1],nz=z+d[2],nb=get(nx,ny,nz);
       if(FLAM[nb])ch.push([nx,ny,nz,FIRE]);else if(nb===0&&flamNear(nx,ny,nz)&&Math.random()<.5)ch.push([nx,ny,nz,FIRE]);}
@@ -3442,9 +3443,9 @@ function pick(){
   for(const m of mobs){if(m.dying||m.hide||m===P.riding)continue;const t=rayBox(eye,fwd,{x:m.x-m.w,y:m.y,z:m.z-m.w},{x:m.x+m.w,y:m.y+m.h,z:m.z+m.w});
     if(t>=0&&t<best){best=t;mobTarget=m;}}
   airSpot=null;
-  if(!target&&!mobTarget&&!P.spec&&dim===0&&worldType!=='classic'){const s=inv[sel],d=s&&itemDef(s.id);
-    if(d&&(d.kind==='block'||d.place||(d.kind==='bucket'&&d.fill))){
-      for(let t=.6;t<=4.5;t+=.1){const x=Math.floor(eye.x+fwd.x*t),y=Math.floor(eye.y+fwd.y*t),z=Math.floor(eye.z+fwd.z*t);
+  if(!target&&!mobTarget&&!P.spec){const s=inv[sel],d=s&&itemDef(s.id),fns=d&&d.kind==='fns';
+    if(d&&(fns||dim===0&&worldType!=='classic'&&(d.kind==='block'||d.place||(d.kind==='bucket'&&d.fill)))){
+      for(let t=fns?2.5:.6;t<=4.5;t+=.1){const x=Math.floor(eye.x+fwd.x*t),y=Math.floor(eye.y+fwd.y*t),z=Math.floor(eye.z+fwd.z*t);
         if(x<0||z<0||x>=WX||z>=WZ||y<1||y>=WY)break;
         if(x+1>P.x-P.w&&x<P.x+P.w&&y+1>P.y&&y<P.y+P.h&&z+1>P.z-P.w&&z<P.z+P.w)continue;
         const b=get(x,y,z);if(!b||(ISW[b]&&b!==WATER)){airSpot={x,y,z};}break;}}}}
@@ -3536,12 +3537,12 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
     else{if(BL[cur]&&BL[cur].cross&&cur!==FIRE)breakAt({x,y,z},true);setBlock(x,y,z,d.fill);sfx(d.fill===LAVA?'hiss':'splash');}
     if(mode!=='creative'){inv[sel]={id:196,count:1};invChanged();}
     return;}
-  if(d.kind==='fns'){if(!target){flash('Use flint and steel on a block');return;}
-    const x=target.x+target.n[0],y=target.y+target.n[1],z=target.z+target.n[2];swing();sfx('ignite');
+  if(d.kind==='fns'){if(!target&&!airSpot){flash('Point at a spot to light a fire');return;}
+    const x=target?target.x+target.n[0]:airSpot.x,y=target?target.y+target.n[1]:airSpot.y,z=target?target.z+target.n[2]:airSpot.z;if(x<0||z<0||x>=WX||z>=WZ||y<1||y>=WY)return;swing();sfx('ignite');
     const fr=portalFrameAt(x,y,z);if(fr){lightPortal(fr);return;}
     const cur=get(x,y,z);if(cur&&!(BL[cur].cross&&cur!==TORCH&&cur!==FIRE))return;
-    const below=get(x,y-1,z);if(!(SOLID[below]&&!BL[below].cross)&&!flamNear(x,y,z)){flash('Fire needs something to burn on');return;}
-    setBlock(x,y,z,FIRE);return;}
+    if(ISW[cur]){flash('Fire can\'t burn in water');return;}
+    setBlock(x,y,z,FIRE);const k=x+','+y+','+z;playerFires.add(k);if(fires.get(k)!==Infinity)fires.set(k,25+Math.random()*15);return;}
   if(d.kind==='egg'){if(!target){flash('Look at the ground to use a spawn egg');return;}
     const t=d.mob,T=MT[t],x=target.x+target.n[0]+.5,z=target.z+target.n[2]+.5;let y=target.y+target.n[1];
     for(let k=0;k<12&&boxHits(x,y,z,T.w,T.h);k++)y+=1;
