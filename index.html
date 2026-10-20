@@ -47,6 +47,11 @@ button{font-family:inherit;color:inherit}
 .mpA{font-size:15px;line-height:18px;text-align:center;transition:transform .12s linear}
 .mpP small{grid-column:2;opacity:.8}
 .mpDot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:1px}
+#boss{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top,0px));transform:translateX(-50%);width:min(420px,70vw);text-align:center;font:600 13px/1.4 var(--display);color:#f0d8ff;text-shadow:0 1px 2px #000}
+#boss .bar{height:10px;margin-top:3px;background:rgba(30,10,40,.8);border:1px solid #b070ff;border-radius:3px;overflow:hidden}#bossFill{display:block;height:100%;width:100%;background:linear-gradient(90deg,#c040ff,#ff70e0)}
+#win{position:fixed;inset:0;display:grid;place-items:center;background:rgba(10,6,20,.82);z-index:60;pointer-events:auto}#win[hidden]{display:none}
+#win .wp{max-width:460px;margin:16px;padding:26px 24px;background:#1c1530;border:2px solid #f2b84b;border-radius:10px;color:#f4f0e6;text-align:center;font:400 15px/1.5 var(--display)}
+#win .wt{font-size:26px;font-weight:700;color:#f2b84b;margin-bottom:10px}
 #vig{position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 45%,rgba(200,20,10,.65));opacity:0;transition:opacity .45s}
 #water{position:fixed;inset:0;background:rgba(30,80,160,.28);display:none}
 #fireov{position:fixed;inset:0;display:none;background:linear-gradient(0deg,rgba(255,120,20,.6),rgba(255,70,0,.18) 38%,transparent 62%)}
@@ -262,6 +267,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <div id="cross" aria-hidden="true"></div>
   <div id="prog" hidden></div>
   <div id="info"></div>
+  <div id="boss" hidden>Void Dragon<div class="bar"><i id="bossFill"></i></div></div>
   <div id="mpPanel" hidden><canvas id="mpRadar" width="280" height="280" aria-label="Map of where players are"></canvas><div id="mpList" aria-live="off"></div></div>
   <img id="held" alt="">
   <div id="bottom">
@@ -495,7 +501,7 @@ if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">Th
    Constants & helpers
    ========================================================= */
 const CS=16,NC=32,WX=CS*NC,WZ=CS*NC,WY=96,SEA=22,DAY=900,DAYPART=.68;
-const T=16,NT=112;
+const T=16,NT=117;
 const WATER=11,CHEST=25,FURNACE=29,BEDROCK=10,TABLE=30,FARMLAND=42,WHEAT0=43,WHEAT1=44,TORCH=49,BED=54,FIRE=61,LAVA=62,PORTAL=63,GLOW=64,OBSIDIAN=50,NETHERRACK=51;
 const DIRS6=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
 const SAVE_KEY='blockland-world-v3',CHAR_KEY='blockland-character',LAST_KEY='blockland-last';
@@ -503,7 +509,7 @@ const SAVE_KEY='blockland-world-v3',CHAR_KEY='blockland-character',LAST_KEY='blo
 const WORLDS={classic:{n:'Classic',icon:1,d:'A huge world with big villages, an army base, a prison, emerald mines, and a walled villager city with a ring road, an amusement park, a castle, buses, and a bandit fortress.'},
   sky:{n:'Skyblock',icon:73,d:'One small island floating in the sky: a tree, some dirt and a chest of supplies. Make everything else yourself.'},
   one:{n:'One Block',icon:33,d:'A single block in the void. Break it and a new one appears, bringing new blocks, chests and mobs as you go.'},
-  chunk:{n:'One Chunk',icon:21,d:'One 16 by 16 chunk floating in the void. Dig down through snow, desert, caves, a dungeon and deep ores to a fiery bottom.'}};
+  chunk:{n:'One Chunk',icon:21,d:'One 16 by 16 chunk floating in the void, all the way down to bedrock: a tiny village on top, then snow, a buried desert, caves, a dungeon, a stronghold with an End portal, deep ores and a fiery bottom. Its portal leads to a One Chunk Nether.'}};
 let worldType='classic';try{const l=localStorage.getItem(LAST_KEY);if(WORLDS[l])worldType=l;}catch(e){}
 const saveKey=t=>SAVE_KEY+(t&&t!=='classic'?'-'+t:'');
 const isTouch=matchMedia('(pointer: coarse)').matches;
@@ -655,6 +661,11 @@ function machineFace(t,inner){paint(t,(x,y)=>{if(x===0||y===0)return jit([200,20
   if(x>=2&&x<=13&&y>=2&&y<=10){if(x===2||x===13||y===2||y===10)return jit([60,64,72],4);return inner(x,y);}
   if(y>=12&&y<=13&&(x===3||x===6||x===9))return x===3?[230,60,50,255]:x===6?[250,210,60,255]:[80,200,90,255];return jit([160,164,172],6);});}
 // furniture: table, chair and TV
+paint(112,(x,y)=>hash3(x,y,0,5151)<.12?jit([196,198,140],8):jit([224,226,170],10));
+paint(113,(x,y)=>y<3?jit([226,228,180],8):(y===3||y===12)?jit([40,70,60],6):jit([60,104,88],10));
+paint(114,(x,y)=>{const d=Math.hypot(x-7.5,y-7.5);return d<3.5?jit([20,28,26],5):(x<1||y<1||x>14||y>14)?jit([40,70,60],6):jit([70,118,98],10);});
+paint(115,(x,y)=>{const d=Math.hypot(x-7.5,y-7.5);return d<1.6?[10,14,12]:d<3.5?jit([60,190,120],12):(x<1||y<1||x>14||y>14)?jit([40,70,60],6):jit([70,118,98],10);});
+paint(116,(x,y)=>{const h=hash3(x,y,0,8181);return h<.06?[200,240,230]:h<.12?[90,40,140]:jit([10,14,22],6);});
 paint(111,(x,y)=>{const row=y>>2,off=row%2?4:0;return(y%4===3||((x+off)%8)===7)?jit([30,12,16],5):jit([84,32,38],12);});
 paint(110,(x,y)=>{if(x<1||y<1||x>14||y>14)return jit([60,64,72],4);const d=Math.hypot(x-7.5,y-6.5);if(d<4)return jit(d<3?[240,60,50]:[150,30,30],8);if(y>=12&&y<=13)return jit([250,210,60],8);return jit([200,204,212],6);});
 paint(109,(x,y)=>(y<=1||y>=14)?jit([90,92,98],6):(x%4===1||x%4===2)?jit(x%4===1?[150,152,160]:[100,102,110],6):null);
@@ -732,8 +743,9 @@ B(102,'Iron bars',[109,109,109],5,{tool:'pick',lvl:0,cut:1});
 B(103,'Ride button',[110,41,41],4,{tool:'pick',lvl:0});
 B(104,'Nether bricks',[111,111,111],2,{tool:'pick',lvl:0});
 for(let L=1;L<=4;L++)B(104+L,'Lava',[73,73,73],-1,{liquid:1,lava:1,flow:L});B(109,'Lava',[73,73,73],-1,{liquid:1,lava:1,fall:1});
-const NBRICK=104,FALLL=109;
-const NB=110,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
+B(110,'End portal frame',[113,114,113],-1,{});B(111,'End portal frame',[113,115,113],-1,{});B(112,'End portal',[116,116,116],-1,{liquid:1,portal:1,glow:1});B(113,'End stone',[112,112,112],3,{tool:'pick',lvl:0});
+const NBRICK=104,FALLL=109,FRAME=110,FRAMEF=111,END_P=112,ENDSTONE=113;
+const NB=114,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
 const SOLID=new Uint8Array(128),OPAQ=new Uint8Array(128);
 for(let i=1;i<NB;i++){const b=BL[i];SOLID[i]=(b.liquid||b.cross||b.pass)?0:1;OPAQ[i]=(b.liquid||b.cut||b.cross)?0:1;}
 const PLANT_ON={87:[4,26,2,3,9,87],88:[4,26,2,3,9],78:[FARMLAND],80:[FARMLAND],73:[1,2,12,42],74:[1,2,12,42],43:[FARMLAND],44:[FARMLAND],45:[1,2,12],46:[1,2,12],47:[1,2,12],48:[1,2,4,12,48]};
@@ -846,11 +858,12 @@ const RECIPES=[];
 mat(250,'Flare rod','stick',{a:'#ffcf4a',b:'#c87a10',c:'#fff3b0'});
 mat(251,'Flare powder','dust',{a:'#ffb020',b:'#c86a10',c:'#ffe680'});
 ITEMS[252]={n:'Charred skull',kind:'mat',p:'skull',pal:{a:'#3e3e44',b:'#141416',c:'#7a7a80'},max:64};
+ITEMS[261]={n:'Eye of the Void',kind:'eye',p:'eye',pal:{a:'#3ec890',b:'#1a5a44',c:'#a0ffd8',d:'#0a1410'},max:64};
 ITEMS[259]={n:'Mop',kind:'mop',p:'mop',pal:{a:'#e0ddd2',b:'#8a6034',c:'#a8a59a'},max:1};
 ITEMS[260]={n:'Broom',kind:'broom',p:'broom',pal:{a:'#d8b850',b:'#7a5a32',c:'#c83a3a'},max:1};
 ITEMS[253]={n:'Void pearl',kind:'pearl',p:'pearl',pal:{a:'#1f8a7a',b:'#0e3a40',c:'#8af5de'},max:16};
 const RC=(out,n,p,k)=>RECIPES.push({out,n,p,k}),RS=(out,n,s)=>RECIPES.push({out,n,s});
-RS(7,4,[5]);RS(40,4,[18]);RS(251,2,[250]);RC(259,1,['..S','.S.','W..'],{S:130,W:'wool'});RC(260,1,['..S','.S.','H..'],{S:130,H:161});
+RS(7,4,[5]);RS(40,4,[18]);RS(251,2,[250]);RS(261,1,[253,251]);RC(259,1,['..S','.S.','W..'],{S:130,W:'wool'});RC(260,1,['..S','.S.','H..'],{S:130,H:161});
 RC(130,4,['P','P'],{P:'planks'});
 RC(TABLE,1,['PP','PP'],{P:'planks'});
 RC(BED,1,['WWW','PPP'],{W:'wool',P:'planks'});
@@ -926,6 +939,7 @@ fns:["..aaaa..",".a....a.",".a....a.","..a..a..","...aa...","........","..cbbb..
 egg:["...aa...","..acaa..",".aaaaba.",".abaaaa.","aaaaabaa","aabaaaaa",".aaaaba.","..aaaa.."],
 dust:["........","..c..a..",".a.ab...","..aaca..",".baaab.a","..bab...",".a...b..","........"],
 skull:["..aaaa..",".aaaaaa.","aaaaaaaa","abbaabba","abbaabba","aaaaaaaa",".acacaa.","..aaaa.."],
+eye:["........","..bbbb..",".baaaab.","baaddaab","baaddaab",".baaaab.","..bbbb..","........"],
 pearl:["........","..bbbb..",".baaccb.",".baaacb.",".baaaab.",".baaaab.","..bbbb..","........"],
 mop:["......bb",".....bb.","....bb..","...bb...","..aa....",".acaa...","aacaa...","a.a.a..."],
 broom:["......bb",".....bb.","....bb..","...bb...","..cc....",".aaac...","aaaa....","aaa....."],
@@ -1951,7 +1965,7 @@ function mpTick(dt){if(!MP.conns.length&&!MP.others.size){mpPanelTick(dt);return
   mpPanelTick(dt);}
 function mpNear(x,z){let best=null,bd=48;for(const p of places){const d=Math.hypot(p.x-x,p.z-z);if(d<bd){bd=d;best=p.name;}}return best;}
 function mpRel(o){const dx=o.x-P.x,dz=o.z-P.z,fw=-dx*Math.sin(yaw)-dz*Math.cos(yaw),rt=dx*Math.cos(yaw)-dz*Math.sin(yaw);return{fw,rt,ang:Math.atan2(rt,fw),flat:Math.hypot(dx,dz)};}
-function mpDimName(d){return d===0?'the Overworld':'the Nether';}
+function mpDimName(d){return d===0?'the Overworld':d===2?'The End':'the Nether';}
 let mpPanelT=0;
 function mpPanelTick(dt){const el=$('mpPanel');const on=(MP.host||MP.guest)&&ui!=='menu';if(el.hidden===on)el.hidden=!on;if(!on)return;
   // radar every frame
@@ -2188,7 +2202,7 @@ const AREA=(WX*WZ)/25600;
 const ORE_VEINS=[[20,1100,9,6,56],[55,520,8,12,48],[21,620,6,4,46],[57,140,6,4,26],[22,170,6,3,28],[56,230,7,2,16],[23,90,5,2,14]];
 const places=[],mineCrews=[];
 function addPlace(name,x,y,z){places.push({name,x:x+.5,y,z:z+.5});}
-function generateNether(){world.fill(0);CHEST_T.clear();villages.length=0;const s=seed+7777;
+function generateNether(){if(worldType==='chunk'){generateNetherChunk();return;}world.fill(0);CHEST_T.clear();villages.length=0;const s=seed+7777;
   for(let z=0;z<WZ;z++)for(let x=0;x<WX;x++)for(let y=0;y<64;y++){let id=0;
     if(y===0||y===63||(y<3&&hash3(x,y,z,s)<.5)||(y>60&&hash3(x,y,z,s+1)<.5))id=BEDROCK;
     else{const n=vnoise3(x/20,y/11,z/20,s)*.7+vnoise3(x/8,y/6,z/8,s+3)*.3;
@@ -2228,8 +2242,8 @@ function nextOne(){const o=ONE,prev=onePhase(oneCount);oneCount++;const ph=onePh
   else setBlock(o.x,o.y,o.z,pickW(ph.b));
   if(oneCount>3&&Math.random()<.07){const t=ph.m[Math.random()*ph.m.length|0];if(!MT[t].hostile||mode==='survival')spawnAt(t,o.x+.5+(Math.random()-.5),o.y+1,o.z+.5+(Math.random()-.5));}}
 /* ---------- One Chunk: a single 16x16 column, each layer a different place ---------- */
-const CH0={x:VC-8,z:VC-8},CH_TOP=55;
-const CH_LAYERS=[[51,'Meadow'],[44,'Snowy layer'],[36,'Buried desert'],[28,'Caves'],[20,'Old dungeon'],[11,'Deep ores'],[3,'Fiery depths'],[0,'Bedrock']];
+const CH0={x:VC-8,z:VC-8},CH_TOP=84;
+const CH_LAYERS=[[80,'Village meadow'],[70,'Snowy layer'],[60,'Buried desert'],[45,'Caves'],[35,'Old dungeon'],[22,'Stronghold'],[11,'Deep ores'],[3,'Fiery depths'],[0,'Bedrock']];
 function chunkLayer(y){for(const[l,n]of CH_LAYERS)if(y>=l)return n;return'The void';}
 function generateChunk(){const X=CH0.x,Z=CH0.z,s=seed,r=(x,y,z,k)=>hash3(x,y,z,s+k);
   const pick=(x,y,z,list,base)=>{const v=r(x,y,z,11);let a=0;for(const[id,p]of list){a+=p;if(v<a)return id;}return base;};
@@ -2237,29 +2251,46 @@ function generateChunk(){const X=CH0.x,Z=CH0.z,s=seed,r=(x,y,z,k)=>hash3(x,y,z,s
     for(let y=1;y<=CH_TOP;y++){let b;
       if(y===1)b=BEDROCK;else if(y===2)b=r(x,y,z,3)<.5?BEDROCK:51;
       else if(y<11)b=pick(x,y,z,[[64,.05],[22,.05],[26,.04],[50,.02]],51);
-      else if(y<20)b=pick(x,y,z,[[23,.022],[56,.035],[57,.03],[22,.025],[21,.04],[50,.012],[9,.05]],3);
-      else if(y<28)b=pick(x,y,z,[[28,.12],[9,.1],[21,.035],[20,.04],[41,.02]],3);
-      else if(y<36)b=pick(x,y,z,[[20,.07],[21,.045],[55,.035],[26,.05],[2,.04]],3);
-      else if(y<44)b=y>=41?(r(x,y,z,5)<.85?4:17):pick(x,y,z,[[22,.03],[41,.03],[4,.08]],17);
-      else if(y<51)b=y===50?12:pick(x,y,z,[[14,.14],[18,.03],[21,.03],[20,.04]],13);
+      else if(y<22)b=pick(x,y,z,[[23,.025],[56,.035],[57,.03],[22,.025],[21,.04],[50,.012],[9,.05]],3);
+      else if(y<35)b=pick(x,y,z,[[21,.04],[20,.04],[9,.06],[56,.02],[22,.015]],3);
+      else if(y<45)b=pick(x,y,z,[[28,.12],[9,.1],[21,.035],[20,.04],[41,.02]],3);
+      else if(y<60)b=pick(x,y,z,[[20,.07],[21,.045],[55,.035],[26,.05],[2,.04],[22,.02]],3);
+      else if(y<70)b=y>=67?(r(x,y,z,5)<.85?4:17):pick(x,y,z,[[22,.03],[41,.03],[4,.08]],17);
+      else if(y<80)b=y===79?12:pick(x,y,z,[[14,.14],[18,.03],[21,.03],[20,.04]],13);
       else b=y===CH_TOP?1:2;
       world[idx(x,y,z)]=b;}}
+  // winding caves through the cave layer and the deep ores
+  for(let x=X;x<X+16;x++)for(let z=Z;z<Z+16;z++)for(let y=12;y<60;y++){if(y>=22&&y<45)continue;const n=vnoise3(x/5,y/4,z/5,s+40);
+    if(n>(y>=45?.6:.66)){world[idx(x,y,z)]=0;}}
+  for(let x=X;x<X+16;x++)for(let z=Z;z<Z+16;z++)for(let y=12;y<59;y++)if(!world[idx(x,y,z)]&&SOLID[world[idx(x,y-1,z)]]&&r(x,y,z,44)<.012)world[idx(x,y,z)]=y<22?LAVA:WATER;
   const box=(x0,y0,z0,w,h,d,id)=>{for(let x=x0;x<x0+w;x++)for(let y=y0;y<y0+h;y++)for(let z=z0;z<z0+d;z++)S(x,y,z,id);};
   const room=(x0,y0,z0,w,h,d,wall)=>{box(x0,y0,z0,w,h,d,wall);box(x0+1,y0+1,z0+1,w-2,h-2,d-2,0);};
-  // meadow: a tree, flowers and a starter chest
-  oak(X+3,CH_TOP,Z+3);S(X+12,CH_TOP+1,Z+11,46);S(X+10,CH_TOP+1,Z+5,47);S(X+6,CH_TOP+1,Z+12,45);S(X+13,CH_TOP+1,Z+3,45);
-  chestAt(X+12,CH_TOP+1,Z+13,'sky');addPlace('Meadow',X+8,CH_TOP+1,Z+8);
+  // tiny village on top: two huts, a farm and a well
+  const T0=CH_TOP;
+  const hut=(x0,z0,door)=>{room(x0,T0,z0,5,5,5,7);box(x0,T0+4,z0,5,1,5,40);for(let y=T0+1;y<=T0+2;y++)S(door[0],y,door[1],0);S(x0+2,T0+3,z0,16);S(x0+2,T0+3,z0+4,16);S(x0+1,T0+1,z0+3,TORCH);};
+  hut(X+1,Z+1,[X+3,Z+5]);chestAt(X+2,T0+1,Z+2,'house');S(X+4,T0+1,Z+2,30);
+  hut(X+10,Z+10,[X+12,Z+10]);S(X+11,T0+1,Z+13,BED);chestAt(X+13,T0+1,Z+13,'house');
+  for(let x=X+9;x<=X+14;x++)for(let z=Z+1;z<=Z+4;z++){if(x===X+11&&z===Z+2){S(x,T0,z,WATER);continue;}S(x,T0,z,FARMLAND);S(x,T0+1,z,r(x,0,z,9)<.5?44:43);}
+  box(X+2,T0,Z+10,3,1,3,31);S(X+3,T0,Z+11,WATER);S(X+2,T0+1,Z+10,7);S(X+4,T0+1,Z+10,7);S(X+2,T0+1,Z+12,7);S(X+4,T0+1,Z+12,7);
+  for(let k=0;k<16;k++){S(X+7,T0,Z+k,26);S(X+8,T0,Z+k,26);}
+  oak(X+14,T0,Z+7);S(X+5,T0+1,Z+8,46);S(X+6,T0+1,Z+14,47);
+  addPlace('Tiny village',X+8,T0+5,Z+8);
   // snowy layer: an igloo-like room
-  room(X+3,45,Z+8,7,5,6,13);S(X+4,46,Z+9,TORCH);chestAt(X+8,46,Z+12,'igloo');S(X+7,46,Z+9,24);addPlace('Snow cave',X+6,46,Z+10);
+  room(X+3,71,Z+8,7,5,6,13);S(X+4,72,Z+9,TORCH);chestAt(X+8,72,Z+12,'igloo');S(X+7,72,Z+9,24);addPlace('Snow cave',X+6,72,Z+10);
   // buried desert temple
-  room(X+6,36,Z+2,8,6,8,17);box(X+7,36,Z+3,6,1,6,8);chestAt(X+8,37,Z+4,'temple');chestAt(X+11,37,Z+7,'temple');S(X+7,37,Z+8,TORCH);
-  for(let i=0;i<5;i++)S(X+2+i,40,Z+12,41);addPlace('Buried temple',X+9,37,Z+5);
-  // caves: an open cave with a pool and a little mine
-  box(X+2,29,Z+3,10,4,9,0);box(X+3,28,Z+4,4,1,4,3);box(X+3,29,Z+4,3,1,3,WATER);box(X+10,29,Z+3,1,4,1,7);box(X+10,32,Z+3,1,1,9,7);
-  S(X+9,30,Z+6,TORCH);chestAt(X+11,29,Z+10,'mine');addPlace('Cave',X+7,29,Z+7);
+  room(X+6,61,Z+2,8,6,8,17);box(X+7,61,Z+3,6,1,6,8);chestAt(X+8,62,Z+4,'temple');chestAt(X+11,62,Z+7,'temple');S(X+7,62,Z+8,TORCH);addPlace('Buried temple',X+9,62,Z+5);
+  // caves: a big open cave with a pool and a little mine
+  box(X+2,46,Z+3,10,5,9,0);box(X+3,45,Z+4,4,1,4,3);box(X+3,46,Z+4,3,1,3,WATER);box(X+10,46,Z+3,1,4,1,7);box(X+10,49,Z+3,1,1,9,7);
+  S(X+9,47,Z+6,TORCH);chestAt(X+11,46,Z+10,'mine');addPlace('Cave',X+7,46,Z+7);
   // old dungeon
-  room(X+4,21,Z+4,8,5,8,28);for(let x=X+4;x<X+12;x++)for(let y=21;y<26;y++)for(let z=Z+4;z<Z+12;z++)if(get(x,y,z)===28&&r(x,y,z,7)<.5)S(x,y,z,9);
-  chestAt(X+5,22,Z+5,'dungeon');chestAt(X+10,22,Z+10,'dungeon');addPlace('Old dungeon',X+8,22,Z+8);
+  room(X+4,36,Z+4,8,5,8,28);for(let x=X+4;x<X+12;x++)for(let y=36;y<41;y++)for(let z=Z+4;z<Z+12;z++)if(get(x,y,z)===28&&r(x,y,z,7)<.5)S(x,y,z,9);
+  chestAt(X+5,37,Z+5,'dungeon');chestAt(X+10,37,Z+10,'dungeon');addPlace('Old dungeon',X+8,37,Z+8);
+  // stronghold with the End portal
+  room(X+1,23,Z+1,14,10,14,31);for(let x=X+1;x<X+15;x++)for(let y=23;y<33;y++)for(let z=Z+1;z<Z+15;z++)if(get(x,y,z)===31&&r(x,y,z,8)<.3)S(x,y,z,28);
+  const cx=X+7,cz=Z+7;box(cx-3,24,cz-3,7,1,7,31);const frames=frameRing(cx,25,cz,.3,s+3);
+  for(let y=25;y<=28;y++){S(X+2,y,Z+12,27);S(X+3,y,Z+12,27);S(X+2,y,Z+13,27);}chestAt(X+13,24,Z+2,'stronghold');chestAt(X+13,24,Z+13,'stronghold');
+  for(const[tx,tz]of[[X+2,Z+2],[X+13,Z+7],[X+2,Z+8]])S(tx,26,tz,TORCH);S(cx,32,cz,GLOW);
+  addPlace('Stronghold',cx,27,cz);STRONG={x:cx+.5,y:25,z:cz+.5,frames,center:[cx,25,cz]};
   // deep ores: a small lava lake
   box(X+2,13,Z+9,6,3,5,0);box(X+3,12,Z+10,4,1,3,LAVA);chestAt(X+7,13,Z+13,'one4');addPlace('Lava lake',X+5,13,Z+11);
   // fiery depths: a ruined portal waiting to be finished
@@ -2277,7 +2308,7 @@ function generateVoid(){world.fill(0);CHEST_T.clear();villages.length=0;HM.fill(
   else{S(ONE.x,ONE.y,ONE.z,1);HM[ONE.x+ONE.z*WX]=ONE.y;addPlace('The one block',ONE.x,ONE.y+1,ONE.z);spawnPt={x:ONE.x+.5,y:ONE.y+1,z:ONE.z+.5};}
   edits.forEach((id,k)=>{const p=k.split(',').map(Number);if(p[0]>=0&&p[0]<WX&&p[1]>=0&&p[1]<WY&&p[2]>=0&&p[2]<WZ)world[idx(p[0],p[1],p[2])]=id;});
   scanCrops();computeAllLight();}
-function generate(){places.length=0;if(dim===1){generateNether();return;}
+function generate(){places.length=0;STRONG=dim===0?null:STRONG;if(dim===2){generateEnd();return;}if(dim===1){generateNether();return;}
   if(worldType!=='classic'){generateVoid();return;}
   world.fill(0);CHEST_T.clear();const s=seed;
   for(let z=0;z<WZ;z++)for(let x=0;x<WX;x++){
@@ -2392,6 +2423,7 @@ function generate(){places.length=0;if(dim===1){generateNether();return;}
   for(let z=1;z<WZ-1;z++)for(let x=1;x<WX-1;x++){const h=HM[x+z*WX];if(h>=SEA-2)continue;const r=hash3(x,5,z,s+77);if(r>.09)continue;
     if(!SOLID[get(x,h,z)]||get(x,h+1,z)!==WATER)continue;
     if(r<.012)S(x,h+1,z,PICKLE);else{const n=1+(((r*1000)|0)%Math.max(1,Math.min(4,SEA-h-2)));for(let k=1;k<=n;k++){if(get(x,h+k,z)===WATER&&get(x,h+k+1,z)===WATER)S(x,h+k,z,SEAWEED);else break;}}}
+  buildStronghold();
   // player edits on top
   edits.forEach((id,k)=>{const p=k.split(',').map(Number);if(p[0]>=0&&p[0]<WX&&p[1]>=0&&p[1]<WY&&p[2]>=0&&p[2]<WZ)world[idx(p[0],p[1],p[2])]=id;});
   // spawn point near the middle, on open land
@@ -2427,6 +2459,7 @@ const COST=new Uint8Array(128);COST[11]=2;COST[6]=1;COST[19]=1;
 const EMIT=new Uint8Array(128);EMIT[88]=10;EMIT[49]=14;EMIT[61]=15;EMIT[62]=15;EMIT[63]=11;EMIT[64]=15;
 const ISL=new Uint8Array(128);for(const i of[62,105,106,107,108,109]){ISL[i]=1;EMIT[i]=i===62?15:13;}
 const lLevel=b=>b===62||b===109?0:(b>=105&&b<=108?b-104:99),lTop=b=>b===62?.88:b===109?1:Math.max(.12,(5-(b-104))/5*.88);
+EMIT[112]=12;
 const FALLW=72,ISW=new Uint8Array(128);ISW[WATER]=1;for(let i=65;i<=72;i++){ISW[i]=1;COST[i]=2;}
 const wLevel=b=>b===WATER||b===FALLW?0:(b>=65&&b<=71?b-64:99);
 const wTop=b=>b===WATER?.88:b===FALLW?1:Math.max(.12,(8-(b-64))/8*.88);
@@ -2682,11 +2715,13 @@ function switchDim(to,tx,tz,viaPortal){if(P.riding)dismount();
   generate();worldReady=false;queueAll();
   const sp=viaPortal?(findPortal(tx,tz)||buildPortal(tx,tz)):(to===0?bedSpawn():spawnPt);
   P.x=sp.x;P.y=sp.y;P.z=sp.z;P.vx=P.vy=P.vz=P.kx=P.kz=0;P.peak=P.y;P.portalT=0;P.portalLock=true;P.burn=0;
-  if(to===0)populateOverworld();
+  if(to===0)populateOverworld();if(to===2)populateEnd();
   labelKey='';saveNow();updateSeedLine();
-  const v=$('vig');v.style.transition='none';v.style.background=to===1?'#3a0a06':'#000';v.style.opacity='1';
+  const v=$('vig');v.style.transition='none';v.style.background=to===1?'#3a0a06':to===2?'#1a0828':'#000';v.style.opacity='1';
   setTimeout(()=>{v.style.transition='opacity .9s';v.style.opacity='0';setTimeout(()=>{v.style.background='';v.style.transition='';},950);},300);}
 function portalCheck(dt){const fx=Math.floor(P.x),fz=Math.floor(P.z),ov=$('portalov');
+  {const inE=get(fx,Math.floor(P.y+.2),fz)===END_P||get(fx,Math.floor(P.y+1.2),fz)===END_P;
+    if(inE&&!P.portalLock&&!P.riding&&!P.dead){sfx('portal');if(dim===2){switchDim(0,0,0,false);showWin();}else{switchDim(2,0,0,false);flash('You fell into The End!');}return;}}
   const inP=get(fx,Math.floor(P.y+.2),fz)===PORTAL||get(fx,Math.floor(P.y+1.2),fz)===PORTAL;
   if(inP&&!P.portalLock&&!P.riding){if(!(P.portalT>0))sfx('portal');P.portalT=(P.portalT||0)+dt;const need=mode==='creative'?.8:3;
     ov.style.opacity=Math.min(1,P.portalT/need).toFixed(2);
@@ -2741,7 +2776,7 @@ const ghost=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry
 ghost.visible=false;scene.add(ghost);
 /* place labels, shown through terrain while spectating */
 const labelGroup=new THREE.Group();labelGroup.visible=false;scene.add(labelGroup);let labelKey='';
-const UNDERGROUND={Dungeon:1,Mineshaft:1,Fossil:1,'Emerald cavern':1,Vault:1};
+const UNDERGROUND={Stronghold:1,'End portal room':1,'Old dungeon':1,Dungeon:1,Mineshaft:1,Fossil:1,'Emerald cavern':1,Vault:1};
 function labelSprite(text,under){const c=document.createElement('canvas'),g=c.getContext('2d'),F='600 30px Rubik, system-ui, sans-serif';
   g.font=F;const w=Math.ceil(g.measureText(text).width)+44;c.width=w;c.height=56;g.font=F;
   g.fillStyle=under?'rgba(46,20,70,.86)':'rgba(16,22,34,.86)';g.beginPath();
@@ -2878,6 +2913,8 @@ const MT={
   charred:{n:'Charred skeleton',hostile:1,fireproof:1,w:.36,h:2.3,hp:26,spd:2.5,dmg:[5,8],reach:1.7,drops:[[131,0,1],[173,0,2],[252,0,1]],build:()=>mutantOf(skeletonModel,1.25,[.24,.24,.26])},
   hogfolk:{n:'Hogfolk',hostile:1,goldy:1,calmArms:1,w:.32,h:1.9,hp:18,spd:2.4,dmg:[3,5],reach:1.4,drops:[[134,0,1],[105,0,2]],build:hogfolkModel},
   voidwalker:{n:'Voidwalker',hostile:1,stare:1,calmArms:1,w:.3,h:2.9,hp:40,spd:3.3,dmg:[5,8],reach:1.8,drops:[[253,0,1]],build:voidwalkerModel},
+  dragon:{n:'Void Dragon',boss:1,hostile:1,w:2.6,h:3.2,hp:180,spd:0,drops:[],build:dragonModel},
+  crystal:{n:'Void crystal',crystal:1,w:.55,h:1.6,hp:1,spd:0,drops:[],build:crystalModel},
   horse:{n:'Horse',horse:1,w:.6,h:1.6,hp:22,spd:2.2,drops:[[136,0,2]],build:c=>horseModel(c)}
 };
 function flareModel(){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;};const g=new THREE.Group();
@@ -2904,6 +2941,21 @@ function voidwalkerModel(){const mats=[],M=c=>{const m=lam(c);mats.push(m);retur
   m.armR=pivot(root,.3,2.26,0);part(m.armR,.12,1.45,.12,body,0,-.72,0);
   m.head=pivot(root,0,2.3,0);part(m.head,.48,.48,.48,dk,0,.24,0);part(m.head,.17,.05,.02,eyeM,-.11,.24,-.245);part(m.head,.17,.05,.02,eyeM,.11,.24,-.245);
   return m;}
+function dragonModel(){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;};const g=new THREE.Group(),root=pivot(g,0,0,0);root.scale.setScalar(1.3);
+  const body=M('#1d1a26'),dk=M('#0e0c14'),bone=M('#463e56'),eyeM=new THREE.MeshBasicMaterial({color:0xd070ff});
+  part(root,2.0,1.4,4.6,body,0,1.6,0);for(let k=0;k<5;k++)part(root,.25,.5,.25,bone,0,2.5,-1.6+k*.8);
+  const neck=pivot(root,0,1.9,-2.3);part(neck,.8,.8,1.8,body,0,0,-.9);const head=pivot(neck,0,.1,-1.8);
+  part(head,1.1,.9,1.5,dk,0,0,-.6);part(head,.8,.5,.9,body,0,-.15,-1.5);part(head,.22,.12,.05,eyeM,-.36,.2,-1.37);part(head,.22,.12,.05,eyeM,.36,.2,-1.37);
+  part(head,.15,.55,.15,bone,-.35,.65,-.2);part(head,.15,.55,.15,bone,.35,.65,-.2);
+  for(let k=0;k<5;k++)part(root,.9-k*.15,.7-k*.1,1.2,body,0,1.5-k*.05,2.9+k*1.15);
+  for(const[sx,sz]of[[-1,-1],[1,-1],[-1,1],[1,1]])part(root,.4,1.1,.4,dk,sx*.7,.7,sz*1.4);
+  const wingL=pivot(root,-1,2.1,-.3);part(wingL,5.5,.15,3.2,dk,-2.75,0,0);part(wingL,5.5,.25,.25,bone,-2.75,.05,-1.5);
+  const wingR=pivot(root,1,2.1,-.3);part(wingR,5.5,.15,3.2,dk,2.75,0,0);part(wingR,5.5,.25,.25,bone,2.75,.05,-1.5);
+  return{g,mats,legs:[],wingL,wingR,head,extra:[eyeM]};}
+function crystalModel(){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;};const g=new THREE.Group();
+  const glass=new THREE.MeshBasicMaterial({color:0xff70e0,transparent:true,opacity:.55}),core=new THREE.MeshBasicMaterial({color:0xffc0ff});
+  part(g,.9,.22,.9,M('#2a2a32'),0,.11,0);const spin=pivot(g,0,.95,0);part(spin,.72,.72,.72,glass,0,0,0);const in2=pivot(spin,0,0,0);in2.rotation.set(.6,.6,0);part(in2,.42,.42,.42,core,0,0,0);
+  return{g,mats,legs:[],spin,extra:[glass,core]};}
 function wolfModel(){const w=quadruped({bw:.42,bh:.4,bl:.9,lh:.42,lw:.14,hs:.36,body:'#cfcac2',leg:'#bdb7ae',head:'#cfcac2',
   extra:(m)=>{const dk=m.M('#8f8a82');part(m.head,.2,.15,.18,m.M('#b8b2a8'),0,-.07,-.28);part(m.head,.07,.05,.04,m.M('#1a1a1a'),0,-.02,-.38);
     part(m.head,.1,.13,.06,dk,-.11,.23,-.08);part(m.head,.1,.13,.06,dk,.11,.23,-.08);
@@ -3084,7 +3136,7 @@ function spawnMob(type,x,y,z,opt){const Tp=MT[type],mdl=Tp.build(opt);scene.add(
     maxHp:Tp.hp,love:0,breedCd:0,baby:0,heartT:0,tame:false,sit:false,saddle:false,sheared:false,regrow:0,temper:0,coat:mdl.coat};
   if(Tp.vehicle){m.tame=true;m.saddle=true;m.keep=true;}
   m.yawT=m.yaw;mobs.push(m);return m;}
-function removeMob(m){scene.remove(m.mdl.g);m.mdl.mats.forEach(x=>x.dispose());(m.mdl.extra||[]).forEach(x=>x.dispose());}
+function removeMob(m){if(m.beam){scene.remove(m.beam);m.beam.geometry.dispose();m.beam=null;}scene.remove(m.mdl.g);m.mdl.mats.forEach(x=>x.dispose());(m.mdl.extra||[]).forEach(x=>x.dispose());}
 function clearMobs(){mobs.forEach(removeMob);mobs.length=0;}
 function spawnBuses(){if(!busRoute||busRoute.pts.length<4)return;const pts=busRoute.pts,n=pts.length>60?3:2;
   for(let k=0;k<n;k++){const i=Math.floor(k*pts.length/n),p=pts[i],T=topAt(Math.floor(p.x),Math.floor(p.z));const b=spawnMob('bus',p.x,T.y+1,p.z);b.route={pts,i:(i+1)%pts.length};
@@ -3250,6 +3302,8 @@ function projHit(a,m){const px=Math.floor(a.x-a.vx*.02),py=Math.floor(a.y-a.vy*.
 function shootArrow(x,y,z,vx,vy,vz,owner,dmg){const me=new THREE.Mesh(sbox(.06,.06,.6),arrowMat);me.position.set(x,y,z);scene.add(me);arrows.push({x,y,z,vx,vy,vz,owner,dmg,me,stuck:0,life:0});}
 function killArrow(i){scene.remove(arrows[i].me);arrows.splice(i,1);}
 function updateArrows(dt){for(let i=arrows.length-1;i>=0;i--){const a=arrows[i];a.life+=dt;
+  if(a.eye){a.x+=a.vx*dt;a.y+=a.vy*dt;a.z+=a.vz*dt;a.vy*=Math.exp(-dt*1.2);a.me.position.set(a.x,a.y,a.z);if(Math.random()<.6)burst(a.x,a.y,a.z,[.3,.9,.6],1);
+    if(a.life>2){if(Math.random()<.8)dropItem(261,1,a.x,a.y,a.z);else{burst(a.x,a.y,a.z,[.3,.9,.6],10);sfx('break');flash('The eye of the void shattered');}killArrow(i);}continue;}
   if(a.stuck>0){a.stuck-=dt;
     if(!P.dead&&!P.spec&&Math.hypot(P.x-a.x,P.y+.9-a.y,P.z-a.z)<1.5&&roomFor(171,1)){if(mode==='survival')addItem(171,1);sfx('pop');killArrow(i);continue;}
     if(a.stuck<=0)killArrow(i);continue;}
@@ -3279,7 +3333,7 @@ function hurtMob(m,dmg,src){if(m.dying)return;m.hp-=dmg;m.hurt=.35;sfx('hit');
     if(src==='player'){P.lastHit=m;if(m.T.goldy)for(const h of mobs)if(h.T.goldy&&Math.hypot(h.x-m.x,h.z-m.z)<16)h.anger=60;if(m.T.stare&&m.hp>0&&Math.random()<.65)vwTeleport(m,m.x,m.z,8,16);if(m.T.golem||m.T.soldier){m.anger=40;m.order=null;}if(m.T.villager&&!m.jailed)angerGolems(m.x,m.z);
       if(m.T.wolf&&!m.tame)for(const w of mobs)if(w.T.wolf&&!w.tame&&Math.hypot(w.x-m.x,w.z-m.z)<16)w.anger=30;}}
   if(m.hp<=0&&m.type==='bandit'&&!m.jailed&&src&&src!=='player'&&src.T&&src.T.soldier&&captureBandit(m,src))return;
-  if(m.hp<=0){m.dying=.6;burst(m.x,m.y+m.h/2,m.z,[.9,.9,.9],10);if(P.riding===m)dismount();
+  if(m.hp<=0){m.dying=.6;burst(m.x,m.y+m.h/2,m.z,[.9,.9,.9],10);if(P.riding===m)dismount();if(m.T.boss){m.dying=2.5;dragonDefeated(m);}if(m.T.crystal)crystalBoom(m);
     if(src==='player'&&mode==='survival'&&!(m.baby>0)){
       for(const[id,a,b]of m.T.drops){if(id===24&&m.sheared)continue;const k=a+Math.floor(Math.random()*(b-a+1));if(k>0)dropItem(id,k,m.x,m.y+.6,m.z);}
       if(m.saddle)dropItem(175,1,m.x,m.y+.6,m.z);
@@ -3290,6 +3344,7 @@ function updateMobs(dt){
     const dx=P.x-m.x,dz=P.z-m.z,dist=Math.hypot(dx,dz);
     if(m.exhibit&&dist>70&&!m.dying)continue;
     if(m.dying){m.dying-=dt;m.mdl.g.rotation.z=Math.min(Math.PI/2,(.6-m.dying)*5);m.mdl.g.position.set(m.x,m.y,m.z);if(m.dying<=0){removeMob(m);mobs.splice(i,1);}continue;}
+    if(Tp.boss){dragonTick(m,dt,dist);continue;}if(Tp.crystal){crystalTick(m,dt);continue;}
     if(m.errand){const E=m.errand;E.t-=dt;
       if(E.t>44)m.flee=.3;
       else{if(!m.hide){m.hide=true;m.mdl.g.visible=false;}
@@ -3526,8 +3581,123 @@ function weatherTick(dt){
     if(rainPos[o+1]<rainGround[i]||rainPos[o+1]<cy-12||Math.abs(rainPos[o]-cx)>26||Math.abs(rainPos[o+2]-cz)>26)rainDrop(i,cx,cy,cz,true);}
   rainGeo.attributes.position.needsUpdate=true;
   if(weather.rain>.3&&P.burn>0&&exposed(P.x,P.y+1.8,P.z))P.burn=0;}
+/* ---------- strongholds, The End and the Void Dragon ---------- */
+let STRONG=null,END=null,dragonDead=false,bossSeen=0;
+const beamMat=new THREE.LineBasicMaterial({color:0xff90f0,transparent:true,opacity:.85});
+function frameRing(cx,y,cz,filledP,sd){const frames=[];for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const edge=Math.abs(dx)===2||Math.abs(dz)===2,corner=Math.abs(dx)===2&&Math.abs(dz)===2;
+    if(edge&&!corner){const x=cx+dx,z=cz+dz;S(x,y,z,hash3(x,y,z,sd)<filledP?FRAMEF:FRAME);frames.push([x,y,z]);}}return frames;}
+function buildStronghold(){if(worldType!=='classic')return;const sd=seed+4242,a0=hash3(1,2,3,sd)*6.283;let sx=-1,sz=-1;
+  for(let t=0;t<24&&sx<0;t++){const a=a0+t*.7,r=140+t*3,x=Math.floor(WX/2+Math.cos(a)*r),z=Math.floor(WZ/2+Math.sin(a)*r);if(x<40||z<40||x>WX-40||z>WZ-40)continue;
+    let ok=true;for(const[dx,dz]of[[-30,-30],[30,-30],[-30,30],[30,30],[0,0]])if(HM[(x+dx)+(z+dz)*WX]<26)ok=false;if(ok){sx=x;sz=z;}}
+  if(sx<0){sx=WX/2+90;sz=WZ/2+90;}
+  const F=8,W=(x,y,z)=>S(x,y,z,hash3(x,y,z,sd+1)<.3?28:31),box=(x0,y0,z0,x1,y1,z1,f)=>{for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)for(let z=z0;z<=z1;z++)f(x,y,z);};
+  const room=(x0,z0,x1,z1,h)=>box(x0,F,z0,x1,F+h,z1,(x,y,z)=>{const wall=x===x0||x===x1||z===z0||z===z1||y===F||y===F+h;if(wall)W(x,y,z);else S(x,y,z,0);});
+  room(sx-7,sz-7,sx+7,sz+7,8);
+  box(sx-3,F+1,sz-3,sx+3,F+1,sz+3,(x,y,z)=>S(x,y,z,31));const frames=frameRing(sx,F+2,sz,.3,sd+3);
+  for(const[dx,dz]of[[-6,-6],[6,-6],[-6,6],[6,6]])S(sx+dx,F+3,sz+dz,TORCH);for(let k=-5;k<=5;k+=2)S(sx+k,F+5,sz-7,BARS);
+  // corridors to four rooms
+  for(const[ddx,ddz]of[[1,0],[-1,0],[0,1],[0,-1]]){const ox=ddz,oz=ddx;
+    for(let t=7;t<=26;t++)for(let w=-2;w<=2;w++)for(let y=F;y<=F+4;y++){const x=sx+ddx*t+ox*w,z=sz+ddz*t+oz*w,wall=Math.abs(w)===2||y===F||y===F+4;if(wall)W(x,y,z);else S(x,y,z,0);if(!wall&&t%6===0&&w===1&&y===F+3)S(x,y,z,TORCH);}
+    const ex=sx+ddx*32,ez=sz+ddz*32;room(ex-5,ez-5,ex+5,ez+5,6);for(let w=-1;w<=1;w++)for(let y=F+1;y<=F+3;y++)S(sx+ddx*27+ox*w,y,sz+ddz*27+oz*w,0);
+    S(ex,F+5,ez,GLOW);
+    if(ddx===1){for(let x=ex-4;x<=ex+4;x++)for(let y=F+1;y<=F+4;y++){S(x,y,ez-4,27);S(x,y,ez+4,27);}chestAt(ex+3,F+1,ez,'stronghold');addPlace('Stronghold library',ex,F+3,ez);}
+    else if(ddx===-1){chestAt(ex-3,F+1,ez-3,'stronghold');chestAt(ex-3,F+1,ez+3,'stronghold');}
+    else if(ddz===1){box(ex-2,F,ez-2,ex+2,F,ez+2,(x,y,z)=>S(x,y,z,WATER));}
+    else{for(let x=ex-4;x<=ex+4;x+=2)for(let y=F+1;y<=F+3;y++)S(x,y,ez+1,BARS);}}
+  addPlace('Stronghold',sx,F+4,sz);addPlace('End portal room',sx,F+3,sz+4);
+  STRONG={x:sx+.5,y:F+2,z:sz+.5,frames,center:[sx,F+2,sz]};}
+function checkEndPortal(){if(!STRONG)return;for(const f of STRONG.frames)if(get(f[0],f[1],f[2])!==FRAMEF)return false;const[cx,cy,cz]=STRONG.center;if(get(cx,cy,cz)===END_P)return true;
+  for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)setQuiet(cx+dx,cy,cz+dz,END_P);rebuildAround(cx-2,cz-2,cx+2,cz+2);sfx('portal');burst(cx+.5,cy+1,cz+.5,[.4,.9,.7],20);
+  say('🌌 The End portal is open! Jump in to travel to The End','sys');flash('The End portal is open! Jump in!');return true;}
+function useEye(){if(target&&get(target.x,target.y,target.z)===FRAME){setBlock(target.x,target.y,target.z,FRAMEF);useOne();swing();sfx('portal');burst(target.x+.5,target.y+1,target.z+.5,[.3,.9,.6],8);
+    const left=STRONG?STRONG.frames.filter(f=>get(f[0],f[1],f[2])!==FRAMEF).length:0;if(!checkEndPortal())flash(left?left+' more eye'+(left===1?'':'s')+' needed to open the portal':'Eye placed');return;}
+  if(target&&get(target.x,target.y,target.z)===FRAMEF){flash('This frame already has an eye in it');return;}
+  if(dim!==0){flash('The eye of the void only works in the Overworld');return;}
+  if(!STRONG){flash('There is no stronghold in this world. Try a Classic or One Chunk world');return;}
+  const dx=STRONG.x-P.x,dz=STRONG.z-P.z,d=Math.hypot(dx,dz),dy=Math.round(P.y-STRONG.y);
+  if(d<4){flash(dy>2?'The stronghold is right below you! Dig down about '+dy+' blocks':'You are in the stronghold! Find the End portal room');return;}
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:texOf(261),alphaTest:.3}));sp.scale.setScalar(.4);const o={x:P.x,y:P.y+EYE,z:P.z};sp.position.set(o.x,o.y,o.z);scene.add(sp);
+  arrows.push({eye:true,x:o.x,y:o.y,z:o.z,vx:dx/d*6,vy:3,vz:dz/d*6,me:sp,life:0,stuck:0,owner:'player',dmg:0});useOne();swing();sfx('portal');
+  flash('The eye floats '+dirName(dx,dz)+'. The stronghold is about '+Math.round(d)+' blocks away'+(dy>4?', '+dy+' blocks down':''));}
+function generateEnd(){world.fill(0);CHEST_T.clear();villages.length=0;const s=seed+9090,cx=Math.floor(WX/2),cz=Math.floor(WZ/2),top=48;
+  for(let x=cx-50;x<=cx+50;x++)for(let z=cz-50;z<=cz+50;z++){const d=Math.hypot(x-cx,z-cz),r=40+vnoise(x/9,z/9,s)*8;if(d>=r)continue;
+    const th=Math.round((1-(d/r)**2)*18)+2,bump=Math.round(vnoise(x/6,z/6,s+1)*2);for(let y=top-th;y<=top+bump;y++)S(x,y,z,ENDSTONE);}
+  const pillars=[];for(let k=0;k<10;k++){const a=k/10*6.283,px=Math.round(cx+Math.cos(a)*26),pz=Math.round(cz+Math.sin(a)*26),h=10+((k*7)%4)*4,R=k%3===0?3:2;
+    let base=top;while(base>top-20&&!get(px,base,pz))base--;for(let x=-R;x<=R;x++)for(let z=-R;z<=R;z++)if(x*x+z*z<=R*R+1)for(let y=base;y<=top+h;y++)S(px+x,y,pz+z,OBSIDIAN);
+    S(px,top+h+1,pz,BEDROCK);const caged=k%5===2;if(caged)for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++)for(let y=top+h+2;y<=top+h+4;y++)if(Math.abs(x)===1||Math.abs(z)===1||y===top+h+4)S(px+x,y,pz+z,BARS);
+    pillars.push({x:px,y:top+h+2,z:pz,caged});}
+  for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++)S(cx+x,top+1,cz+z,BEDROCK);
+  for(let x=-2;x<=2;x++)for(let z=-2;z<=2;z++)S(cx+36+x,top+1,cz+z,OBSIDIAN);
+  END={x:cx+.5,z:cz+.5,top,pillars};if(dragonDead)exitPortal(true);
+  addPlace('The End',cx,top+12,cz);addPlace('Void Dragon nest',cx,top+4,cz);
+  edits.forEach((id,k)=>{const p=k.split(',').map(Number);if(p[0]>=0&&p[0]<WX&&p[1]>=0&&p[1]<WY&&p[2]>=0&&p[2]<WZ)world[idx(p[0],p[1],p[2])]=id;});
+  spawnPt={x:cx+36.5,y:top+2,z:cz+.5};scanCrops();computeAllLight();}
+function exitPortal(gen){if(!END)return;const cx=Math.floor(END.x),cz=Math.floor(END.z),y=END.top+1,put=gen?S:setQuiet;
+  for(let x=-2;x<=2;x++)for(let z=-2;z<=2;z++){const ring=Math.abs(x)===2||Math.abs(z)===2;put(cx+x,y,cz+z,ring?BEDROCK:END_P);put(cx+x,y-1,cz+z,BEDROCK);}
+  for(let k=1;k<=3;k++)put(cx+2,y+k,cz+2,BEDROCK);put(cx+2,y+4,cz+2,TORCH);
+  if(!gen){rebuildAround(cx-3,cz-3,cx+3,cz+3);addPlace('Exit portal',cx,y+3,cz);labelKey='';}}
+function populateEnd(){if(!END)return;
+  if(dragonDead){say('🌌 The Void Dragon is gone. Use the exit portal in the middle of the island to go home','sys');return;}
+  const d=spawnMob('dragon',END.x,END.top+24,END.z);d.keep=true;d.mode='circle';d.modeT=8;d.vx=d.vy=d.vz=0;
+  for(const p of END.pillars){const c=spawnMob('crystal',p.x+.5,p.y,p.z+.5);c.keep=true;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(6),3));c.beam=new THREE.Line(g,beamMat);c.beam.frustumCulled=false;scene.add(c.beam);}
+  say('🐉 The Void Dragon lives here! The pink crystals on top of the pillars heal it. Break them first (arrows work great), then defeat the dragon','sys');
+  flash('Destroy the void crystals, then defeat the Void Dragon!');}
+function crystalTick(m,dt){const md=m.mdl;m.hurt-=dt;md.spin.rotation.y+=dt*1.6;md.spin.rotation.x+=dt*.9;md.spin.position.y=.95+Math.sin(performance.now()/400+m.x)*.15;md.g.position.set(m.x,m.y,m.z);}
+function crystalBoom(m){if(m.beam){m.beam.visible=false;}setTimeout(()=>{explode(m.x,m.y+.6,m.z,2.4,{arena:true});},30);const left=mobs.filter(c=>c.T.crystal&&!c.dying&&c!==m).length;
+  say(left?'💥 Void crystal destroyed! '+left+' left':'💥 All the void crystals are gone! The dragon can’t heal any more','sys');}
+function dragonTick(m,dt,dist){const md=m.mdl,E=END,sim=ui==='play'||ui==='inv';
+  if(E&&sim){m.hurt-=dt;m.atk-=dt;let heal=0;
+    for(const c of mobs){if(!c.T.crystal||c.dying)continue;heal++;if(c.beam){const p=c.beam.geometry.attributes.position.array;p[0]=c.x;p[1]=c.y+1;p[2]=c.z;p[3]=m.x;p[4]=m.y+2;p[5]=m.z;c.beam.geometry.attributes.position.needsUpdate=true;c.beam.visible=m.hp<m.maxHp;}}
+    if(heal&&m.hp<m.maxHp)m.hp=Math.min(m.maxHp,m.hp+heal*.5*dt);
+    m.ang=(m.ang||0)+dt*.3;m.modeT-=dt;const inEnd=dim===2&&!P.dead&&!P.spec&&mode!=='spectator';let tx,ty,tz,spd=12;
+    if(m.mode==='swoop'&&inEnd){tx=P.x;ty=P.y+.6;tz=P.z;spd=17;
+      if(Math.hypot(P.x-m.x,P.y+1-(m.y+1.6),P.z-m.z)<3.6&&m.atk<=0){m.atk=1.5;damagePlayer(7,'Slain by the Void Dragon',m);P.vy=Math.max(P.vy,11);m.mode='climb';m.modeT=3;}
+      if(m.modeT<-7){m.mode='climb';m.modeT=3;}}
+    else{if(m.mode==='swoop')m.mode='climb';if(m.mode==='climb'&&m.modeT<=0){m.mode='circle';m.modeT=6+Math.random()*5;}
+      if(m.mode==='circle'&&m.modeT<=0){if(inEnd&&Math.hypot(P.x-E.x,P.z-E.z)<70&&Math.random()<.6){m.mode='swoop';m.modeT=0;mobSay(m,'ROAAAR!');}else m.modeT=5+Math.random()*4;}
+      tx=E.x+Math.cos(m.ang)*28;tz=E.z+Math.sin(m.ang)*28;ty=E.top+20+Math.sin(m.ang*2)*4;
+      m.fireT2=(m.fireT2==null?5:m.fireT2)-dt;if(m.fireT2<=0&&inEnd&&dist<64){m.fireT2=4+Math.random()*3;shootFire(m,{x:P.x,y:P.y,z:P.z});}}
+    const dx=tx-m.x,dy=ty-m.y,dz=tz-m.z,l=Math.hypot(dx,dy,dz)||1,k=Math.min(1,dt*1.8);
+    m.vx+=(dx/l*spd-m.vx)*k;m.vy+=(dy/l*spd-m.vy)*k;m.vz+=(dz/l*spd-m.vz)*k;m.x+=m.vx*dt;m.y+=m.vy*dt;m.z+=m.vz*dt;m.yaw=Math.atan2(-m.vx,-m.vz);}
+  md.g.visible=true;md.g.position.set(m.x,m.y,m.z);md.g.rotation.y=m.yaw;md.g.rotation.x=clamp(m.vy*.04,-.45,.45);
+  const fl=Math.sin(performance.now()/260)*.55;md.wingL.rotation.z=fl;md.wingR.rotation.z=-fl;
+  const e=m.hurt>0?.6:0;md.mats.forEach(x=>x.emissive.setRGB(e,0,0));shade(md,.9);
+  bossSeen=performance.now();const b=$('boss');if(b.hidden)b.hidden=false;$('bossFill').style.width=Math.max(0,m.hp/m.maxHp*100).toFixed(1)+'%';}
+function dragonDefeated(m){dragonDead=true;sfx('boom');for(let k=0;k<6;k++)setTimeout(()=>{burst(m.x+(Math.random()-.5)*4,m.y+1.5+(Math.random()-.5)*3,m.z+(Math.random()-.5)*4,[.8,.4,1],16);sfx('boom');},k*300);
+  setTimeout(()=>{exitPortal(false);sfx('portal');},1200);
+  say('🏆 You defeated the Void Dragon! An exit portal appeared in the middle of the island. Jump in to go home','sys');flash('You defeated the Void Dragon!');
+  if(MP.conns.length)mpSend({t:'c',n:'🏆',text:charCfg.name+' defeated the Void Dragon!'});saveNow();}
+function endSpawn(){if(!END)return;let n=0;for(const m of mobs)if(m.type==='voidwalker'&&!m.dying)n++;
+  if(n<8&&Math.random()<.4){const s2=nSpot(END.x,END.z,38,3,6);if(s2)spawnMob('voidwalker',s2.x,s2.y,s2.z);}
+  if(performance.now()-bossSeen>800){const b=$('boss');if(!b.hidden)b.hidden=true;}}
+function showWin(){let w=$('win');if(!w){w=document.createElement('div');w.id='win';document.body.appendChild(w);}
+  w.innerHTML='<div class="wp"><div class="wt">🏆 You beat Blockland!</div><p>You found the stronghold, opened the End portal, broke the void crystals and defeated the Void Dragon.</p><p>The world is safe. Now go home and live happily ever after!</p><button class="btn primary" type="button" id="winOk">Back to my world</button></div>';
+  w.hidden=false;primaryUp();if(document.pointerLockElement)document.exitPointerLock();$('winOk').onclick=()=>{w.hidden=true;startPlay();};
+  say('🏆 '+charCfg.name+' beat the game!','sys');}
+/* ---------- One Chunk Nether ---------- */
+function generateNetherChunk(){world.fill(0);CHEST_T.clear();villages.length=0;const X=CH0.x,Z=CH0.z,s=seed+7777,r=(x,y,z,k)=>hash3(x,y,z,s+k);
+  for(let x=X;x<X+16;x++)for(let z=Z;z<Z+16;z++)for(let y=1;y<=60;y++){let b=NETHERRACK;const v=r(x,y,z,1);
+    if(y===1||y===60)b=BEDROCK;else if(y>=55&&v<.12)b=GLOW;else if(v<.03)b=22;else if(v<.05)b=26;else if(y<30&&v<.065)b=LAVA;world[idx(x,y,z)]=b;}
+  const box=(x0,y0,z0,x1,y1,z1,id)=>{for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++)for(let z=z0;z<=z1;z++)S(x,y,z,id);};
+  const spots=(x0,z0,x1,z1,y)=>{const o=[];for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++)o.push({x,y,z});return o;};
+  // glowstone cave at the top
+  box(X+2,50,Z+2,X+13,54,Z+13,0);for(let x=X+2;x<=X+13;x++)for(let z=Z+2;z<=Z+13;z++)if(r(x,55,z,4)<.4)S(x,55,z,GLOW);addPlace('Glowstone cave',X+8,51,Z+8);
+  // mini fortress
+  box(X+1,40,Z+1,X+14,48,Z+14,NBRICK);box(X+2,41,Z+2,X+13,47,Z+13,0);for(let k=X+3;k<=X+12;k+=3){S(k,44,Z+1,BARS);S(k,44,Z+14,BARS);S(X+1,44,k,BARS);S(X+14,44,k,BARS);}
+  for(const[gx,gz]of[[X+4,Z+4],[X+11,Z+4],[X+4,Z+11],[X+11,Z+11]])S(gx,47,gz,GLOW);box(X+7,41,Z+7,X+8,41,Z+8,NBRICK);chestAt(X+2,41,Z+2,'fortress');chestAt(X+13,41,Z+13,'fortress');
+  addPlace('Mini fortress',X+8,43,Z+8);NF.fort={x:X+8,z:Z+8,y:41,spots:spots(X+2,Z+2,X+13,Z+13,41).filter(p=>!(p.x>=X+7&&p.x<=X+8&&p.z>=Z+7&&p.z<=Z+8))};
+  // mini bastion
+  box(X+1,20,Z+1,X+14,27,Z+14,31);box(X+2,21,Z+2,X+13,26,Z+13,0);for(let x=X+1;x<=X+14;x++)for(let z=Z+1;z<=Z+14;z++)if(x===X+1||x===X+14||z===Z+1||z===Z+14)S(x,24,z,33);
+  box(X+7,21,Z+7,X+8,21,Z+8,33);S(X+7,22,Z+7,33);chestAt(X+2,21,Z+2,'bastion');chestAt(X+13,21,Z+2,'bastion');S(X+8,26,Z+8,GLOW);
+  addPlace('Mini bastion',X+8,23,Z+8);NF.bastion={x:X+8,z:Z+8,y:21,spots:spots(X+2,Z+2,X+13,Z+13,21).filter(p=>!(p.x>=X+7&&p.x<=X+8&&p.z>=Z+7&&p.z<=Z+8))};
+  // voidwalker cave
+  box(X+2,12,Z+2,X+13,17,Z+13,0);box(X+2,11,Z+2,X+13,11,Z+13,NETHERRACK);S(X+3,17,Z+3,GLOW);S(X+12,17,Z+12,GLOW);NF.hollow={x:X+8,z:Z+8};addPlace('Voidwalker cave',X+8,13,Z+8);
+  // lava sea at the bottom with a tiny obsidian island
+  box(X+1,2,Z+1,X+14,4,Z+14,LAVA);box(X+1,5,Z+1,X+14,9,Z+14,0);box(X+6,5,Z+6,X+9,5,Z+9,OBSIDIAN);chestAt(X+7,6,Z+7,'one5');addPlace('Lava sea',X+8,6,Z+8);
+  edits.forEach((id,k)=>{const p=k.split(',').map(Number);if(p[0]>=0&&p[0]<WX&&p[1]>=0&&p[1]<WY&&p[2]>=0&&p[2]<WZ)world[idx(p[0],p[1],p[2])]=id;});
+  spawnPt={x:X+8.5,y:12,z:Z+8.5};scanCrops();computeAllLight();}
 let spawnT=0;
-function spawner(dt){spawnT-=dt;if(spawnT>0)return;spawnT=1.2;if(dim===1){netherSpawn();return;}
+function spawner(dt){spawnT-=dt;if(spawnT>0)return;spawnT=1.2;if(dim===1){netherSpawn();return;}if(dim===2){endSpawn();return;}
   let animals=0,hostile=0;let fishN=0;mobs.forEach(m=>{if(m.T.fish){if(!m.keep)fishN++;}else if(m.T.hostile){if(!m.keep&&!m.jailed&&!m.raider&&Math.abs(m.x-P.x)+Math.abs(m.z-P.z)<90)hostile++;}else if(!m.T.villager&&!m.T.golem&&!m.T.soldier&&!m.tame)animals++;});
   if(dim===0&&fishN<16)spawnFish();
   if(worldType==='classic'?animals<36&&Math.random()<.35:animals<8&&Math.random()<.06)spawnAnimals(3,true);
@@ -3861,6 +4031,7 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
           if(get(x,y,z)===1&&!get(x,y+1,z)){setBlock(x,y+1,z,46);grew++;}}
         useOne();burst(target.x+.5,target.y+1,target.z+.5,[.4,.9,.4],6);if(!grew)flash('Nothing more can grow here');return;}}}
   if(!s)return;const d=itemDef(s.id);
+  if(d.kind==='eye'){useEye();return;}
   if(d.kind==='mop'){mopUse();return;}
   if(d.kind==='broom'){broomUse();return;}
   if(d.kind==='pearl'){if((P.pearlCd||0)>performance.now())return;P.pearlCd=performance.now()+800;throwPearl();useOne();return;}
@@ -3955,6 +4126,7 @@ LOOT.one0=[[.9,160,2,5],[.7,102,1,3],[.7,73,1,2],[.5,174,2,5],[.5,101,1,3],[.6,1
 LOOT.one1=[[.8,131,3,8],[.6,133,1,4],[.6,TORCH,4,10],[.5,102,1,3],[.4,141,1,1],[.3,'t0',1,1],[.6,197,1,1],[.5,198,1,1],[.4,172,1,3]];
 LOOT.fortress=[[.8,134,2,6],[.6,133,1,4],[.35,135,1,2],[.6,250,1,3],[.3,252,1,1],[.5,131,3,8],[.4,64,2,6],[.35,50,2,5],[.3,175,1,1],[.4,253,1,2],[.3,113,1,1]];
 LOOT.bastion=[[.95,134,3,9],[.5,33,1,2],[.45,204,1,1],[.45,205,1,1],[.45,206,1,1],[.45,207,1,1],[.4,142,1,1],[.4,122,1,1],[.4,253,1,2],[.6,105,2,4],[.3,113,1,1]];
+LOOT.stronghold=[[.6,133,1,5],[.5,102,1,3],[.35,135,1,2],[.5,253,1,2],[.4,165,1,3],[.35,261,1,2],[.3,175,1,1],[.5,131,2,6],[.3,251,1,3]];
 LOOT.one2=[[.7,109,1,3],[.6,74,1,2],[.6,136,2,5],[.5,'t0',1,1],[.4,'t2',1,1],[.5,133,2,5],[.4,173,2,6],[.3,175,1,1],[.4,24,2,4]];
 LOOT.one3=[[.7,134,2,6],[.5,'t1',1,1],[.5,166,1,4],[.4,113,1,1],[.5,171,4,10],[.35,170,1,1],[.4,198,1,1],[.5,102,1,3],[.3,15,1,2]];
 LOOT.one4=[[.6,135,1,3],[.5,'t2',1,1],[.3,'t3',1,1],[.4,143,1,1],[.4,179,4,10],[.4,180,3,8],[.3,113,1,2],[.35,195,1,1],[.4,50,2,4]];
@@ -3975,7 +4147,7 @@ const pack=s=>s?(s.ench?[s.id,s.count,s.dur!=null?s.dur:-1,s.ench]:s.dur!=null?[
 function save(){if(MP.guest)return;clearTimeout(saveT);saveT=setTimeout(saveNow,500);}
 function saveNow(){if(MP.guest)return;try{stashDim();const ser=m=>{const e=[];m.forEach((id,k)=>{const p=k.split(',').map(Number);e.push([p[0],p[1],p[2],id]);});return e;},serC=c=>{const o={};for(const k in c)o[k]=c[k].map(pack);return o;};
   localStorage.setItem(saveKey(worldType),JSON.stringify({v:3,type:worldType,one:oneCount,seed,dim,edits:ser(editsByDim[0]),chests:serC(chestsByDim[0]),edits1:ser(editsByDim[1]),chests1:serC(chestsByDim[1]),inv:inv.map(pack),armor:armor.map(pack),hp:P.hp,food:P.food,mode,t:timeOfDay,day:dayNum,
-    p:[+P.x.toFixed(2),+P.y.toFixed(2),+P.z.toFixed(2),+yaw.toFixed(3),+pitch.toFixed(3)],fly:P.fly,spec:!!P.spec,speed:P.speed||1,home:customSpawn?[customSpawn.x,customSpawn.y,customSpawn.z]:null,dead:P.dead,bed:bedPos?[bedPos.x,bedPos.y,bedPos.z]:null,nights:nightsOn,bank:bankAcc,job,captured:capturedBandits,
+    p:[+P.x.toFixed(2),+P.y.toFixed(2),+P.z.toFixed(2),+yaw.toFixed(3),+pitch.toFixed(3)],fly:P.fly,spec:!!P.spec,speed:P.speed||1,home:customSpawn?[customSpawn.x,customSpawn.y,customSpawn.z]:null,dead:P.dead,bed:bedPos?[bedPos.x,bedPos.y,bedPos.z]:null,nights:nightsOn,dragon:dragonDead?1:0,bank:bankAcc,job,captured:capturedBandits,
     pets:petsData()}));}catch(e){}}
 let pendingPets=[];
 function spawnPets(){for(const p of pendingPets){const m=spawnMob(p[0],p[1],p[2]+.1,p[3],p[0]==='horse'?p[7]:undefined);
@@ -3986,7 +4158,7 @@ function load(){try{const s=JSON.parse(localStorage.getItem(saveKey(worldType)))
   editsByDim[0]=toMap(s.edits);editsByDim[1]=toMap(s.edits1);chestsByDim[0]=toC(s.chests);chestsByDim[1]=toC(s.chests1);useDim(s.dim===1?1:0);
   (s.inv||[]).forEach((a,i)=>{if(i<36)inv[i]=unpack(a);});(s.armor||[]).forEach((a,i)=>{if(i<4)armor[i]=unpack(a);});
   P.hp=s.hp>0?s.hp:20;P.food=s.food!=null?s.food:20;mode=s.mode==='creative'?'creative':'survival';timeOfDay=s.t||.06;dayNum=s.day||1;P.fly=!!s.fly&&mode==='creative';P.spec=!!s.spec;P.speed=s.speed||1;customSpawn=s.home?{x:s.home[0],y:s.home[1],z:s.home[2]}:null;
-  bedPos=s.bed?{x:s.bed[0],y:s.bed[1],z:s.bed[2]}:null;nightsOn=s.nights!==false;pendingPets=s.pets||[];job=s.job||null;capturedBandits=s.captured||0;bankAcc=Object.assign({166:0,134:0,135:0,day:s.day||1},s.bank||{});
+  bedPos=s.bed?{x:s.bed[0],y:s.bed[1],z:s.bed[2]}:null;nightsOn=s.nights!==false;dragonDead=!!s.dragon;pendingPets=s.pets||[];job=s.job||null;capturedBandits=s.captured||0;bankAcc=Object.assign({166:0,134:0,135:0,day:s.day||1},s.bank||{});
   return s;}catch(e){return null;}}
 
 /* =========================================================
@@ -4031,9 +4203,9 @@ const craftGridEl=$('craftGrid');for(let i=0;i<9;i++)mkSlot(craftGridEl,'craft:'
 const outSlot=mkSlot($('outHost'),'out:0');
 let craftN=2;const craftGrid=new Array(9).fill(null);
 function returnGrid(){for(let i=0;i<9;i++){if(craftGrid[i]){give(craftGrid[i]);craftGrid[i]=null;}}}
-const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,53,BED,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,41,1104,11,10],
+const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,53,BED,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,41,1104,1113,11,10],
   combat:[140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,176,195,120,121,122,123,124,170,171,...Array.from({length:16},(_,i)=>200+i)],
-  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,259,260,255,256,257,258]};
+  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,259,260,1110,256,257,258]};
 let catTab='blocks';
 function haveCount(k){let c=0;for(const s of inv)if(s&&ing(k,s.id))c+=s.count;for(const s of craftGrid)if(s&&ing(k,s.id))c+=s.count;return c;}
 function needs(r){const m=new Map();rList(r).forEach(k=>m.set(k,(m.get(k)||0)+1));return m;}
@@ -4775,10 +4947,11 @@ function placePlayer(saved){P.x=spawnPt.x;P.y=spawnPt.y;P.z=spawnPt.z;
   if(saved&&saved.p&&!boxHits(saved.p[0],saved.p[1],saved.p[2],P.w,P.h)){P.x=saved.p[0];P.y=saved.p[1];P.z=saved.p[2];yaw=saved.p[3];pitch=saved.p[4];}
   P.vx=P.vy=P.vz=P.kx=P.kz=0;P.peak=P.y;}
 function populateOverworld(){if(worldType==='classic'){spawnAnimals(Math.round(130*AREA/2.56*.6),false);populateVillages();}
-  if(worldType==='chunk'){for(const[t,dx,dz]of[['cow',6,10],['chicken',10,7],['sheep',5,6]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0)spawnMob(t,x,y,z);}}
+  if(worldType==='chunk'){for(const[t,dx,dz]of[['cow',6,8],['chicken',9,7],['sheep',5,6]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0)spawnMob(t,x,y,z);}
+    for(const[pf,dx,dz]of[['farmer',8,4],['librarian',7,9],['smith',9,12]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0){const v=spawnMob('villager',x,y,z,pf);v.home={x,z};v.homeR=4;}}}
   spawnPets();}
 function freshState(){seed=(Math.random()*2147483646|0)+1;editsByDim[0]=new Map();editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);pendingPets=[];
-  P.burn=0;bedPos=null;customSpawn=null;timeOfDay=.06;dayNum=1;bankAcc={166:0,134:0,135:0,day:1};job=null;capturedBandits=0;raid=null;raidT=300;P.hp=20;P.food=20;P.air=10;P.dead=false;P.fly=mode==='creative'&&P.fly;oneCount=0;}
+  P.burn=0;bedPos=null;customSpawn=null;timeOfDay=.06;dayNum=1;bankAcc={166:0,134:0,135:0,day:1};job=null;capturedBandits=0;dragonDead=false;raid=null;raidT=300;P.hp=20;P.food=20;P.air=10;P.dead=false;P.fly=mode==='creative'&&P.fly;oneCount=0;}
 function newWorld(){if(P.riding)dismount();wq.clear();freshState();
   generate();worldReady=false;queueAll();placePlayer(null);clearMobs();clearDrops();populateOverworld();invChanged();saveNow();updateSeedLine();renderWorlds();}
 // leave this world (it is saved) and go to another kind, keeping your inventory if the box is ticked
@@ -4803,6 +4976,8 @@ function boot(){const saved=load();
 const NIGHT=new THREE.Color(0x0a1024),DAYC=new THREE.Color(0x8ec5ec),DUSK=new THREE.Color(0xf08a4a),WATERC=new THREE.Color(0x1d4f8f),tmpC=new THREE.Color();
 let last=performance.now(),autosave=0,lastInfo='',bobT=0;
 function sky(){
+  if(dim===2){daylight=0;dayLight=0;U.uDay.value=0;U.uMin.value=P.spec?0:.55;U.uNV.value=P.spec?1:0;scene.background.setHex(0x120a1c);scene.fog.color.setHex(0x1a1028);scene.fog.near=P.spec?80:36;scene.fog.far=P.spec?220:150;
+    $('water').style.display='none';U.fogColor.value.copy(scene.fog.color);U.fogNear.value=scene.fog.near;U.fogFar.value=scene.fog.far;sun.visible=moon.visible=clouds.visible=false;stars.visible=true;return;}
   if(dim===1){daylight=0;dayLight=0;U.uDay.value=0;U.uMin.value=P.spec?0:.16;U.uNV.value=P.spec?1:0;
     scene.background.setHex(0x2a0a06);scene.fog.color.setHex(0x3a0e08);scene.fog.near=P.spec?60:12;scene.fog.far=P.spec?160:62;
     $('water').style.display='none';U.fogColor.value.copy(scene.fog.color);U.fogNear.value=scene.fog.near;U.fogFar.value=scene.fog.far;
@@ -4861,7 +5036,7 @@ function frame(now){
     if(target&&!mobTarget&&!P.spec){hl.position.set(target.x+.5,target.y+.5,target.z+.5);hl.visible=true;}else hl.visible=false;
     if(airSpot){ghost.position.set(airSpot.x+.5,airSpot.y+.5,airSpot.z+.5);ghost.visible=true;}else ghost.visible=false;
     const hrs=(timeOfDay<DAYPART?6+timeOfDay/DAYPART*12:18+(timeOfDay-DAYPART)/(1-DAYPART)*12)%24,clk=String(Math.floor(hrs)).padStart(2,'0')+':'+String(Math.floor((hrs%1)*60/10)*10).padStart(2,'0');
-    const info='X '+Math.floor(P.x)+'  Y '+Math.floor(P.y)+'  Z '+Math.floor(P.z)+'  Facing '+dirName(-Math.sin(yaw),-Math.cos(yaw))+(dim===1?'\nThe Nether':'\nDay '+dayNum+'  '+clk+(worldType==='one'?'\nBlock '+oneCount+' · '+onePhase(oneCount).n:worldType==='chunk'?'\n'+chunkLayer(Math.floor(P.y)):''))+(P.spec?'  Spectator':mode==='creative'?'  Creative':'')+(job?'\nJob: '+jobLine():'')+fxText();
+    const info='X '+Math.floor(P.x)+'  Y '+Math.floor(P.y)+'  Z '+Math.floor(P.z)+'  Facing '+dirName(-Math.sin(yaw),-Math.cos(yaw))+(dim===2?'\nThe End':dim===1?'\nThe Nether':'\nDay '+dayNum+'  '+clk+(worldType==='one'?'\nBlock '+oneCount+' · '+onePhase(oneCount).n:worldType==='chunk'?'\n'+chunkLayer(Math.floor(P.y)):''))+(P.spec?'  Spectator':mode==='creative'?'  Creative':'')+(job?'\nJob: '+jobLine():'')+fxText();
     if(info!==lastInfo){$('info').textContent=info;lastInfo=info;}
     const h=$('held');if(!h.hidden){const br=lightAt(P.x,P.y+1.5,P.z).toFixed(2);if(h.dataset.br!==br){h.dataset.br=br;h.style.filter='brightness('+br+') drop-shadow(0 6px 0 rgba(0,0,0,.25))';}}
     if(!h.hidden&&!h.classList.contains('swing')){const sp=Math.hypot(P.vx,P.vz);const b=Math.sin(now/120)*Math.min(1,sp/4);h.style.transform='translate('+(b*6)+'px,'+(Math.abs(b)*8)+'px)';}}
