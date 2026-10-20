@@ -1918,6 +1918,7 @@ function mpPlayer(id,d){let o=MP.others.get(id);
     o={m,tag,n:d.n,x:d.x,y:d.y,z:d.z,yaw:d.yaw||0,tx:d.x,ty:d.y,tz:d.z,tyaw:d.yaw||0,ph:0,conn:null,last:performance.now(),dim:0};MP.others.set(id,o);
     say('🌐 '+(d.n||'A player')+' joined the world','sys');renderMP();}
   if(d.n&&d.n!==o.n){o.n=d.n;o.m.g.remove(o.tag);o.tag=mpTag(d.n);o.m.g.add(o.tag);}
+  if(d.h!=null){if(o.hp!=null&&d.h<o.hp)o.hurt=.35;o.hp=d.h;}o.dead=!!d.dd;o.gm=d.gm||0;
   o.tx=d.x;o.ty=d.y;o.tz=d.z;o.tyaw=d.yaw||0;o.dim=d.d||0;o.last=performance.now();return o;}
 function mpRemove(id){const o=MP.others.get(id);if(!o)return;scene.remove(o.m.g);MP.others.delete(id);say('🌐 '+(o.n||'A player')+' left the world','sys');renderMP();}
 function mpOnData(d,c){if(!d||typeof d!=='object')return;
@@ -1926,8 +1927,17 @@ function mpOnData(d,c){if(!d||typeof d!=='object')return;
   if(d.t==='p'){const o=mpPlayer(d.id,d);if(MP.host){o.conn=c;mpSend(d,c);}return;}
   if(d.t==='c'){say('<'+String(d.n||'Player').slice(0,16)+'> '+String(d.text||'').slice(0,200),'me');if(MP.host)mpSend(d,c);return;}
   if(d.t==='time'&&MP.guest){timeOfDay=d.tod;dayNum=d.day;if(d.rain!=null)weather.target=d.rain;return;}
-  if(d.t==='bye'){mpRemove(d.id);return;}}
-function mpSendMe(){if(!MP.id||!MP.conns.length)return;mpSend({t:'p',id:MP.id,n:charCfg.name,x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),yaw:+yaw.toFixed(2),d:dim,
+  if(d.t==='bye'){mpRemove(d.id);return;}
+  if(d.t==='hit'){if(MP.host&&d.to!==MP.id){mpSend(d,c);return;}if(d.to!==MP.id)return;mpGotHit(d);return;}
+  if(d.t==='kill'){if(MP.host)mpSend(d,c);say('☠️ '+String(d.v||'A player').slice(0,16)+' was '+(d.how==='shot'?'shot':'defeated')+' by '+String(d.k||'a player').slice(0,16),'sys');if(d.kid===MP.id){flash('You defeated '+String(d.v||'a player').slice(0,16)+'!');sfx('pop');}return;}}
+function mpHit(id,dmg,cause){const o=MP.others.get(id);if(!o)return;sfx('hit');burst(o.x,o.y+1.1,o.z,[.9,.2,.2],6);
+  if(o.gm){flash((o.n||'That player')+(o.gm===1?' is in Creative mode and can’t be hurt':' is spectating'));return;}
+  o.hurt=.35;mpSend({t:'hit',to:id,from:MP.id,n:charCfg.name,dmg:Math.round(dmg*10)/10,x:+P.x.toFixed(2),z:+P.z.toFixed(2),how:cause.indexOf('Shot')===0?'shot':'hit'});}
+function mpGotHit(d){if(P.dead||mode!=='survival')return;const dmg=Math.max(.5,Math.min(30,+d.dmg||1)),who=String(d.n||'a player').slice(0,16);
+  damagePlayer(dmg,(d.how==='shot'?'Shot by ':'Slain by ')+who,{x:+d.x,z:+d.z});
+  if(P.dead){mpSend({t:'kill',v:charCfg.name,k:who,kid:d.from,how:d.how});say('☠️ You were '+(d.how==='shot'?'shot':'defeated')+' by '+who,'sys');}
+  mpSendMe();}
+function mpSendMe(){if(!MP.id||!MP.conns.length)return;mpSend({t:'p',id:MP.id,n:charCfg.name,h:Math.ceil(P.hp),dd:P.dead?1:0,gm:mode==='creative'?1:mode==='spectator'?2:0,x:+P.x.toFixed(2),y:+P.y.toFixed(2),z:+P.z.toFixed(2),yaw:+yaw.toFixed(2),d:dim,
       look:{skin:charCfg.skin,hair:charCfg.hair,style:charCfg.style,shirt:charCfg.shirt,pants:charCfg.pants,shoes:charCfg.shoes}});}
 // network sends run on a timer, not the draw loop, so they keep going in menus, paused screens and background tabs
 setInterval(()=>{if(!MP.conns.length)return;mpSendMe();if(MP.host){MP.timeT=(MP.timeT||0)-.12;if(MP.timeT<=0){MP.timeT=5;mpSend({t:'time',tod:timeOfDay,day:dayNum,rain:weather.target});}}},120);
@@ -1936,7 +1946,7 @@ function mpTick(dt){if(!MP.conns.length&&!MP.others.size){mpPanelTick(dt);return
     o.x+=dx*k;o.y+=(o.ty-o.y)*k;o.z+=dz*k;const dy=((o.tyaw-o.yaw+Math.PI*3)%(Math.PI*2))-Math.PI;o.yaw+=dy*k;
     const sp=Math.hypot(dx,dz)*10;o.ph+=Math.min(sp,6)*dt*1.6;const sw=Math.sin(o.ph)*Math.min(1,sp/3)*.7,m=o.m;
     m.g.position.set(o.x,o.y,o.z);m.g.rotation.y=o.yaw;m.legL.rotation.x=sw;m.legR.rotation.x=-sw;m.armL.rotation.x=-sw*.6;m.armR.rotation.x=sw*.6;
-    m.g.visible=dim===o.dim;shade(m,lightAt(o.x,o.y+1.4,o.z));
+    m.g.visible=dim===o.dim&&!o.dead;shade(m,lightAt(o.x,o.y+1.4,o.z));o.hurt=(o.hurt||0)-dt;const hr=o.hurt>0?.6:0;for(const mt of m.mats)if(mt.emissive)mt.emissive.setRGB(hr,0,0);
     const dist=Math.hypot(o.x-P.x,o.y-P.y,o.z-P.z),k2=Math.max(1,dist/14);if(o.tag.userData.base)o.tag.scale.set(o.tag.userData.base.x*k2,o.tag.userData.base.y*k2,1);}
   mpPanelTick(dt);}
 function mpNear(x,z){let best=null,bd=48;for(const p of places){const d=Math.hypot(p.x-x,p.z-z);if(d<bd){bd=d;best=p.name;}}return best;}
@@ -1962,7 +1972,8 @@ function mpPanelTick(dt){const el=$('mpPanel');const on=(MP.host||MP.guest)&&ui!
   if(!MP.others.size)h+='<div class="mpP"><span></span><span>'+(MP.host?'Waiting for friends… Code: <b>'+esc(MP.code||'')+'</b>':'Waiting for players…')+'</span></div>';
   for(const[id,o]of MP.others){const r=mpRel(o),d=Math.hypot(o.x-P.x,o.y-P.y,o.z-P.z),near=mpNear(o.x,o.z),dy=o.y-P.y,same=o.dim===dim;
     const where=!same?'in '+mpDimName(o.dim):d<4?'right next to you':f(d)+' blocks away'+(dy>4?', above you':dy<-4?', below you':'');
-    h+='<div class="mpP"><span class="mpA" style="color:'+mpColor(id)+';transform:rotate('+(same?r.ang:0)+'rad)">'+(same?'▲':'◆')+'</span><span><span class="mpDot" style="background:'+mpColor(id)+'"></span><b>'+esc(o.n||'Player')+'</b> · '+where+'</span>'+
+    const life=o.dead?' · ☠️ knocked out':o.gm===1?' · Creative':o.gm===2?' · Spectator':o.hp!=null?' · ❤️ '+o.hp+'/20':'';
+    h+='<div class="mpP"><span class="mpA" style="color:'+mpColor(id)+';transform:rotate('+(same?r.ang:0)+'rad)">'+(same?'▲':'◆')+'</span><span><span class="mpDot" style="background:'+mpColor(id)+'"></span><b>'+esc(o.n||'Player')+'</b>'+life+' · '+where+'</span>'+
       '<small>x '+f(o.x)+'  y '+f(o.y)+'  z '+f(o.z)+(near?' · near '+esc(near):'')+'</small></div>';}
   $('mpList').innerHTML=h;}
 function openMP(){primaryUp();for(const k in keys)keys[k]=false;showScreen('bank');$('bankTitle').textContent='Multiplayer';renderMP();if(document.pointerLockElement)document.exitPointerLock();}
@@ -3248,6 +3259,8 @@ function updateArrows(dt){for(let i=arrows.length-1;i>=0;i--){const a=arrows[i];
     if(a.owner!=='player'&&!(a.owner&&a.owner.arena)&&!(a.owner&&a.owner.T&&a.owner.T.friendly)&&!P.dead&&!P.spec&&Math.abs(a.x-P.x)<.4&&Math.abs(a.z-P.z)<.4&&a.y>P.y&&a.y<P.y+1.85){
       damagePlayer(a.dmg,'Shot by a '+(a.owner&&a.owner.T?a.owner.T.n.toLowerCase():'skeleton'),{x:a.x-a.vx*.05,z:a.z-a.vz*.05});if(a.owner&&a.owner.T)P.lastAttacker=a.owner;
       if(a.fire){P.burn=Math.max(P.burn||0,3);burst(a.x,a.y,a.z,[1,.55,.1],6);}else dropItem(171,1,P.x,P.y+.6,P.z,undefined,(Math.random()-.5)*1.5,2,(Math.random()-.5)*1.5,.7);killArrow(i);gone=2;break;}
+    if(a.owner==='player'&&!a.pearl&&MP.others.size){let hitP=null;for(const[id,o]of MP.others){if(o.dim!==dim||o.dead)continue;if(Math.abs(a.x-o.x)<.4&&Math.abs(a.z-o.z)<.4&&a.y>o.y&&a.y<o.y+1.85){hitP=id;break;}}
+      if(hitP){mpHit(hitP,a.dmg,'Shot by '+charCfg.name);killArrow(i);gone=2;break;}}
     for(const m of mobs){if(m===a.owner||m.dying||P.riding===m&&a.owner==='player')continue;if(a.owner&&a.owner.T&&a.owner.T.friendly&&(m.T.villager||m.T.golem||m.T.soldier||m.tame||m.jailed))continue;if(a.owner&&a.owner.arena&&!m.arena)continue;
       if(Math.abs(a.x-m.x)<m.w+.1&&Math.abs(a.z-m.z)<m.w+.1&&a.y>m.y&&a.y<m.y+m.h){if(a.fire&&m.T.fireproof)continue;if(a.pearl){projHit(a,m);killArrow(i);gone=2;break;}hurtMob(m,a.dmg,a.owner==='player'?'player':a.owner);if(a.fire)m.fireT=4;else if(a.owner!=='player')dropItem(171,1,m.x,m.y+.6,m.z);killArrow(i);gone=2;break;}}}
   if(gone===2)continue;
@@ -3764,13 +3777,14 @@ function rayBlock(o,d,max){let x=Math.floor(o.x),y=Math.floor(o.y),z=Math.floor(
   return null;}
 function rayBox(o,d,mn,mx){let t0=0,t1=1e9;for(const a of['x','y','z']){const iv=1/(d[a]||1e-9);let ta=(mn[a]-o[a])*iv,tb=(mx[a]-o[a])*iv;
   if(ta>tb){const q=ta;ta=tb;tb=q;}t0=Math.max(t0,ta);t1=Math.min(t1,tb);if(t0>t1)return-1;}return t0;}
-let target=null,mobTarget=null;
+let target=null,mobTarget=null,pvpTarget=null;
 function pick(){
   fwd.x=-Math.sin(yaw)*Math.cos(pitch);fwd.y=Math.sin(pitch);fwd.z=-Math.cos(yaw)*Math.cos(pitch);
   eye.x=P.x;eye.y=P.y+EYE;eye.z=P.z;
   target=rayBlock(eye,fwd,5.5);mobTarget=null;let best=Math.min(3.6,target?target.t:9);
   for(const m of mobs){if(m.dying||m.hide||m===P.riding)continue;const t=rayBox(eye,fwd,{x:m.x-m.w,y:m.y,z:m.z-m.w},{x:m.x+m.w,y:m.y+m.h,z:m.z+m.w});
     if(t>=0&&t<best){best=t;mobTarget=m;}}
+  pvpTarget=null;if(MP.others.size)for(const[id,o]of MP.others){if(o.dim!==dim||o.dead)continue;const t=rayBox(eye,fwd,{x:o.x-.35,y:o.y,z:o.z-.35},{x:o.x+.35,y:o.y+1.85,z:o.z+.35});if(t>=0&&t<best){best=t;pvpTarget=id;mobTarget=null;}}
   airSpot=null;
   if(!target&&!mobTarget&&!P.spec){const s=inv[sel],d=s&&itemDef(s.id),fns=d&&d.kind==='fns';
     if(d&&(fns||dim===0&&worldType!=='classic'&&(d.kind==='block'||d.place||(d.kind==='bucket'&&d.fill)))){
@@ -3785,6 +3799,7 @@ let primary=false,mine={k:'',t:0},atkCd=0,creativeRep=0;
 function swing(){playerModel.swing=.3;const h=$('held');h.classList.remove('swing');void h.offsetWidth;h.classList.add('swing');}
 $('held').addEventListener('animationend',()=>$('held').classList.remove('swing'));
 function primaryDown(){if(ui!=='play'||P.dead||P.spec)return;primary=true;mine.t=0;mine.k='';
+  if(pvpTarget&&!mobTarget){if(atkCd<=0){atkCd=.35;mpHit(pvpTarget,attackDmg(),'Slain by '+charCfg.name);const d=inv[sel]&&itemDef(inv[sel].id);if(d&&d.dur)wear(d.kind==='sword'?1:2);}swing();return;}
   if(mobTarget){if(atkCd<=0){atkCd=.35;hurtMob(mobTarget,attackDmg(),'player');P.exh+=.1;const d=inv[sel]&&itemDef(inv[sel].id);if(d&&d.dur)wear(d.kind==='sword'?1:2);}swing();return;}
   swing();if(mode==='creative'&&target){breakAt(target,true);creativeRep=.28;}}
 function primaryUp(){primary=false;crack.visible=false;mine.t=0;mine.k='';$('prog').hidden=true;}
