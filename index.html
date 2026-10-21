@@ -2774,6 +2774,22 @@ function cartTick(m,dt){const md=m.mdl,sim=ui==='play'||ui==='inv';if(m.v==null)
       if(m.dir&&Math.abs(m.v)>.05){const mv=m.v>=0?m.dir:[-m.dir[0],-m.dir[1]],nx=m.x+mv[0]*Math.abs(m.v)*dt,nz=m.z+mv[1]*Math.abs(m.v)*dt;if(!SOLID[get(Math.floor(nx),Math.floor(m.y+.3),Math.floor(nz))]){m.x=nx;m.z=nz;}else m.v=0;}
       if(m.y<-30){m.hp=0;m.dying=.01;}}}
   md.g.position.set(m.x,m.y,m.z);md.g.rotation.y=m.yaw;const e=m.hurt>0?.6:0;md.mats.forEach(x=>x.emissive.setRGB(e,0,0));shade(md,lightAt(m.x,m.y+.6,m.z));}
+/* ---------- finding your way back to your portal in the Nether ---------- */
+let nPortal=null,nPortalScan=false,nPortalTag=null;
+function scanForPortal(){let best=null,bd=1e9;const px=Math.floor(P.x),pz=Math.floor(P.z);
+  for(let x=0;x<WX;x++)for(let z=0;z<WZ;z++)for(let y=1;y<64;y++)
+    if(world[idx(x,y,z)]===PORTAL&&world[idx(x,y-1,z)]!==PORTAL){const d=Math.hypot(x-px,z-pz);if(d<bd){bd=d;best={x:x+.5,y,z:z+.5};}}return best;}
+function portalHint(){if(!nPortal)return'';const dx=nPortal.x-P.x,dz=nPortal.z-P.z,d=Math.hypot(dx,dz),dy=Math.round(nPortal.y-P.y);
+  if(d<3&&Math.abs(dy)<3)return'\nYou are at your portal!';
+  const fw=dx*-Math.sin(yaw)+dz*-Math.cos(yaw),rt=dx*Math.cos(yaw)-dz*Math.sin(yaw),a=Math.atan2(rt,fw)*180/Math.PI;
+  const way=Math.abs(a)<25?'straight ahead':Math.abs(a)>150?'behind you':a>0?'to your right':'to your left';
+  return'\nYour portal: '+Math.round(d)+' blocks '+dirName(dx,dz)+', '+way+(dy>3?', '+dy+' up':dy<-3?', '+(-dy)+' down':'');}
+function portalGuide(){if(dim!==1){if(nPortalTag)nPortalTag.visible=false;return;}
+  if(!nPortal&&!nPortalScan&&worldReady!==undefined){nPortalScan=true;nPortal=scanForPortal();}
+  if(!nPortal)return;if(get(Math.floor(nPortal.x),nPortal.y,Math.floor(nPortal.z))!==PORTAL&&!nPortalScan){nPortalScan=true;const p=scanForPortal();if(p)nPortal=p;}
+  if(!nPortalTag){nPortalTag=labelSprite('🌀 Your portal');nPortalTag.material.depthTest=false;nPortalTag.material.depthWrite=false;nPortalTag.renderOrder=999;nPortalTag.userData.base=nPortalTag.scale.clone();scene.add(nPortalTag);}
+  const d=Math.hypot(nPortal.x-P.x,nPortal.y-P.y,nPortal.z-P.z),k=Math.max(1,d/30);nPortalTag.visible=d>2.5;nPortalTag.position.set(nPortal.x,nPortal.y+3.6,nPortal.z);
+  nPortalTag.scale.set(nPortalTag.userData.base.x*k,nPortalTag.userData.base.y*k,1);}
 let fireT=0;
 const playerFires=new Set();
 function fireTick(dt){fireT-=dt;if(fireT>0||!fires.size)return;fireT=.5;const ch=[];
@@ -2844,7 +2860,7 @@ function switchDim(to,tx,tz,viaPortal){if(P.riding)dismount();
   if(dim===0)pendingPets=petsData();
   stashDim();useDim(to);wq.clear();clearMobs();clearDrops();while(arrows.length)killArrow(arrows.length-1);
   generate();worldReady=false;queueAll();
-  const sp=viaPortal?(findPortal(tx,tz)||buildPortal(tx,tz)):(to===0?bedSpawn():spawnPt);
+  const sp=viaPortal?(findPortal(tx,tz)||buildPortal(tx,tz)):(to===0?bedSpawn():spawnPt);if(to===1&&viaPortal)nPortal={x:sp.x,y:sp.y,z:sp.z};
   P.x=sp.x;P.y=sp.y;P.z=sp.z;P.vx=P.vy=P.vz=P.kx=P.kz=0;P.peak=P.y;P.portalT=0;P.portalLock=true;P.burn=0;
   if(to===0)populateOverworld();if(to===2)populateEnd();
   labelKey='';saveNow();updateSeedLine();
@@ -4292,7 +4308,7 @@ const pack=s=>s?(s.ench?[s.id,s.count,s.dur!=null?s.dur:-1,s.ench]:s.dur!=null?[
 function save(){if(MP.guest)return;clearTimeout(saveT);saveT=setTimeout(saveNow,500);}
 function saveNow(){if(MP.guest)return;try{stashDim();const ser=m=>{const e=[];m.forEach((id,k)=>{const p=k.split(',').map(Number);e.push([p[0],p[1],p[2],id]);});return e;},serC=c=>{const o={};for(const k in c)o[k]=c[k].map(pack);return o;};
   localStorage.setItem(saveKey(worldType),JSON.stringify({v:3,type:worldType,one:oneCount,seed,dim,edits:ser(editsByDim[0]),chests:serC(chestsByDim[0]),edits1:ser(editsByDim[1]),chests1:serC(chestsByDim[1]),inv:inv.map(pack),armor:armor.map(pack),hp:P.hp,food:P.food,mode,t:timeOfDay,day:dayNum,
-    p:[+P.x.toFixed(2),+P.y.toFixed(2),+P.z.toFixed(2),+yaw.toFixed(3),+pitch.toFixed(3)],fly:P.fly,spec:!!P.spec,speed:P.speed||1,home:customSpawn?[customSpawn.x,customSpawn.y,customSpawn.z]:null,dead:P.dead,bed:bedPos?[bedPos.x,bedPos.y,bedPos.z]:null,nights:nightsOn,dragon:dragonDead?1:0,bank:bankAcc,job,captured:capturedBandits,
+    p:[+P.x.toFixed(2),+P.y.toFixed(2),+P.z.toFixed(2),+yaw.toFixed(3),+pitch.toFixed(3)],fly:P.fly,spec:!!P.spec,speed:P.speed||1,home:customSpawn?[customSpawn.x,customSpawn.y,customSpawn.z]:null,dead:P.dead,bed:bedPos?[bedPos.x,bedPos.y,bedPos.z]:null,nights:nightsOn,dragon:dragonDead?1:0,nportal:nPortal?[nPortal.x,nPortal.y,nPortal.z]:null,bank:bankAcc,job,captured:capturedBandits,
     pets:petsData()}));}catch(e){}}
 let pendingPets=[];
 function spawnPets(){for(const p of pendingPets){const m=spawnMob(p[0],p[1],p[2]+.1,p[3],p[0]==='horse'?p[7]:undefined);
@@ -4303,7 +4319,7 @@ function load(){try{const s=JSON.parse(localStorage.getItem(saveKey(worldType)))
   editsByDim[0]=toMap(s.edits);editsByDim[1]=toMap(s.edits1);chestsByDim[0]=toC(s.chests);chestsByDim[1]=toC(s.chests1);useDim(s.dim===1?1:0);
   (s.inv||[]).forEach((a,i)=>{if(i<36)inv[i]=unpack(a);});(s.armor||[]).forEach((a,i)=>{if(i<4)armor[i]=unpack(a);});
   P.hp=s.hp>0?s.hp:20;P.food=s.food!=null?s.food:20;mode=s.mode==='creative'?'creative':'survival';timeOfDay=s.t||.06;dayNum=s.day||1;P.fly=!!s.fly&&mode==='creative';P.spec=!!s.spec;P.speed=s.speed||1;customSpawn=s.home?{x:s.home[0],y:s.home[1],z:s.home[2]}:null;
-  bedPos=s.bed?{x:s.bed[0],y:s.bed[1],z:s.bed[2]}:null;nightsOn=s.nights!==false;dragonDead=!!s.dragon;pendingPets=s.pets||[];job=s.job||null;capturedBandits=s.captured||0;bankAcc=Object.assign({166:0,134:0,135:0,day:s.day||1},s.bank||{});
+  bedPos=s.bed?{x:s.bed[0],y:s.bed[1],z:s.bed[2]}:null;nightsOn=s.nights!==false;dragonDead=!!s.dragon;nPortal=s.nportal?{x:s.nportal[0],y:s.nportal[1],z:s.nportal[2]}:null;nPortalScan=false;pendingPets=s.pets||[];job=s.job||null;capturedBandits=s.captured||0;bankAcc=Object.assign({166:0,134:0,135:0,day:s.day||1},s.bank||{});
   return s;}catch(e){return null;}}
 
 /* =========================================================
@@ -5096,7 +5112,7 @@ function populateOverworld(){if(worldType==='classic'){spawnAnimals(Math.round(1
     for(const[pf,dx,dz]of[['farmer',8,4],['librarian',7,9],['smith',9,12]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0){const v=spawnMob('villager',x,y,z,pf);v.home={x,z};v.homeR=4;}}}
   spawnPets();}
 function freshState(){seed=(Math.random()*2147483646|0)+1;editsByDim[0]=new Map();editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);pendingPets=[];
-  P.burn=0;bedPos=null;customSpawn=null;timeOfDay=.06;dayNum=1;bankAcc={166:0,134:0,135:0,day:1};job=null;capturedBandits=0;dragonDead=false;raid=null;raidT=300;P.hp=20;P.food=20;P.air=10;P.dead=false;P.fly=mode==='creative'&&P.fly;oneCount=0;}
+  P.burn=0;bedPos=null;customSpawn=null;timeOfDay=.06;dayNum=1;bankAcc={166:0,134:0,135:0,day:1};job=null;capturedBandits=0;dragonDead=false;nPortal=null;nPortalScan=false;raid=null;raidT=300;P.hp=20;P.food=20;P.air=10;P.dead=false;P.fly=mode==='creative'&&P.fly;oneCount=0;}
 function newWorld(){if(P.riding)dismount();wq.clear();freshState();
   generate();worldReady=false;queueAll();placePlayer(null);clearMobs();clearDrops();populateOverworld();invChanged();saveNow();updateSeedLine();renderWorlds();}
 // leave this world (it is saved) and go to another kind, keeping your inventory if the box is ticked
@@ -5155,7 +5171,7 @@ function frame(now){
     autosave+=dt;if(autosave>6){autosave=0;save();}}
   else if(!started)yaw+=dt*.05;
   if(ui==='play'||ui==='inv'||!started||ui==='menu')updateMobs(sim?dt:0);
-  updateBubbles(dt);idleChat(dt);keyLook(dt);dinerTick(dt);fishingTick(dt);factoryTick(dt);arenaTick(dt);fireDeptTick(dt);ridesTick(dt);mpTick(dt);weatherTick(dt);if(ui==='play')raidTick(dt);
+  updateBubbles(dt);idleChat(dt);keyLook(dt);dinerTick(dt);fishingTick(dt);factoryTick(dt);arenaTick(dt);fireDeptTick(dt);ridesTick(dt);mpTick(dt);weatherTick(dt);portalGuide();if(ui==='play')raidTick(dt);
   updateParts(dt);updateDrops(sim?dt:0);if(sim)updateArrows(dt);
   if(P.riding&&P.riding.T.vehicle){const h=P.riding;P.x=h.x-Math.sin(h.yaw)*1.4;P.y=h.y+.45;P.z=h.z-Math.cos(h.yaw)*1.4;P.vx=P.vz=P.vy=0;P.peak=P.y;}
   else if(P.riding){const h=P.riding;P.x=h.x;P.y=h.y+(h.baby>0?.5:.95);P.z=h.z;P.vx=P.vz=P.vy=0;P.peak=P.y;}
@@ -5181,7 +5197,7 @@ function frame(now){
     if(target&&!mobTarget&&!P.spec){hl.position.set(target.x+.5,target.y+.5,target.z+.5);hl.visible=true;}else hl.visible=false;
     if(airSpot){ghost.position.set(airSpot.x+.5,airSpot.y+.5,airSpot.z+.5);ghost.visible=true;}else ghost.visible=false;
     const hrs=(timeOfDay<DAYPART?6+timeOfDay/DAYPART*12:18+(timeOfDay-DAYPART)/(1-DAYPART)*12)%24,clk=String(Math.floor(hrs)).padStart(2,'0')+':'+String(Math.floor((hrs%1)*60/10)*10).padStart(2,'0');
-    const info='X '+Math.floor(P.x)+'  Y '+Math.floor(P.y)+'  Z '+Math.floor(P.z)+'  Facing '+dirName(-Math.sin(yaw),-Math.cos(yaw))+(dim===2?'\nThe End':dim===1?'\nThe Nether':'\nDay '+dayNum+'  '+clk+(worldType==='one'?'\nBlock '+oneCount+' · '+onePhase(oneCount).n:worldType==='chunk'?'\n'+chunkLayer(Math.floor(P.y)):''))+(P.spec?'  Spectator':mode==='creative'?'  Creative':'')+(job?'\nJob: '+jobLine():'')+fxText();
+    const info='X '+Math.floor(P.x)+'  Y '+Math.floor(P.y)+'  Z '+Math.floor(P.z)+'  Facing '+dirName(-Math.sin(yaw),-Math.cos(yaw))+(dim===2?'\nThe End':dim===1?'\nThe Nether'+portalHint():'\nDay '+dayNum+'  '+clk+(worldType==='one'?'\nBlock '+oneCount+' · '+onePhase(oneCount).n:worldType==='chunk'?'\n'+chunkLayer(Math.floor(P.y)):''))+(P.spec?'  Spectator':mode==='creative'?'  Creative':'')+(job?'\nJob: '+jobLine():'')+fxText();
     if(info!==lastInfo){$('info').textContent=info;lastInfo=info;}
     const h=$('held');if(!h.hidden){const br=lightAt(P.x,P.y+1.5,P.z).toFixed(2);if(h.dataset.br!==br){h.dataset.br=br;h.style.filter='brightness('+br+') drop-shadow(0 6px 0 rgba(0,0,0,.25))';}}
     if(!h.hidden&&!h.classList.contains('swing')){const sp=Math.hypot(P.vx,P.vz);const b=Math.sin(now/120)*Math.min(1,sp/4);h.style.transform='translate('+(b*6)+'px,'+(Math.abs(b)*8)+'px)';}}
