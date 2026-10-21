@@ -3762,7 +3762,13 @@ function buildStronghold(){if(worldType!=='classic')return;const sd=seed+4242,a0
 function checkEndPortal(){if(!STRONG)return;for(const f of STRONG.frames)if(get(f[0],f[1],f[2])!==FRAMEF)return false;const[cx,cy,cz]=STRONG.center;if(get(cx,cy,cz)===END_P)return true;
   for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)setQuiet(cx+dx,cy,cz+dz,END_P);rebuildAround(cx-2,cz-2,cx+2,cz+2);sfx('portal');burst(cx+.5,cy+1,cz+.5,[.4,.9,.7],20);
   say('🌌 The End portal is open! Jump in to travel to The End','sys');flash('The End portal is open! Jump in!');return true;}
+function ringAround(x,y,z){let best=null,bn=0;for(let cx=x-3;cx<=x+3;cx++)for(let cz=z-3;cz<=z+3;cz++){const fr=[];let n=0;
+    for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){const edge=Math.abs(dx)===2||Math.abs(dz)===2,corner=Math.abs(dx)===2&&Math.abs(dz)===2;if(!edge||corner)continue;fr.push([cx+dx,y,cz+dz]);const v=get(cx+dx,y,cz+dz);if(v===FRAME||v===FRAMEF)n++;}
+    if(n===12&&n>bn&&fr.some(f=>f[0]===x&&f[2]===z)){bn=n;best={frames:fr,center:[cx,y,cz]};}}return best;}
+function openRing(r){const[cx,cy,cz]=r.center;for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)setQuiet(cx+dx,cy,cz+dz,END_P);rebuildAround(cx-2,cz-2,cx+2,cz+2);sfx('portal');burst(cx+.5,cy+1,cz+.5,[.4,.9,.7],20);
+  say('🌌 The End portal is open! Jump in to travel to The End','sys');flash('The End portal is open! Jump in!');}
 function useEye(){if(target&&get(target.x,target.y,target.z)===FRAME){setBlock(target.x,target.y,target.z,FRAMEF);useOne();swing();sfx('portal');burst(target.x+.5,target.y+1,target.z+.5,[.3,.9,.6],8);
+    const ring=ringAround(target.x,target.y,target.z);if(ring){const left=ring.frames.filter(f=>get(f[0],f[1],f[2])!==FRAMEF).length;if(!left){openRing(ring);return;}flash(left+' more eye'+(left===1?'':'s')+' needed to open the portal');return;}
     const left=STRONG?STRONG.frames.filter(f=>get(f[0],f[1],f[2])!==FRAMEF).length:0;if(!checkEndPortal())flash(left?left+' more eye'+(left===1?'':'s')+' needed to open the portal':'Eye placed');return;}
   if(target&&get(target.x,target.y,target.z)===FRAMEF){flash('This frame already has an eye in it');return;}
   if(dim!==0){flash('The eye of the void only works in the Overworld');return;}
@@ -4126,7 +4132,7 @@ function primaryDown(){if(ui!=='play'||P.dead||P.spec)return;primary=true;mine.t
   if(mobTarget){if(atkCd<=0){atkCd=.35;hurtMob(mobTarget,attackDmg(),'player');P.exh+=.1;const d=inv[sel]&&itemDef(inv[sel].id);if(d&&d.dur)wear(d.kind==='sword'?1:2);}swing();return;}
   swing();if(mode==='creative'&&target){breakAt(target,true);creativeRep=.28;}}
 function primaryUp(){primary=false;crack.visible=false;mine.t=0;mine.k='';$('prog').hidden=true;}
-function breakAt(t,harvest){const b=get(t.x,t.y,t.z);const def=BL[b];if(!def||def.h<0){if(b===BEDROCK)flash('Bedrock can’t be broken');else if(b===HEDGE||b===CLOUD||b===SKYGLASS||b===ANCIENT)flash('Old magic protects the sky city. You can’t break this');return;}
+function breakAt(t,harvest){const b=get(t.x,t.y,t.z);const def=BL[b];if(!def||def.h<0&&!(mode==='creative'&&(b===FRAME||b===FRAMEF))){if(b===FRAME||b===FRAMEF)flash('End portal frames can only be broken in Creative mode');else if(b===BEDROCK)flash('Bedrock can’t be broken');else if(b===HEDGE||b===CLOUD||b===SKYGLASS||b===ANCIENT)flash('Old magic protects the sky city. You can’t break this');return;}
   const one=isOnePos(t.x,t.y,t.z),dy=one?1.15:0;
   if(job&&job.kind==='harvest'&&mode==='survival'&&(b===44||b===79||b===81||b===48)&&inCity(t.x,t.y,t.z)){job.have++;
     flash(job.have>=job.need?'Job done! Go back to a farmer in the city to get paid':'Harvested '+job.have+' of '+job.need);}
