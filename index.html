@@ -759,10 +759,11 @@ B(115,'Oak door',[125,125,125],1.5,{tool:'axe',cut:1,shape:'door',drop:263});B(1
 B(117,'Oak door',[125,125,125],1.5,{tool:'axe',cut:1,pass:1,shape:'door',drop:263});B(118,'Oak door',[126,126,126],1.5,{tool:'axe',cut:1,pass:1,shape:'door',drop:0});
 B(119,'Rail',[119,119,119],.4,{pass:1,cut:1,shape:'rail',drop:265});B(120,'Powered rail',[121,121,121],.4,{pass:1,cut:1,shape:'rail',drop:266});B(121,'Powered rail',[122,122,122],.4,{pass:1,cut:1,shape:'rail',drop:266,glow:1});
 B(122,'Redstone wire',[123,123,123],0,{pass:1,cut:1,shape:'wire',drop:179});B(123,'Redstone wire',[124,124,124],0,{pass:1,cut:1,shape:'wire',drop:179});
-B(124,'Lever',[9,9,9],.3,{pass:1,cut:1,shape:'lever',drop:267});B(125,'Lever',[9,9,9],.3,{pass:1,cut:1,shape:'lever',drop:267});
-const NBRICK=104,FALLL=109,FRAME=110,FRAMEF=111,END_P=112,ENDSTONE=113,TNT=114,DOORLC=115,DOORUC=116,DOORLO=117,DOORUO=118,RAIL=119,PRAIL=120,PRAILON=121,WIRE=122,WIREON=123,LEVER=124,LEVERON=125;
-const NB=126,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
-const SOLID=new Uint8Array(128),OPAQ=new Uint8Array(128);
+B(124,'Lever',[9,9,9],.3,{pass:1,cut:1,shape:'lever',drop:267});
+B(126,'Oak fence',[8,8,8],2,{tool:'axe',cut:1,shape:'fence',drop:268});B(127,'Oak fence gate',[8,8,8],2,{tool:'axe',cut:1,shape:'gate',drop:269});B(128,'Oak fence gate',[8,8,8],2,{tool:'axe',cut:1,pass:1,shape:'gate',drop:269});B(125,'Lever',[9,9,9],.3,{pass:1,cut:1,shape:'lever',drop:267});
+const NBRICK=104,FALLL=109,FRAME=110,FRAMEF=111,END_P=112,ENDSTONE=113,TNT=114,DOORLC=115,DOORUC=116,DOORLO=117,DOORUO=118,RAIL=119,PRAIL=120,PRAILON=121,WIRE=122,WIREON=123,LEVER=124,LEVERON=125,FENCE=126,GATEC=127,GATEO=128;
+const NB=129,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
+const SOLID=new Uint8Array(256),OPAQ=new Uint8Array(256);
 for(let i=1;i<NB;i++){const b=BL[i];SOLID[i]=(b.liquid||b.cross||b.pass)?0:1;OPAQ[i]=(b.liquid||b.cut||b.cross)?0:1;}
 const PLANT_ON={87:[4,26,2,3,9,87],88:[4,26,2,3,9],78:[FARMLAND],80:[FARMLAND],73:[1,2,12,42],74:[1,2,12,42],43:[FARMLAND],44:[FARMLAND],45:[1,2,12],46:[1,2,12],47:[1,2,12],48:[1,2,4,12,48]};
 
@@ -877,6 +878,8 @@ mat(251,'Flare powder','dust',{a:'#ffb020',b:'#c86a10',c:'#ffe680'});
 ITEMS[252]={n:'Charred skull',kind:'mat',p:'skull',pal:{a:'#3e3e44',b:'#141416',c:'#7a7a80'},max:64};
 ITEMS[261]={n:'Eye of the Void',kind:'eye',p:'eye',pal:{a:'#3ec890',b:'#1a5a44',c:'#a0ffd8',d:'#0a1410'},max:64};
 ITEMS[179].place=122;
+ITEMS[268]={n:'Oak fence',kind:'mat',place:126,p:'fence',pal:{a:'#8a6034',b:'#b0844c'},max:64};
+ITEMS[269]={n:'Oak fence gate',kind:'mat',place:127,p:'gate',pal:{a:'#8a6034',b:'#b0844c'},max:64};
 ITEMS[263]={n:'Oak door',kind:'door',p:'door',pal:{a:'#a07444',b:'#6a4626'},max:64};
 ITEMS[264]={n:'Minecart',kind:'cart',p:'cart',pal:{a:'#9a9aa2',b:'#5a5a62',c:'#2a2a2e'},max:1};
 ITEMS[265]={n:'Rail',kind:'mat',place:119,p:'rail',pal:{a:'#7a5a32',b:'#b0b0b8'},max:64};
@@ -886,7 +889,7 @@ ITEMS[259]={n:'Mop',kind:'mop',p:'mop',pal:{a:'#e0ddd2',b:'#8a6034',c:'#a8a59a'}
 ITEMS[260]={n:'Broom',kind:'broom',p:'broom',pal:{a:'#d8b850',b:'#7a5a32',c:'#c83a3a'},max:1};
 ITEMS[253]={n:'Void pearl',kind:'pearl',p:'pearl',pal:{a:'#1f8a7a',b:'#0e3a40',c:'#8af5de'},max:16};
 const RC=(out,n,p,k)=>RECIPES.push({out,n,p,k}),RS=(out,n,s)=>RECIPES.push({out,n,s});
-RS(7,4,[5]);RS(40,4,[18]);RS(251,2,[250]);RC(263,3,['PP','PP','PP'],{P:'planks'});RC(265,16,['I.I','ISI','I.I'],{I:133,S:130});RC(266,6,['G.G','GSG','GRG'],{G:134,S:130,R:179});RC(264,1,['I.I','III'],{I:133});RC(267,1,['S','C'],{S:130,C:'stone'});RS(262,2,[172,131]);RC(1114,1,['GSG','SGS','GSG'],{G:262,S:4});RS(261,1,[253,251]);RC(259,1,['..S','.S.','W..'],{S:130,W:'wool'});RC(260,1,['..S','.S.','H..'],{S:130,H:161});
+RS(7,4,[5]);RS(40,4,[18]);RS(251,2,[250]);RC(263,3,['PP','PP','PP'],{P:'planks'});RC(268,3,['PSP','PSP'],{P:'planks',S:130});RC(269,1,['SPS','SPS'],{S:130,P:'planks'});RC(265,16,['I.I','ISI','I.I'],{I:133,S:130});RC(266,6,['G.G','GSG','GRG'],{G:134,S:130,R:179});RC(264,1,['I.I','III'],{I:133});RC(267,1,['S','C'],{S:130,C:'stone'});RS(262,2,[172,131]);RC(1114,1,['GSG','SGS','GSG'],{G:262,S:4});RS(261,1,[253,251]);RC(259,1,['..S','.S.','W..'],{S:130,W:'wool'});RC(260,1,['..S','.S.','H..'],{S:130,H:161});
 RC(130,4,['P','P'],{P:'planks'});
 RC(TABLE,1,['PP','PP'],{P:'planks'});
 RC(BED,1,['WWW','PPP'],{W:'wool',P:'planks'});
@@ -962,6 +965,8 @@ fns:["..aaaa..",".a....a.",".a....a.","..a..a..","...aa...","........","..cbbb..
 egg:["...aa...","..acaa..",".aaaaba.",".abaaaa.","aaaaabaa","aabaaaaa",".aaaaba.","..aaaa.."],
 dust:["........","..c..a..",".a.ab...","..aaca..",".baaab.a","..bab...",".a...b..","........"],
 skull:["..aaaa..",".aaaaaa.","aaaaaaaa","abbaabba","abbaabba","aaaaaaaa",".acacaa.","..aaaa.."],
+fence:["........",".a....a.",".a....a.","bbbbbbbb",".a....a.","bbbbbbbb",".a....a.",".a....a."],
+gate:["........","a......a","abbbbbba","a..bb..a","abbbbbba","a..bb..a","a......a","........"],
 rail:["b.....b.","baaaaab.","b.....b.","baaaaab.","b.....b.","baaaaab.","b.....b.","baaaaab."],
 prail:["b..c..b.","baacaab.","b..c..b.","baacaab.","b..c..b.","baacaab.","b..c..b.","baacaab."],
 lever:["........","......c.",".....a..","....a...","...a....","..bbbb..",".bbbbbb.","........"],
@@ -2488,15 +2493,15 @@ function vao(x,y,z,d,a1,a2,c){const n=[x+d[0],y+d[1],z+d[2]],o1=c[a1]?1:-1,o2=c[
 /* ---------- light: sky light falls straight down and spreads sideways, torches spread their own ---------- */
 const SKYL=new Uint8Array(WX*WY*WZ),BLKL=new Uint8Array(WX*WY*WZ);
 const LQM=(1<<23)-1,LQ=new Int32Array(LQM+1);
-const COST=new Uint8Array(128);COST[11]=2;COST[6]=1;COST[19]=1;
-const EMIT=new Uint8Array(128);EMIT[88]=10;EMIT[49]=14;EMIT[61]=15;EMIT[62]=15;EMIT[63]=11;EMIT[64]=15;
-const ISL=new Uint8Array(128);for(const i of[62,105,106,107,108,109]){ISL[i]=1;EMIT[i]=i===62?15:13;}
+const COST=new Uint8Array(256);COST[11]=2;COST[6]=1;COST[19]=1;
+const EMIT=new Uint8Array(256);EMIT[88]=10;EMIT[49]=14;EMIT[61]=15;EMIT[62]=15;EMIT[63]=11;EMIT[64]=15;
+const ISL=new Uint8Array(256);for(const i of[62,105,106,107,108,109]){ISL[i]=1;EMIT[i]=i===62?15:13;}
 const lLevel=b=>b===62||b===109?0:(b>=105&&b<=108?b-104:99),lTop=b=>b===62?.88:b===109?1:Math.max(.12,(5-(b-104))/5*.88);
 EMIT[112]=12;
-const FALLW=72,ISW=new Uint8Array(128);ISW[WATER]=1;for(let i=65;i<=72;i++){ISW[i]=1;COST[i]=2;}
+const FALLW=72,ISW=new Uint8Array(256);ISW[WATER]=1;for(let i=65;i<=72;i++){ISW[i]=1;COST[i]=2;}
 const wLevel=b=>b===WATER||b===FALLW?0:(b>=65&&b<=71?b-64:99);
 const wTop=b=>b===WATER?.88:b===FALLW?1:Math.max(.12,(8-(b-64))/8*.88);
-const FLAM=new Uint8Array(128);[5,6,7,18,19,24,27,30,35,36,37,38,39,40,45,46,47,53,54,73,74].forEach(i=>FLAM[i]=1);
+const FLAM=new Uint8Array(256);[5,6,7,18,19,24,27,30,35,36,37,38,39,40,45,46,47,53,54,73,74].forEach(i=>FLAM[i]=1);
 function lightBfs(L,qh,qt){const SL=WX*WZ;
   while(qh!==qt){const i=LQ[qh];qh=(qh+1)&LQM;const l=L[i];if(l<=1)continue;
     const x=i%WX,r=(i/WX)|0,z=r%WZ,y=(r/WZ)|0;
@@ -2689,7 +2694,7 @@ function tntTick(dt){for(let i=tnts.length-1;i>=0;i--){const t=tnts[i];t.t-=dt;t
     if(Math.random()<.5)burst(t.x,t.y+1.05,t.z,[.6,.6,.6],1);
     if(t.t<=0||t.y<-10){scene.remove(t.g);t.mats.forEach(m=>m.dispose());tnts.splice(i,1);if(t.y>-10)explode(t.x,t.y+.5,t.z,4,'tnt');}}}
 /* ---------- doors, rails, minecarts and redstone ---------- */
-const DOORS=new Uint8Array(128),RAILS=new Uint8Array(128),RSN=new Uint8Array(128);[115,116,117,118].forEach(i=>DOORS[i]=1);[119,120,121].forEach(i=>RAILS[i]=1);
+const DOORS=new Uint8Array(256),RAILS=new Uint8Array(256),RSN=new Uint8Array(256);[115,116,117,118].forEach(i=>DOORS[i]=1);[119,120,121].forEach(i=>RAILS[i]=1);
 [122,123,124,125,59,120,121,114,115,116,117,118].forEach(i=>RSN[i]=1);
 function emitBox(A,x,y,z,x0,y0,z0,x1,y1,z1,tile,ls,lb,l){for(let f=0;f<6;f++){const F=FACES[f],base=A.p.length/3;
   for(const c of F.c){A.p.push(x+(c[0]?x1:x0),y+(c[1]?y1:y0),z+(c[2]?z1:z0));A.n.push(F.n[0],F.n[1],F.n[2]);A.u.push((tile+(c[3]?.999:.001))/NT,c[4]?.999:.001);A.c.push(F.s*(l||1),ls,lb);}
@@ -2712,6 +2717,16 @@ function shapeMesh(A,x,y,z,id,b){const lp=litAt(x,y,z),ls=(lp>>4)/15,lb=b.glow?1
   if(b.shape==='wire'){emitFlat(A,x,y,z,.03,b.t[0],0,ls,id===WIREON?1:lb);return;}
   if(b.shape==='lever'){const on=id===LEVERON;emitBox(A,x,y,z,.32,0,.28,.68,.14,.72,BL[9].t[0],ls,lb);
     emitBox(A,x,y,z,.45,.1,on?.55:.35,.55,.62,on?.65:.45,BL[7].t[0],ls,lb);emitBox(A,x,y,z,.42,.58,on?.52:.32,.58,.72,on?.68:.48,on?BL[59].t[0]:BL[3].t[0],ls,on?1:lb);return;}
+  if(b.shape==='fence'||b.shape==='gate'){const pl=BL[7].t[0],link=(a,c)=>{const v=get(a,y,c);return v===FENCE||v===GATEC||v===GATEO||(SOLID[v]&&OPAQ[v]);};
+    if(b.shape==='fence'){emitBox(A,x,y,z,.375,0,.375,.625,1,.625,pl,ls,lb);
+      for(const[dx,dz]of[[1,0],[-1,0],[0,1],[0,-1]]){if(!link(x+dx,z+dz))continue;const x0=dx>0?.625:dx<0?0:.44,x1=dx>0?1:dx<0?.375:.56,z0=dz>0?.625:dz<0?0:.44,z1=dz>0?1:dz<0?.375:.56;
+        emitBox(A,x,y,z,x0,.38,z0,x1,.54,z1,pl,ls,lb);emitBox(A,x,y,z,x0,.75,z0,x1,.91,z1,pl,ls,lb);}return;}
+    const ax=link(x-1,z)||link(x+1,z),open=id===GATEO;
+    if(ax){emitBox(A,x,y,z,0,.3,.44,.12,1,.56,pl,ls,lb);emitBox(A,x,y,z,.88,.3,.44,1,1,.56,pl,ls,lb);
+      if(open){emitBox(A,x,y,z,0,.38,.56,.12,.9,1,pl,ls,lb);emitBox(A,x,y,z,.88,.38,.56,1,.9,1,pl,ls,lb);}else{emitBox(A,x,y,z,.12,.38,.44,.88,.54,.56,pl,ls,lb);emitBox(A,x,y,z,.12,.75,.44,.88,.91,.56,pl,ls,lb);emitBox(A,x,y,z,.45,.38,.44,.55,.91,.56,pl,ls,lb);}}
+    else{emitBox(A,x,y,z,.44,.3,0,.56,1,.12,pl,ls,lb);emitBox(A,x,y,z,.44,.3,.88,.56,1,1,pl,ls,lb);
+      if(open){emitBox(A,x,y,z,.56,.38,0,1,.9,.12,pl,ls,lb);emitBox(A,x,y,z,.56,.38,.88,1,.9,1,pl,ls,lb);}else{emitBox(A,x,y,z,.44,.38,.12,.56,.54,.88,pl,ls,lb);emitBox(A,x,y,z,.44,.75,.12,.56,.91,.88,pl,ls,lb);emitBox(A,x,y,z,.44,.38,.45,.56,.91,.55,pl,ls,lb);}}
+    return;}
   if(b.shape==='door'){const by=(id===DOORUC||id===DOORUO)?y-1:y,alongX=SOLID[get(x-1,by,z)]&&!DOORS[get(x-1,by,z)]||SOLID[get(x+1,by,z)]&&!DOORS[get(x+1,by,z)],open=id===DOORLO||id===DOORUO,t=b.t[0];
     if(alongX!==open)emitBox(A,x,y,z,0,0,open?0:.41,1,1,open?.18:.59,t,ls,lb);else emitBox(A,x,y,z,open?0:.41,0,0,open?.18:.59,1,1,t,ls,lb);}}
 function placeDoor(){const spot=target?[target.x+target.n[0],target.y+target.n[1],target.z+target.n[2]]:airSpot?[airSpot.x,airSpot.y,airSpot.z]:null;if(!spot)return;const[x,y,z]=spot;
@@ -3347,7 +3362,8 @@ function spawnAnimals(n,near){let made=0;
     const k=2+(Math.random()*3|0);for(let i=0;i<k;i++){const xx=x+Math.random()*4-2,zz=z+Math.random()*4-2;const yy=surfaceY(Math.floor(xx),Math.floor(zz));
       if(yy>0){spawnMob(t,xx,yy,zz);made++;}}}}
 function boxHits(x,y,z,w,h){for(let by=Math.floor(y);by<=Math.floor(y+h-1e-4);by++)for(let bz=Math.floor(z-w);bz<=Math.floor(z+w-1e-4);bz++)
-  for(let bx=Math.floor(x-w);bx<=Math.floor(x+w-1e-4);bx++)if(SOLID[get(bx,by,bz)])return true;return false;}
+  for(let bx=Math.floor(x-w);bx<=Math.floor(x+w-1e-4);bx++)if(SOLID[get(bx,by,bz)])return true;
+  if(y-Math.floor(y)<.5){const fy=Math.floor(y)-1;for(let bz=Math.floor(z-w);bz<=Math.floor(z+w-1e-4);bz++)for(let bx=Math.floor(x-w);bx<=Math.floor(x+w-1e-4);bx++){const v=get(bx,fy,bz);if(v===FENCE||v===GATEC)return true;}}return false;}
 function moveEntity(e,dt){const n=Math.max(1,Math.ceil(dt/.016)),s=dt/n;e.hitH=false;let ground=false;
   for(let i=0;i<n;i++){
     let d=(e.vx+e.kx)*s;if(d){const o=e.x;e.x+=d;if(boxHits(e.x,e.y,e.z,e.w,e.h)){e.x=o;e.hitH=true;}}
@@ -4180,6 +4196,7 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
     if(b===BED){sleepIn(target);return;}
     if(b===LEVER||b===LEVERON){setBlock(target.x,target.y,target.z,b===LEVER?LEVERON:LEVER);sfx('place');swing();flash(b===LEVER?'Lever ON':'Lever off');return;}
     if(DOORS[b]){toggleDoor(target.x,target.y,target.z);swing();return;}
+    if(b===GATEC||b===GATEO){if(b===GATEO&&boxHits(P.x,P.y,P.z,P.w,P.h)===false&&Math.floor(P.x)===target.x&&Math.floor(P.z)===target.z){flash('Step out of the gate to close it');return;}setBlock(target.x,target.y,target.z,b===GATEC?GATEO:GATEC);sfx(b===GATEC?'pop':'place');swing();return;}
     if(RAILS[b]&&s&&s.id===264){const c=spawnMob('minecart',target.x+.5,target.y,target.z+.5);c.keep=true;c.v=0;useOne();swing();sfx('place');return;}
     if(b===FURNACE){if(s&&SMELT[s.id]!=null)smelt();
       else flash('Hold ore, sand, cobblestone, logs or raw meat, then use the furnace');return;}
@@ -4238,7 +4255,7 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
   if(pid&&spot){const x=spot[0],y=spot[1],z=spot[2];
     if(x<0||z<0||x>=WX||z>=WZ||y<1||y>=WY)return;const cur=get(x,y,z),pb=BL[pid];
     if(cur&&!((ISW[cur]||ISL[cur])&&(!pb.cross||pb.aqua))&&!(BL[cur].cross&&cur!==TORCH&&!pb.cross))return;
-    if(pb.shape&&(!SOLID[get(x,y-1,z)]||BL[get(x,y-1,z)].shape)){flash('Put it on top of a solid block');return;}
+    if(pb.shape&&pb.shape!=='fence'&&pb.shape!=='gate'&&(!SOLID[get(x,y-1,z)]||BL[get(x,y-1,z)].shape)){flash('Put it on top of a solid block');return;}
     if(pb.cross){const below=get(x,y-1,z);
       const ok=pid===TORCH?(SOLID[below]&&!BL[below].cross):(PLANT_ON[pid]||[]).includes(below);
       if(!ok){flash(pid===WHEAT0?'Seeds only grow on farmland. Use a hoe on grass or dirt first':pid===48?'Sugar cane grows on sand, grass or dirt':'That can’t grow there');return;}}
@@ -4372,7 +4389,7 @@ let craftN=2;const craftGrid=new Array(9).fill(null);
 function returnGrid(){for(let i=0;i<9;i++){if(craftGrid[i]){give(craftGrid[i]);craftGrid[i]=null;}}}
 const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,53,BED,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,41,1104,1113,1114,11,10],
   combat:[140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,176,195,120,121,122,123,124,170,171,...Array.from({length:16},(_,i)=>200+i)],
-  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,264,265,266,267,259,260,1110,256,257,258]};
+  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,264,265,266,267,259,260,1110,256,257,258]};
 let catTab='blocks';
 function haveCount(k){let c=0;for(const s of inv)if(s&&ing(k,s.id))c+=s.count;for(const s of craftGrid)if(s&&ing(k,s.id))c+=s.count;return c;}
 function needs(r){const m=new Map();rList(r).forEach(k=>m.set(k,(m.get(k)||0)+1));return m;}
