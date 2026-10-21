@@ -2784,7 +2784,7 @@ function portalHint(){if(!nPortal)return'';const dx=nPortal.x-P.x,dz=nPortal.z-P
   const fw=dx*-Math.sin(yaw)+dz*-Math.cos(yaw),rt=dx*Math.cos(yaw)-dz*Math.sin(yaw),a=Math.atan2(rt,fw)*180/Math.PI;
   const way=Math.abs(a)<25?'straight ahead':Math.abs(a)>150?'behind you':a>0?'to your right':'to your left';
   return'\nYour portal: '+Math.round(d)+' blocks '+dirName(dx,dz)+', '+way+(dy>3?', '+dy+' up':dy<-3?', '+(-dy)+' down':'');}
-function portalGuide(){if(dim!==1){if(nPortalTag)nPortalTag.visible=false;return;}
+function portalGuide(){{const b=$('boss');if(!b.hidden&&(dim!==2||performance.now()-bossSeen>800||ui==='menu'))b.hidden=true;}if(dim!==1){if(nPortalTag)nPortalTag.visible=false;return;}
   if(!nPortal&&!nPortalScan&&worldReady!==undefined){nPortalScan=true;nPortal=scanForPortal();}
   if(!nPortal)return;if(get(Math.floor(nPortal.x),nPortal.y,Math.floor(nPortal.z))!==PORTAL&&!nPortalScan){nPortalScan=true;const p=scanForPortal();if(p)nPortal=p;}
   if(!nPortalTag){nPortalTag=labelSprite('🌀 Your portal');nPortalTag.material.depthTest=false;nPortalTag.material.depthWrite=false;nPortalTag.renderOrder=999;nPortalTag.userData.base=nPortalTag.scale.clone();scene.add(nPortalTag);}
@@ -2856,7 +2856,7 @@ function buildPortal(tx,tz){tx=clamp(Math.floor(tx),4,WX-6);tz=clamp(Math.floor(
   for(let dx=0;dx<2;dx++)for(let dy=0;dy<3;dy++)setQuiet(tx+dx,y+dy,tz,PORTAL);
   computeAllLight();queueAll();return{x:tx+.5,y,z:tz+.5};}
 function petsData(){return dim===0?mobs.filter(m=>m.tame&&!m.dying).map(m=>[m.type,+m.x.toFixed(1),+m.y.toFixed(1),+m.z.toFixed(1),Math.ceil(m.hp),m.sit?1:0,m.saddle?1:0,m.coat||0,Math.round(m.baby||0)]):pendingPets;}
-function switchDim(to,tx,tz,viaPortal){if(P.riding)dismount();
+function switchDim(to,tx,tz,viaPortal){$('boss').hidden=true;bossSeen=0;if(P.riding)dismount();
   if(dim===0)pendingPets=petsData();
   stashDim();useDim(to);wq.clear();clearMobs();clearDrops();while(arrows.length)killArrow(arrows.length-1);
   generate();worldReady=false;queueAll();
