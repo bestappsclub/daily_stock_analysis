@@ -2040,6 +2040,7 @@ function renderMP(){if(ui!=='bank'||$('bankTitle').textContent!=='Multiplayer')r
   if(MP.host||MP.guest){const f=Math.floor,esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     row('Players in this world ('+(MP.others.size+1)+')<small>'+esc(charCfg.name)+' (you): x '+f(P.x)+', y '+f(P.y)+', z '+f(P.z)+'</small>'+[...MP.others.values()].map(o=>{const n=mpNear(o.x,o.z);return'<small>'+esc(o.n||'Player')+': x '+f(o.x)+', y '+f(o.y)+', z '+f(o.z)+' · '+f(Math.hypot(o.x-P.x,o.y-P.y,o.z-P.z))+' blocks away'+(n?' · near '+esc(n):'')+(o.dim!==dim?' · in '+mpDimName(o.dim):'')+'</small>';}).join(''),[]);}}
 window.addEventListener('beforeunload',()=>{try{mpSend({t:'bye',id:MP.id});}catch(e){}});
+window.addEventListener('pagehide',()=>{try{if(started&&!MP.guest)saveNow();}catch(e){}});document.addEventListener('visibilitychange',()=>{try{if(document.hidden&&started&&!MP.guest)saveNow();}catch(e){}});
 {const _ua=useAction,_ba=breakAt;useAction=function(){mpUser++;try{return _ua.apply(this,arguments);}finally{mpUser--;}};breakAt=function(){mpUser++;try{return _ba.apply(this,arguments);}finally{mpUser--;}};}
 function arenaSay(t){say('Arena: '+t,'npc');flash(t);}
 function startFight(i){if(fight||!arenaV)return false;const F=FIGHTS[fIdx(i)],A=arenaV,fm=formFor(i);fightForm=null;fight={F,t:0,end:0,mobs:[],bet:arenaBet,fm};arenaBet=null;
@@ -2872,7 +2873,7 @@ function buildPortal(tx,tz){tx=clamp(Math.floor(tx),4,WX-6);tz=clamp(Math.floor(
   computeAllLight();queueAll();return{x:tx+.5,y,z:tz+.5};}
 function petsData(){return dim===0?mobs.filter(m=>m.tame&&!m.dying).map(m=>[m.type,+m.x.toFixed(1),+m.y.toFixed(1),+m.z.toFixed(1),Math.ceil(m.hp),m.sit?1:0,m.saddle?1:0,m.coat||0,Math.round(m.baby||0)]):pendingPets;}
 function switchDim(to,tx,tz,viaPortal){$('boss').hidden=true;bossSeen=0;if(P.riding)dismount();
-  if(dim===0)pendingPets=petsData();
+  if(dim===0){pendingPets=petsData();pendingAnimals=animalsData();}
   stashDim();useDim(to);wq.clear();clearMobs();clearDrops();while(arrows.length)killArrow(arrows.length-1);
   generate();worldReady=false;queueAll();
   const sp=viaPortal?(findPortal(tx,tz)||buildPortal(tx,tz)):(to===0?bedSpawn():spawnPt);if(to===1&&viaPortal)nPortal={x:sp.x,y:sp.y,z:sp.z};
@@ -4332,8 +4333,14 @@ function save(){if(MP.guest)return;clearTimeout(saveT);saveT=setTimeout(saveNow,
 function saveNow(){if(MP.guest)return;try{stashDim();const ser=m=>{const e=[];m.forEach((id,k)=>{const p=k.split(',').map(Number);e.push([p[0],p[1],p[2],id]);});return e;},serC=c=>{const o={};for(const k in c)o[k]=c[k].map(pack);return o;};
   localStorage.setItem(saveKey(worldType),JSON.stringify({v:3,type:worldType,one:oneCount,seed,dim,edits:ser(editsByDim[0]),chests:serC(chestsByDim[0]),edits1:ser(editsByDim[1]),chests1:serC(chestsByDim[1]),inv:inv.map(pack),armor:armor.map(pack),hp:P.hp,food:P.food,mode,t:timeOfDay,day:dayNum,
     p:[+P.x.toFixed(2),+P.y.toFixed(2),+P.z.toFixed(2),+yaw.toFixed(3),+pitch.toFixed(3)],fly:P.fly,spec:!!P.spec,speed:P.speed||1,home:customSpawn?[customSpawn.x,customSpawn.y,customSpawn.z]:null,dead:P.dead,bed:bedPos?[bedPos.x,bedPos.y,bedPos.z]:null,nights:nightsOn,dragon:dragonDead?1:0,nportal:nPortal?[nPortal.x,nPortal.y,nPortal.z]:null,bank:bankAcc,job,captured:capturedBandits,
-    pets:petsData()}));}catch(e){}}
-let pendingPets=[];
+    pets:petsData(),animals:animalsData()}));}catch(e){}}
+let pendingPets=[],pendingAnimals=null;
+const WILD=['pig','cow','sheep','chicken','wolf','horse'];
+function isWild(m){return !m.dying&&!m.tame&&!m.keep&&!m.exhibit&&!m.home&&!m.jailed&&!m.arena&&!m.rider&&WILD.includes(m.type);}
+function animalsData(){return dim===0?mobs.filter(isWild).slice(0,400).map(m=>[m.type,+m.x.toFixed(1),+m.y.toFixed(1),+m.z.toFixed(1),Math.ceil(m.hp),Math.round(m.baby||0),m.sheared?1:0,m.coat||0,m.saddle?1:0]):pendingAnimals;}
+function spawnSavedAnimals(){for(const a of pendingAnimals){if(!MT[a[0]])continue;const m=spawnMob(a[0],a[1],a[2]+.1,a[3],a[0]==='horse'?a[7]:undefined);m.hp=Math.min(m.maxHp,a[4]||m.maxHp);
+    if(a[5]>0){m.baby=a[5];m.mdl.g.scale.setScalar(.55);m.w=m.T.w*.6;m.h=m.T.h*.55;}if(a[6]){m.sheared=true;m.regrow=60;if(m.mdl.wool)m.mdl.wool.visible=false;}if(a[8])m.saddle=true;}
+  pendingAnimals=null;}
 function spawnPets(){for(const p of pendingPets){const m=spawnMob(p[0],p[1],p[2]+.1,p[3],p[0]==='horse'?p[7]:undefined);
   m.tame=true;if(m.T.wolf)m.maxHp=20;m.hp=Math.min(m.maxHp,p[4]||m.maxHp);m.sit=!!p[5];m.saddle=!!p[6];
   if(p[8]>0){m.baby=p[8];m.mdl.g.scale.setScalar(.55);m.w=m.T.w*.6;m.h=m.T.h*.55;}}pendingPets=[];}
@@ -4342,7 +4349,7 @@ function load(){try{const s=JSON.parse(localStorage.getItem(saveKey(worldType)))
   editsByDim[0]=toMap(s.edits);editsByDim[1]=toMap(s.edits1);chestsByDim[0]=toC(s.chests);chestsByDim[1]=toC(s.chests1);useDim(s.dim===1?1:0);
   (s.inv||[]).forEach((a,i)=>{if(i<36)inv[i]=unpack(a);});(s.armor||[]).forEach((a,i)=>{if(i<4)armor[i]=unpack(a);});
   P.hp=s.hp>0?s.hp:20;P.food=s.food!=null?s.food:20;mode=s.mode==='creative'?'creative':'survival';timeOfDay=s.t||.06;dayNum=s.day||1;P.fly=!!s.fly&&mode==='creative';P.spec=!!s.spec;P.speed=s.speed||1;customSpawn=s.home?{x:s.home[0],y:s.home[1],z:s.home[2]}:null;
-  bedPos=s.bed?{x:s.bed[0],y:s.bed[1],z:s.bed[2]}:null;nightsOn=s.nights!==false;dragonDead=!!s.dragon;nPortal=s.nportal?{x:s.nportal[0],y:s.nportal[1],z:s.nportal[2]}:null;nPortalScan=false;pendingPets=s.pets||[];job=s.job||null;capturedBandits=s.captured||0;bankAcc=Object.assign({166:0,134:0,135:0,day:s.day||1},s.bank||{});
+  bedPos=s.bed?{x:s.bed[0],y:s.bed[1],z:s.bed[2]}:null;nightsOn=s.nights!==false;dragonDead=!!s.dragon;nPortal=s.nportal?{x:s.nportal[0],y:s.nportal[1],z:s.nportal[2]}:null;nPortalScan=false;pendingPets=s.pets||[];pendingAnimals=Array.isArray(s.animals)?s.animals:null;job=s.job||null;capturedBandits=s.captured||0;bankAcc=Object.assign({166:0,134:0,135:0,day:s.day||1},s.bank||{});
   return s;}catch(e){return null;}}
 
 /* =========================================================
@@ -5130,11 +5137,12 @@ function updateTouch(){$('tFly').hidden=mode!=='creative'||P.spec;$('tFly').clas
 function placePlayer(saved){P.x=spawnPt.x;P.y=spawnPt.y;P.z=spawnPt.z;
   if(saved&&saved.p&&!boxHits(saved.p[0],saved.p[1],saved.p[2],P.w,P.h)){P.x=saved.p[0];P.y=saved.p[1];P.z=saved.p[2];yaw=saved.p[3];pitch=saved.p[4];}
   P.vx=P.vy=P.vz=P.kx=P.kz=0;P.peak=P.y;}
-function populateOverworld(){if(worldType==='classic'){spawnAnimals(Math.round(130*AREA/2.56*.6),false);populateVillages();}
-  if(worldType==='chunk'){for(const[t,dx,dz]of[['cow',6,8],['chicken',9,7],['sheep',5,6]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0)spawnMob(t,x,y,z);}
+function populateOverworld(){const saved=Array.isArray(pendingAnimals);if(worldType==='classic'){if(saved)spawnSavedAnimals();else spawnAnimals(Math.round(130*AREA/2.56*.6),false);populateVillages();}
+  else if(saved)spawnSavedAnimals();
+  if(worldType==='chunk'){if(!saved)for(const[t,dx,dz]of[['cow',6,8],['chicken',9,7],['sheep',5,6]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0)spawnMob(t,x,y,z);}
     for(const[pf,dx,dz]of[['farmer',8,4],['librarian',7,9],['smith',9,12]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0){const v=spawnMob('villager',x,y,z,pf);v.home={x,z};v.homeR=4;}}}
   spawnPets();}
-function freshState(){seed=(Math.random()*2147483646|0)+1;editsByDim[0]=new Map();editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);pendingPets=[];
+function freshState(){pendingAnimals=null;seed=(Math.random()*2147483646|0)+1;editsByDim[0]=new Map();editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);pendingPets=[];
   P.burn=0;bedPos=null;customSpawn=null;timeOfDay=.06;dayNum=1;bankAcc={166:0,134:0,135:0,day:1};job=null;capturedBandits=0;dragonDead=false;nPortal=null;nPortalScan=false;raid=null;raidT=300;P.hp=20;P.food=20;P.air=10;P.dead=false;P.fly=mode==='creative'&&P.fly;oneCount=0;}
 function newWorld(){if(P.riding)dismount();wq.clear();freshState();
   generate();worldReady=false;queueAll();placePlayer(null);clearMobs();clearDrops();populateOverworld();invChanged();saveNow();updateSeedLine();renderWorlds();}
