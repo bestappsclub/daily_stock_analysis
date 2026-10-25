@@ -3362,10 +3362,12 @@ function spawnAnimals(n,near){let made=0;
     const pool=bio===3||bio===4?['sheep','sheep','cow','wolf']:bio===1?['pig','cow','sheep','chicken','wolf']:['pig','cow','sheep','chicken','horse','horse'];const t=pool[Math.random()*pool.length|0];
     const k=2+(Math.random()*3|0);for(let i=0;i<k;i++){const xx=x+Math.random()*4-2,zz=z+Math.random()*4-2;const yy=surfaceY(Math.floor(xx),Math.floor(zz));
       if(yy>0){spawnMob(t,xx,yy,zz);made++;}}}}
+let FENCE_TALL=true;
 function boxHits(x,y,z,w,h){for(let by=Math.floor(y);by<=Math.floor(y+h-1e-4);by++)for(let bz=Math.floor(z-w);bz<=Math.floor(z+w-1e-4);bz++)
   for(let bx=Math.floor(x-w);bx<=Math.floor(x+w-1e-4);bx++)if(SOLID[get(bx,by,bz)])return true;
-  if(y-Math.floor(y)<.5){const fy=Math.floor(y)-1;for(let bz=Math.floor(z-w);bz<=Math.floor(z+w-1e-4);bz++)for(let bx=Math.floor(x-w);bx<=Math.floor(x+w-1e-4);bx++){const v=get(bx,fy,bz);if(v===FENCE||v===GATEC)return true;}}return false;}
-function moveEntity(e,dt){const n=Math.max(1,Math.ceil(dt/.016)),s=dt/n;e.hitH=false;let ground=false;
+  if(FENCE_TALL&&y-Math.floor(y)<.5){const fy=Math.floor(y)-1;for(let bz=Math.floor(z-w);bz<=Math.floor(z+w-1e-4);bz++)for(let bx=Math.floor(x-w);bx<=Math.floor(x+w-1e-4);bx++){const v=get(bx,fy,bz);if(v===FENCE||v===GATEC)return true;}}return false;}
+function moveEntity(e,dt){FENCE_TALL=e!==P;try{moveEntity2(e,dt);}finally{FENCE_TALL=true;}}
+function moveEntity2(e,dt){const n=Math.max(1,Math.ceil(dt/.016)),s=dt/n;e.hitH=false;let ground=false;
   for(let i=0;i<n;i++){
     let d=(e.vx+e.kx)*s;if(d){const o=e.x;e.x+=d;if(boxHits(e.x,e.y,e.z,e.w,e.h)){e.x=o;e.hitH=true;}}
     d=(e.vz+e.kz)*s;if(d){const o=e.z;e.z+=d;if(boxHits(e.x,e.y,e.z,e.w,e.h)){e.z=o;e.hitH=true;}}
