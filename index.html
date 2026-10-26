@@ -4374,7 +4374,7 @@ function load(){try{const s=JSON.parse(localStorage.getItem(saveKey(worldType)))
   seed=s.seed;oneCount=s.one||0;const toMap=a=>{const m=new Map();(a||[]).forEach(e=>m.set(e[0]+','+e[1]+','+e[2],e[3]));return m;},toC=o=>{const c={};for(const k in(o||{}))c[k]=o[k].map(unpack);return c;};
   editsByDim[0]=toMap(s.edits);editsByDim[1]=toMap(s.edits1);chestsByDim[0]=toC(s.chests);chestsByDim[1]=toC(s.chests1);useDim(s.dim===1?1:0);
   (s.inv||[]).forEach((a,i)=>{if(i<36)inv[i]=unpack(a);});(s.armor||[]).forEach((a,i)=>{if(i<4)armor[i]=unpack(a);});
-  P.hp=s.hp>0?s.hp:20;P.food=s.food!=null?s.food:20;mode=s.mode==='creative'?'creative':'survival';timeOfDay=s.t||.06;dayNum=s.day||1;P.fly=!!s.fly&&mode==='creative';P.spec=!!s.spec;P.speed=s.speed||1;customSpawn=s.home?{x:s.home[0],y:s.home[1],z:s.home[2]}:null;
+  P.hp=s.hp>0?s.hp:20;P.food=s.food!=null?s.food:20;mode=s.mode==='creative'&&worldType!=='one'?'creative':'survival';timeOfDay=s.t||.06;dayNum=s.day||1;P.fly=!!s.fly&&mode==='creative';P.spec=!!s.spec;P.speed=s.speed||1;customSpawn=s.home?{x:s.home[0],y:s.home[1],z:s.home[2]}:null;
   bedPos=s.bed?{x:s.bed[0],y:s.bed[1],z:s.bed[2]}:null;nightsOn=s.nights!==false;dragonDead=!!s.dragon;nPortal=s.nportal?{x:s.nportal[0],y:s.nportal[1],z:s.nportal[2]}:null;nPortalScan=false;pendingPets=s.pets||[];pendingAnimals=Array.isArray(s.animals)?s.animals:null;job=s.job||null;capturedBandits=s.captured||0;bankAcc=Object.assign({166:0,134:0,135:0,day:s.day||1},s.bank||{});
   return s;}catch(e){return null;}}
 
@@ -4727,7 +4727,9 @@ $('resume').addEventListener('click',requestLock);
 $('respawn').addEventListener('click',respawn);
 $('deadMenu').addEventListener('click',()=>showScreen('menu'));
 // spectator is creative rules (no damage, no hunger, monsters ignore you) plus always flying through blocks
-function setMode(m){const spec=m==='spectator';const wasSpec=P.spec;P.spec=spec;mode=spec?'creative':m;
+function setMode(m){if(worldType==='one'&&m!=='survival'){m='survival';if(started)flash('Creative and Spectator are banned in One Block. Survive and keep breaking the block!');}
+  $('mCrea').disabled=$('mSpec').disabled=worldType==='one';$('mCrea').title=$('mSpec').title=worldType==='one'?'Not allowed in One Block':'';
+  const spec=m==='spectator';const wasSpec=P.spec;P.spec=spec;mode=spec?'creative':m;
   $('mSurv').setAttribute('aria-pressed',m==='survival');$('mCrea').setAttribute('aria-pressed',m==='creative');$('mSpec').setAttribute('aria-pressed',spec);
   if(spec){if(P.riding)dismount();P.fly=true;primaryUp();charge=-1;}
   else if(wasSpec){P.fly=mode==='creative';for(let k=0;k<70&&boxHits(P.x,P.y,P.z,P.w,P.h);k++)P.y+=1;}
