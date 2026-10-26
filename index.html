@@ -1765,8 +1765,9 @@ let arenaBet=null;
 function teamPower(list){return list.reduce((s,[t,n])=>{const T=MT[t],d=Array.isArray(T.dmg)?(T.dmg[0]+T.dmg[1])/2:(T.dmg||3);return s+n*T.hp*(T.fuse?6:T.ranged?d*1.3:d);},0);}
 // every fight gets a random "form" for each side, partly evening out the teams, and a side that keeps winning a fight gets weaker next time
 const arenaStats={};let fightForm=null;const fIdx=i=>((i%FIGHTS.length)+FIGHTS.length)%FIGHTS.length;
+function arenaHealth(){const h={A:0,B:0},mx={A:0,B:0};for(const m of fight.mobs){mx[m.team]+=m.maxHp;if(!m.dying&&mobs.includes(m))h[m.team]+=Math.max(0,m.hp);}return{A:mx.A?h.A/mx.A:0,B:mx.B?h.B/mx.B:0};}
 function rollForm(i){const F=FIGHTS[fIdx(i)],pA=teamPower(F[1]),pB=teamPower(F[2]),st=arenaStats[F[0]]||{A:0,B:0},r=()=>.78+Math.random()*.5,bal=Math.pow(pB/pA,.42);
-  const d=Math.max(-3,Math.min(3,st.A-st.B)),fav=arenaRun.side,fA=fav==='A'?1.55:.62,fB=fav==='B'?1.55:.62;fightForm={i:fIdx(i),fav,kA:bal*r()*fA*Math.pow(.8,d),kB:r()/bal*fB*Math.pow(.8,-d)};return fightForm;}
+  const d=Math.max(-3,Math.min(3,st.A-st.B)),fav=arenaRun.side,fA=fav==='A'?1.55:.62,fB=fav==='B'?1.55:.62;fightForm={i:fIdx(i),fav,kA:bal*r()*fA*Math.pow(.7,d),kB:r()/bal*fB*Math.pow(.7,-d)};return fightForm;}
 const arenaRun={side:Math.random()<.5?'A':'B',left:2+Math.floor(Math.random()*3)};
 function arenaRunNext(){if(--arenaRun.left<=0){arenaRun.side=arenaRun.side==='A'?'B':'A';arenaRun.left=2+Math.floor(Math.random()*3);}}
 function formFor(i){return fightForm&&fightForm.i===fIdx(i)?fightForm:rollForm(i);}
@@ -2051,8 +2052,10 @@ function startFight(i){if(fight||!arenaV)return false;const F=FIGHTS[fIdx(i)],A=
   side(F[1],'A',-1);side(F[2],'B',1);arenaSay(F[0]+'! Ready... FIGHT!');sfx('pop');return true;}
 function arenaTick(dt){if(!arenaV||dim!==0)return;const d=Math.hypot(P.x-arenaV.x,P.z-arenaV.z);
   if(fight){fight.t+=dt;const alive=t=>fight.mobs.filter(m=>m.team===t&&mobs.includes(m)&&!m.dying).length,a=alive('A'),b=alive('B');
+    if(!fight.end&&fight.fm&&fight.fm.fav&&a&&b){fight.rb=(fight.rb||0)-dt;if(fight.rb<=0&&fight.t>6){fight.rb=1;const hf=arenaHealth(),fv=fight.fm.fav,ot=fv==='A'?'B':'A';
+        if(hf[fv]<hf[ot]-.12){for(const m of fight.mobs){if(m.dying||!mobs.includes(m))continue;if(m.team===fv){m.hp=Math.min(m.maxHp,m.hp+m.maxHp*.12);m.dmgMul=Math.min(4,(m.dmgMul||1)*1.1);}else m.dmgMul=Math.max(.25,(m.dmgMul||1)*.93);}}}}
     if(!fight.end){if(!a||!b||fight.t>150){fight.end=7;const nm=s=>s.split(' vs ');const[na,nb]=nm(fight.F[0]);
-        const win=a&&!b?'A':b&&!a?'B':(!a&&!b&&fight.lastBoom)?fight.lastBoom:null,draw=!win;fight.winner=win||'draw';const w=win==='A'?na:nb;
+        const hf=arenaHealth(),win=a&&!b?'A':b&&!a?'B':(!a&&!b&&fight.lastBoom)?fight.lastBoom:(a&&b&&Math.abs(hf.A-hf.B)>.001)?(hf.A>hf.B?'A':'B'):(!a&&!b&&fight.fm&&fight.fm.fav)?fight.fm.fav:null,draw=!win;fight.winner=win||'draw';const w=win==='A'?na:nb;
         arenaSay(draw?'It\'s a draw!':w[0].toUpperCase()+w.slice(1)+' win'+(!a&&!b?' with a giant blast!':'!'));settleBet(draw?'draw':win);arenaRunNext();if(!draw){const st=arenaStats[fight.F[0]]=arenaStats[fight.F[0]]||{A:0,B:0};st[win]++;}
         const fans=mobs.filter(m=>m.T.villager&&!m.dying&&Math.hypot(m.x-arenaV.x,m.z-arenaV.z)<24);for(let k=0;k<3&&fans.length;k++)mobSay(pick1(fans),pick1(['Hooray!','What a fight!','I knew they would win!','Again! Again!','Unbelievable!']));}
       else{cheerT-=dt;if(cheerT<=0&&d<50){cheerT=5+Math.random()*4;const fans=mobs.filter(m=>m.T.villager&&!m.dying&&!m.arena&&Math.hypot(m.x-arenaV.x,m.z-arenaV.z)<24);
@@ -2850,7 +2853,7 @@ function explode(x,y,z,power,src){sfx('boom');burst(x,y,z,[1,.62,.22],18);burst(
     const dmg=Math.round(f*f*power*6+f*2);if(dmg>0)damagePlayer(dmg,src==='bed'?'Blown up by a bed':src==='tnt'?'Blown up by TNT':'Blown up by a fusebug',{x,z});
     P.kx+=dx/(d||1)*f*12;P.kz+=dz/(d||1)*f*12;P.vy=Math.max(P.vy,f*8);}}
   for(const m of mobs){if(m===src||m.dying||safe&&!m.arena)continue;const dx=m.x-x,dz=m.z-z,d=Math.hypot(dx,m.y+m.h/2-y,dz);
-    if(d<reach){const f=1-d/reach;hurtMob(m,Math.round(f*f*power*6+f*2),null);m.kx+=dx/(d||1)*f*10;m.kz+=dz/(d||1)*f*10;m.vy=f*7;}}}
+    if(d<reach){const f=1-d/reach;hurtMob(m,Math.round((f*f*power*6+f*2)*(src&&src.arena?Math.max(.4,src.dmgMul||1):1)),null);m.kx+=dx/(d||1)*f*10;m.kz+=dz/(d||1)*f*10;m.vy=f*7;}}}
 /* ---------- portals ---------- */
 function portalFrameAt(cx,cy,cz){const isO=(x,y,z)=>get(x,y,z)===OBSIDIAN,isIn=(x,y,z)=>{const b=get(x,y,z);return b===0||b===FIRE;};
   if(!isIn(cx,cy,cz))return null;
