@@ -2886,14 +2886,15 @@ function buildPortal(tx,tz){tx=clamp(Math.floor(tx),4,WX-6);tz=clamp(Math.floor(
   setQuiet(tx,y+3,tz,OBSIDIAN);setQuiet(tx+1,y+3,tz,OBSIDIAN);
   for(let dx=0;dx<2;dx++)for(let dy=0;dy<3;dy++)setQuiet(tx+dx,y+dy,tz,PORTAL);
   computeAllLight();queueAll();return{x:tx+.5,y,z:tz+.5};}
-function petsData(){return dim===0?mobs.filter(m=>m.tame&&!m.dying).map(m=>[m.type,+m.x.toFixed(1),+m.y.toFixed(1),+m.z.toFixed(1),Math.ceil(m.hp),m.sit?1:0,m.saddle?1:0,m.coat||0,Math.round(m.baby||0)]):pendingPets;}
+function petsData(){return dim===0?mobs.filter(m=>m.tame&&!m.dying).map(m=>[m.type,+m.x.toFixed(1),+m.y.toFixed(1),+m.z.toFixed(1),Math.ceil(m.hp),m.sit?1:0,m.saddle?1:0,m.coat||0,Math.round(m.baby||0),m.leash==='player'?'p':m.leash?[m.leash.x,m.leash.y,m.leash.z]:0]):pendingPets;}
 function switchDim(to,tx,tz,viaPortal){for(const m of mobs)if(m.leash==='player')unleash(m,true);$('boss').hidden=true;bossSeen=0;if(P.riding)dismount();
   if(dim===0){pendingPets=petsData();pendingAnimals=animalsData();}
+  pendingExtra[dim]=extraData();pendingDrops[dim]=dropsData();
   stashDim();useDim(to);wq.clear();clearMobs();clearDrops();while(arrows.length)killArrow(arrows.length-1);
   generate();worldReady=false;queueAll();
   const sp=viaPortal?(findPortal(tx,tz)||buildPortal(tx,tz)):(to===0?bedSpawn():spawnPt);if(to===1&&viaPortal)nPortal={x:sp.x,y:sp.y,z:sp.z};
   P.x=sp.x;P.y=sp.y;P.z=sp.z;P.vx=P.vy=P.vz=P.kx=P.kz=0;P.peak=P.y;P.portalT=0;P.portalLock=true;P.burn=0;
-  if(to===0)populateOverworld();if(to===2)populateEnd();
+  if(to===0)populateOverworld();if(to===2)populateEnd();spawnExtras(to);
   labelKey='';saveNow();updateSeedLine();
   const v=$('vig');v.style.transition='none';v.style.background=to===1?'#3a0a06':to===2?'#1a0828':'#000';v.style.opacity='1';
   setTimeout(()=>{v.style.transition='opacity .9s';v.style.opacity='0';setTimeout(()=>{v.style.background='';v.style.transition='';},950);},300);}
@@ -4360,25 +4361,39 @@ let saveT;
 const pack=s=>s?(s.ench?[s.id,s.count,s.dur!=null?s.dur:-1,s.ench]:s.dur!=null?[s.id,s.count,s.dur]:[s.id,s.count]):0,unpack=a=>{if(!a)return null;const o={id:a[0],count:a[1]};if(a.length>2&&a[2]>=0)o.dur=a[2];if(a[3])o.ench=a[3];return o;};
 function save(){if(MP.guest)return;clearTimeout(saveT);saveT=setTimeout(saveNow,500);}
 function saveNow(){if(MP.guest)return;try{stashDim();const ser=m=>{const e=[];m.forEach((id,k)=>{const p=k.split(',').map(Number);e.push([p[0],p[1],p[2],id]);});return e;},serC=c=>{const o={};for(const k in c)o[k]=c[k].map(pack);return o;};
-  localStorage.setItem(saveKey(worldType),JSON.stringify({v:3,type:worldType,one:oneCount,seed,dim,edits:ser(editsByDim[0]),chests:serC(chestsByDim[0]),edits1:ser(editsByDim[1]),chests1:serC(chestsByDim[1]),inv:inv.map(pack),armor:armor.map(pack),hp:P.hp,food:P.food,mode,t:timeOfDay,day:dayNum,
+  localStorage.setItem(saveKey(worldType),JSON.stringify({v:3,type:worldType,one:oneCount,seed,dim,edits:ser(editsByDim[0]),chests:serC(chestsByDim[0]),edits1:ser(editsByDim[1]),chests1:serC(chestsByDim[1]),edits2:ser(editsByDim[2]||new Map()),chests2:serC(chestsByDim[2]||{}),inv:inv.map(pack),armor:armor.map(pack),hp:P.hp,food:P.food,mode,t:timeOfDay,day:dayNum,
     p:[+P.x.toFixed(2),+P.y.toFixed(2),+P.z.toFixed(2),+yaw.toFixed(3),+pitch.toFixed(3)],fly:P.fly,spec:!!P.spec,speed:P.speed||1,home:customSpawn?[customSpawn.x,customSpawn.y,customSpawn.z]:null,dead:P.dead,bed:bedPos?[bedPos.x,bedPos.y,bedPos.z]:null,nights:nightsOn,dragon:dragonDead?1:0,nportal:nPortal?[nPortal.x,nPortal.y,nPortal.z]:null,bank:bankAcc,job,captured:capturedBandits,
-    pets:petsData(),animals:animalsData()}));}catch(e){}}
-let pendingPets=[],pendingAnimals=null;
+    pets:petsData(),animals:animalsData(),extra:extrasAll(),drops:dropsAll(),fx,weather:[weather.target,Math.round(weather.t)],arena:{st:arenaStats,run:[arenaRun.side,arenaRun.left]},bet:arenaBet||(fight&&!fight.end&&fight.bet)||null}));}catch(e){}}
+let pendingPets=[],pendingAnimals=null,pendingExtra={},pendingDrops={},pendingRefund=0;
+// mobs from spawn eggs, minecarts and leashed mobs, plus items lying on the ground, for every dimension
+function extraData(){return mobs.filter(m=>!m.dying&&!m.arena&&!m.exhibit&&!m.jailed&&!m.raider&&!m.tame&&!m.T.boss&&!m.T.crystal&&!m.T.fish&&!isWild(m)&&(m.fromEgg||m.T.cart||m.leash)).slice(0,200)
+  .map(m=>[m.type,+m.x.toFixed(2),+m.y.toFixed(2),+m.z.toFixed(2),Math.ceil(m.hp),typeof m.prof==='string'?m.prof:0,m.leash==='player'?'p':m.leash?[m.leash.x,m.leash.y,m.leash.z]:0,m.dir||0,m.home?[+m.home.x.toFixed(1),+m.home.z.toFixed(1)]:0]);}
+function dropsData(){return drops.slice(0,400).map(d=>[d.id,d.n,+d.x.toFixed(2),+d.y.toFixed(2),+d.z.toFixed(2),d.dur==null?null:d.dur,d.ench||null]);}
+function extrasAll(){const o=Object.assign({},pendingExtra);o[dim]=extraData();return o;}
+function dropsAll(){const o=Object.assign({},pendingDrops);o[dim]=dropsData();return o;}
+function spawnExtras(d){const L=pendingExtra[d];delete pendingExtra[d];if(Array.isArray(L))for(const a of L){if(!MT[a[0]])continue;try{const m=spawnMob(a[0],a[1],a[2]+.05,a[3],a[5]||undefined);m.hp=Math.min(m.maxHp,a[4]||m.maxHp);
+    if(m.T.cart){m.keep=true;m.v=0;if(Array.isArray(a[7]))m.dir=a[7];}else m.fromEgg=true;if(Array.isArray(a[8]))m.home={x:a[8][0],z:a[8][1]};
+    if(Array.isArray(a[6]))m.leash={x:a[6][0],y:a[6][1],z:a[6][2]};else if(a[6]==='p')m.leash='player';}catch(e){}}
+  const D=pendingDrops[d];delete pendingDrops[d];if(Array.isArray(D))for(const a of D){if(itemDef(a[0]))dropItem(a[0],a[1],a[2],a[3],a[4],a[5]==null?undefined:a[5],0,0,0,0,a[6]||undefined);}}
+function restoreExtras(){if(dim===2&&END&&!mobs.some(m=>m.T.boss||m.T.crystal))populateEnd();spawnExtras(dim);
+  if(pendingRefund>0){const l=addItem(166,pendingRefund);if(l)dropItem(166,l,P.x,P.y+1,P.z);flash('The bookie gave back your '+pendingRefund+' emerald bet');pendingRefund=0;}}
 const WILD=['pig','cow','sheep','chicken','wolf','horse'];
 function isWild(m){return !m.dying&&!m.tame&&!m.keep&&!m.exhibit&&!m.home&&!m.jailed&&!m.arena&&!m.rider&&WILD.includes(m.type);}
-function animalsData(){return dim===0?mobs.filter(isWild).slice(0,400).map(m=>[m.type,+m.x.toFixed(1),+m.y.toFixed(1),+m.z.toFixed(1),Math.ceil(m.hp),Math.round(m.baby||0),m.sheared?1:0,m.coat||0,m.saddle?1:0,m.leash&&m.leash!=='player'?[m.leash.x,m.leash.y,m.leash.z]:0]):pendingAnimals;}
+function animalsData(){return dim===0?mobs.filter(isWild).slice(0,400).map(m=>[m.type,+m.x.toFixed(1),+m.y.toFixed(1),+m.z.toFixed(1),Math.ceil(m.hp),Math.round(m.baby||0),m.sheared?1:0,m.coat||0,m.saddle?1:0,m.leash==='player'?'p':m.leash?[m.leash.x,m.leash.y,m.leash.z]:0]):pendingAnimals;}
 function spawnSavedAnimals(){for(const a of pendingAnimals){if(!MT[a[0]])continue;const m=spawnMob(a[0],a[1],a[2]+.1,a[3],a[0]==='horse'?a[7]:undefined);m.hp=Math.min(m.maxHp,a[4]||m.maxHp);
-    if(a[5]>0){m.baby=a[5];m.mdl.g.scale.setScalar(.55);m.w=m.T.w*.6;m.h=m.T.h*.55;}if(a[6]){m.sheared=true;m.regrow=60;if(m.mdl.wool)m.mdl.wool.visible=false;}if(a[8])m.saddle=true;if(Array.isArray(a[9]))m.leash={x:a[9][0],y:a[9][1],z:a[9][2]};}
+    if(a[5]>0){m.baby=a[5];m.mdl.g.scale.setScalar(.55);m.w=m.T.w*.6;m.h=m.T.h*.55;}if(a[6]){m.sheared=true;m.regrow=60;if(m.mdl.wool)m.mdl.wool.visible=false;}if(a[8])m.saddle=true;if(Array.isArray(a[9]))m.leash={x:a[9][0],y:a[9][1],z:a[9][2]};else if(a[9]==='p')m.leash='player';}
   pendingAnimals=null;}
 function spawnPets(){for(const p of pendingPets){const m=spawnMob(p[0],p[1],p[2]+.1,p[3],p[0]==='horse'?p[7]:undefined);
   m.tame=true;if(m.T.wolf)m.maxHp=20;m.hp=Math.min(m.maxHp,p[4]||m.maxHp);m.sit=!!p[5];m.saddle=!!p[6];
-  if(p[8]>0){m.baby=p[8];m.mdl.g.scale.setScalar(.55);m.w=m.T.w*.6;m.h=m.T.h*.55;}}pendingPets=[];}
+  if(p[8]>0){m.baby=p[8];m.mdl.g.scale.setScalar(.55);m.w=m.T.w*.6;m.h=m.T.h*.55;}if(Array.isArray(p[9]))m.leash={x:p[9][0],y:p[9][1],z:p[9][2]};else if(p[9]==='p')m.leash='player';}pendingPets=[];}
 function load(){try{const s=JSON.parse(localStorage.getItem(saveKey(worldType)));if(!s||!s.seed)return null;
   seed=s.seed;oneCount=s.one||0;const toMap=a=>{const m=new Map();(a||[]).forEach(e=>m.set(e[0]+','+e[1]+','+e[2],e[3]));return m;},toC=o=>{const c={};for(const k in(o||{}))c[k]=o[k].map(unpack);return c;};
-  editsByDim[0]=toMap(s.edits);editsByDim[1]=toMap(s.edits1);chestsByDim[0]=toC(s.chests);chestsByDim[1]=toC(s.chests1);useDim(s.dim===1?1:0);
+  editsByDim[0]=toMap(s.edits);editsByDim[1]=toMap(s.edits1);editsByDim[2]=toMap(s.edits2);chestsByDim[0]=toC(s.chests);chestsByDim[1]=toC(s.chests1);chestsByDim[2]=toC(s.chests2);useDim(s.dim===1||s.dim===2?s.dim:0);
   (s.inv||[]).forEach((a,i)=>{if(i<36)inv[i]=unpack(a);});(s.armor||[]).forEach((a,i)=>{if(i<4)armor[i]=unpack(a);});
   P.hp=s.hp>0?s.hp:20;P.food=s.food!=null?s.food:20;mode=s.mode==='creative'&&worldType!=='one'?'creative':'survival';timeOfDay=s.t||.06;dayNum=s.day||1;P.fly=!!s.fly&&mode==='creative';P.spec=!!s.spec;P.speed=s.speed||1;customSpawn=s.home?{x:s.home[0],y:s.home[1],z:s.home[2]}:null;
-  bedPos=s.bed?{x:s.bed[0],y:s.bed[1],z:s.bed[2]}:null;nightsOn=s.nights!==false;dragonDead=!!s.dragon;nPortal=s.nportal?{x:s.nportal[0],y:s.nportal[1],z:s.nportal[2]}:null;nPortalScan=false;pendingPets=s.pets||[];pendingAnimals=Array.isArray(s.animals)?s.animals:null;job=s.job||null;capturedBandits=s.captured||0;bankAcc=Object.assign({166:0,134:0,135:0,day:s.day||1},s.bank||{});
+  bedPos=s.bed?{x:s.bed[0],y:s.bed[1],z:s.bed[2]}:null;nightsOn=s.nights!==false;dragonDead=!!s.dragon;nPortal=s.nportal?{x:s.nportal[0],y:s.nportal[1],z:s.nportal[2]}:null;nPortalScan=false;pendingPets=s.pets||[];pendingAnimals=Array.isArray(s.animals)?s.animals:null;job=s.job||null;capturedBandits=s.captured||0;pendingExtra=s.extra&&typeof s.extra==='object'?s.extra:{};pendingDrops=s.drops&&typeof s.drops==='object'?s.drops:{};fx=s.fx&&typeof s.fx==='object'?s.fx:{};
+  if(Array.isArray(s.weather)){weather.target=s.weather[0]?1:0;weather.rain=weather.target;weather.t=s.weather[1]||300;}for(const k in arenaStats)delete arenaStats[k];if(s.arena){Object.assign(arenaStats,s.arena.st||{});if(Array.isArray(s.arena.run)){arenaRun.side=s.arena.run[0]==='B'?'B':'A';arenaRun.left=s.arena.run[1]||2;}}
+  pendingRefund=s.bet&&s.bet.amt>0?s.bet.amt:0;bankAcc=Object.assign({166:0,134:0,135:0,day:s.day||1},s.bank||{});
   return s;}catch(e){return null;}}
 
 /* =========================================================
@@ -5173,7 +5188,7 @@ function populateOverworld(){const saved=Array.isArray(pendingAnimals);if(worldT
   if(worldType==='chunk'){if(!saved)for(const[t,dx,dz]of[['cow',6,8],['chicken',9,7],['sheep',5,6]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0)spawnMob(t,x,y,z);}
     for(const[pf,dx,dz]of[['farmer',8,4],['librarian',7,9],['smith',9,12]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0){const v=spawnMob('villager',x,y,z,pf);v.home={x,z};v.homeR=4;}}}
   spawnPets();}
-function freshState(){pendingAnimals=null;seed=(Math.random()*2147483646|0)+1;editsByDim[0]=new Map();editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);pendingPets=[];
+function freshState(){pendingAnimals=null;pendingExtra={};pendingDrops={};pendingRefund=0;editsByDim[2]=new Map();chestsByDim[2]={};for(const k in arenaStats)delete arenaStats[k];seed=(Math.random()*2147483646|0)+1;editsByDim[0]=new Map();editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);pendingPets=[];
   P.burn=0;bedPos=null;customSpawn=null;timeOfDay=.06;dayNum=1;bankAcc={166:0,134:0,135:0,day:1};job=null;capturedBandits=0;dragonDead=false;nPortal=null;nPortalScan=false;raid=null;raidT=300;P.hp=20;P.food=20;P.air=10;P.dead=false;P.fly=mode==='creative'&&P.fly;oneCount=0;}
 function newWorld(){if(P.riding)dismount();wq.clear();freshState();
   generate();worldReady=false;queueAll();placePlayer(null);clearMobs();clearDrops();populateOverworld();invChanged();saveNow();updateSeedLine();renderWorlds();}
@@ -5186,12 +5201,12 @@ function enterWorld(type,fresh){if(P.riding)dismount();const carry=$('carryInv')
   if(carry){ci.forEach((s,i)=>{inv[i]=s;});ca.forEach((s,i)=>{armor[i]=s;});}
   generate();worldReady=false;queueAll();placePlayer(saved);
   if(saved&&saved.dead){P.dead=false;P.hp=20;P.food=20;P.x=spawnPt.x;P.y=spawnPt.y;P.z=spawnPt.z;}
-  if(dim===0)populateOverworld();setMode(P.spec?'spectator':mode);setNights(nightsOn);invChanged();labelKey='';saveNow();updateSeedLine();renderWorlds();}
+  if(dim===0)populateOverworld();restoreExtras();setMode(P.spec?'spectator':mode);setNights(nightsOn);invChanged();labelKey='';saveNow();updateSeedLine();renderWorlds();}
 function boot(){const saved=load();
   if(!saved){seed=(Math.random()*2147483646|0)+1;starterKit();}
   generate();queueAll();placePlayer(saved);
   if(saved&&saved.dead){P.dead=false;P.hp=20;P.food=20;P.x=spawnPt.x;P.y=spawnPt.y;P.z=spawnPt.z;}
-  if(dim===0)populateOverworld();setMode(P.spec?'spectator':mode);setNights(nightsOn);renderHotbar();renderStats(true);updateSeedLine();updateGreet();renderWorlds();}
+  if(dim===0)populateOverworld();restoreExtras();setMode(P.spec?'spectator':mode);setNights(nightsOn);renderHotbar();renderStats(true);updateSeedLine();updateGreet();renderWorlds();}
 
 /* =========================================================
    Main loop
