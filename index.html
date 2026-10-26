@@ -508,7 +508,7 @@ const SAVE_KEY='blockland-world-v3',CHAR_KEY='blockland-character',LAST_KEY='blo
 // three kinds of world, each with its own save
 const WORLDS={classic:{n:'Classic',icon:1,d:'A huge world with big villages, an army base, a prison, emerald mines, and a walled villager city with a ring road, an amusement park, a castle, buses, and a bandit fortress.'},
   sky:{n:'Skyblock',icon:73,d:'One small island floating in the sky: a tree, some dirt and a chest of supplies. Make everything else yourself.'},
-  one:{n:'One Block',icon:33,d:'A single block in the void. Break it and a new one appears, bringing new blocks, chests and mobs as you go.'},
+  one:{n:'One Block',icon:33,d:'A single block in the void. Break it and a new one appears, bringing new blocks and chests as you go. No mobs appear here except fish.'},
   chunk:{n:'One Chunk',icon:21,d:'One 16 by 16 chunk floating in the void, all the way down to bedrock: a tiny village on top, then snow, a buried desert, caves, a dungeon, a stronghold with an End portal, deep ores and a fiery bottom. Its portal leads to a One Chunk Nether.'}};
 let worldType='classic';try{const l=localStorage.getItem(LAST_KEY);if(WORLDS[l])worldType=l;}catch(e){}
 const saveKey=t=>SAVE_KEY+(t&&t!=='classic'?'-'+t:'');
@@ -2279,8 +2279,7 @@ function pickW(list){let t=0;for(const e of list)t+=e[1];let r=Math.random()*t;f
 function nextOne(){const o=ONE,prev=onePhase(oneCount);oneCount++;const ph=onePhase(oneCount),key=o.x+','+o.y+','+o.z;
   if(ph!==prev){flash('New phase: '+ph.n+'. A chest of supplies appeared');sfx('portal');}
   if(ph!==prev||Math.random()<.04){chests[key]=rollLoot(ph.loot,Math.random);setBlock(o.x,o.y,o.z,CHEST);}
-  else setBlock(o.x,o.y,o.z,pickW(ph.b));
-  if(oneCount>3&&Math.random()<.07){const t=ph.m[Math.random()*ph.m.length|0];if(!MT[t].hostile||mode==='survival')spawnAt(t,o.x+.5+(Math.random()-.5),o.y+1,o.z+.5+(Math.random()-.5));}}
+  else setBlock(o.x,o.y,o.z,pickW(ph.b));}
 /* ---------- One Chunk: a single 16x16 column, each layer a different place ---------- */
 const CH0={x:VC-8,z:VC-8},CH_TOP=84;
 const CH_LAYERS=[[80,'Village meadow'],[70,'Snowy layer'],[60,'Buried desert'],[45,'Caves'],[35,'Old dungeon'],[22,'Stronghold'],[11,'Deep ores'],[3,'Fiery depths'],[0,'Bedrock']];
@@ -3352,8 +3351,8 @@ function populateVillages(){spawnBuses();for(const v of villages){
   for(const gd of v.guards||[]){const g=spawnMob('golem',gd.x,gd.y,gd.z);g.home={x:gd.x,z:gd.z};}
   for(const k of v.keepers||[]){const m=spawnMob('villager',k.o[0],k.y,k.o[1],k.prof);m.keeper=k;m.home={x:k.o[0],z:k.o[1]};m.keepT=Math.random()*12;if(v.city||v.tower)m.city=true;}}}
 const isWet=b=>ISW[b]||(BL[b]&&BL[b].aqua);
-function spawnFish(){for(let t=0;t<6;t++){const a=Math.random()*6.283,r=8+Math.random()*26,x=Math.floor(P.x+Math.cos(a)*r),z=Math.floor(P.z+Math.sin(a)*r);
-  if(x<2||z<2||x>=WX-2||z>=WZ-2)continue;for(let y=SEA;y>SEA-10;y--){if(get(x,y,z)===WATER&&isWet(get(x,y+1,z))&&isWet(get(x,y-1,z))){
+function spawnFish(){const cl=worldType==='classic',yT=cl?SEA:Math.min(WY-2,Math.floor(P.y)+8),yB=cl?SEA-10:Math.max(1,yT-34);for(let t=0;t<(cl?6:14);t++){const a=Math.random()*6.283,r=(cl?8:2)+Math.random()*(cl?26:20),x=Math.floor(P.x+Math.cos(a)*r),z=Math.floor(P.z+Math.sin(a)*r);
+  if(x<2||z<2||x>=WX-2||z>=WZ-2)continue;for(let y=yT;y>yB;y--){if(get(x,y,z)===WATER&&(cl?isWet(get(x,y+1,z))&&isWet(get(x,y-1,z)):(isWet(get(x,y+1,z))||isWet(get(x,y-1,z))))){
     const r2=Math.random(),k=r2<.4?'cod':r2<.7?'salmon':r2<.85?'pufferfish':'goldfish';const n=k==='cod'||k==='salmon'?2+(Math.random()*3|0):1;
     for(let i=0;i<n;i++)spawnMob(k,x+.5+(Math.random()-.5),y+.2,z+.5+(Math.random()-.5));return;}}}}
 function fishTick(m,dt,sim){if(!(m.think>-1e9))m.think=0;if(!(m.hurt>-1e9))m.hurt=0;const md=m.mdl,ok=(x,y,z)=>isWet(get(Math.floor(x),Math.floor(y),Math.floor(z)));
@@ -3899,9 +3898,10 @@ function generateNetherChunk(){world.fill(0);CHEST_T.clear();villages.length=0;c
   edits.forEach((id,k)=>{const p=k.split(',').map(Number);if(p[0]>=0&&p[0]<WX&&p[1]>=0&&p[1]<WY&&p[2]>=0&&p[2]<WZ)world[idx(p[0],p[1],p[2])]=id;});
   spawnPt={x:X+8.5,y:12,z:Z+8.5};scanCrops();computeAllLight();}
 let spawnT=0;
-function spawner(dt){spawnT-=dt;if(spawnT>0)return;spawnT=1.2;if(dim===1){netherSpawn();return;}if(dim===2){endSpawn();return;}
+function spawner(dt){spawnT-=dt;if(spawnT>0)return;spawnT=1.2;if(worldType==='one'&&dim!==0)return;if(dim===1){netherSpawn();return;}if(dim===2){endSpawn();return;}
   let animals=0,hostile=0;let fishN=0;mobs.forEach(m=>{if(m.T.fish){if(!m.keep)fishN++;}else if(m.T.hostile){if(!m.keep&&!m.jailed&&!m.raider&&Math.abs(m.x-P.x)+Math.abs(m.z-P.z)<90)hostile++;}else if(!m.T.villager&&!m.T.golem&&!m.T.soldier&&!m.tame&&!m.T.cart&&!m.T.vehicle&&!m.T.crystal&&!m.T.boss)animals++;});
   if(dim===0&&fishN<16)spawnFish();
+  if(worldType==='one')return;
   if(worldType==='classic'?animals<36&&Math.random()<.35:animals<8&&Math.random()<.06)spawnAnimals(3,true);
   if(P.spec||mode==='spectator'||P.dead||hostile>=22)return;
   // monsters only appear where it is dark: night-time surface or unlit caves
