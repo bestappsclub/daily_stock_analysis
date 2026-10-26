@@ -1990,9 +1990,13 @@ function mpGive(id,all){const o=MP.others.get(id),s=inv[sel];if(!o||!s)return;co
   mpSend({t:'give',to:id,from:MP.id,n:charCfg.name,id:s.id,c:n,dur:s.dur==null?null:s.dur,ench:s.ench||null});
   if(mode!=='creative'){s.count-=n;if(s.count<=0)inv[sel]=null;invChanged();}swing();sfx('pop');burst(o.x,o.y+1.2,o.z,[1,.85,.3],8);
   flash('You gave '+n+' '+itemDef(s.id).n.toLowerCase()+' to '+nm);}
+// something you threw reached a friend: it goes straight into their inventory
+function mpCatch(d){for(const[id,o]of MP.others){if(o.dim!==dim||o.dead||o.gm===2)continue;if(Math.abs(d.x-o.x)<.9&&Math.abs(d.z-o.z)<.9&&d.y>o.y-.3&&d.y<o.y+2.1){
+    mpSend({t:'take',k:d.net});mpSend({t:'give',to:id,from:MP.id,n:charCfg.name,id:d.id,c:d.n,dur:d.dur==null?null:d.dur,ench:d.ench||null,thrown:1});
+    sfx('pop');burst(o.x,o.y+1.2,o.z,[1,.85,.3],6);flash((o.n||'Your friend')+' caught the '+itemDef(d.id).n.toLowerCase()+'!');return true;}}return false;}
 function mpGot(d){if(!mpItemOK(d.id))return;const n=clamp(d.c|0,1,2304),who=String(d.n||'A friend').slice(0,16),nm=itemDef(d.id).n;
   const left=addItem(d.id,n,d.dur==null?undefined:d.dur,d.ench||undefined);if(left)dropItem(d.id,left,P.x,P.y+1,P.z,d.dur==null?undefined:d.dur,undefined,undefined,undefined,undefined,d.ench||undefined);
-  sfx('pop');flash('🎁 '+who+' gave you '+n+' '+nm.toLowerCase());say('🎁 '+who+' gave you '+n+' × '+nm,'sys');}
+  sfx('pop');const verb=d.thrown?' threw you ':' gave you ';flash('🎁 '+who+verb+n+' '+nm.toLowerCase());say('🎁 '+who+verb+n+' × '+nm,'sys');}
 function mpHit(id,dmg,cause){const o=MP.others.get(id);if(!o)return;sfx('hit');burst(o.x,o.y+1.1,o.z,[.9,.2,.2],6);
   if(o.gm){flash((o.n||'That player')+(o.gm===1?' is in Creative mode and can’t be hurt':' is spectating'));return;}
   o.hurt=.35;mpSend({t:'hit',to:id,from:MP.id,n:charCfg.name,dmg:Math.round(dmg*10)/10,x:+P.x.toFixed(2),z:+P.z.toFixed(2),how:cause.indexOf('Shot')===0?'shot':'hit'});}
@@ -3940,6 +3944,7 @@ function removeDrop(i){const d=drops[i];scene.remove(d.sp);d.sp.material.dispose
 function clearDrops(){while(drops.length)removeDrop(drops.length-1);}
 function updateDrops(dt){const live=(ui==='play'||ui==='inv')&&!P.dead&&!P.spec;
   for(let i=drops.length-1;i>=0;i--){const d=drops[i];d.age+=dt;
+    if(d.mine&&d.net&&d.age>.12&&MP.others.size&&mpCatch(d)){removeDrop(i);continue;}
     const dx=P.x-d.x,dy=P.y+.8-d.y,dz=P.z-d.z,dist=Math.hypot(dx,dy,dz);
     if(live&&d.age>d.delay&&dist<2.3&&roomFor(d.id,1)){
       if(dist<.8){const left=addItem(d.id,d.n,d.dur,d.ench);sfx('pop');if(left<d.n)flash('+ '+(d.n-left)+' '+itemDef(d.id).n);
@@ -4309,7 +4314,7 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
     setBlock(x,y,z,pid);sfx('place');swing();useOne();}}
 function dropHeld(all){const s=inv[sel];if(!s)return;const n=all?s.count:1;
   const dx0=eye.x+fwd.x*.6,dy0=eye.y-.25+fwd.y*.6,dz0=eye.z+fwd.z*.6,before=drops.length;dropItem(s.id,n,dx0,dy0,dz0,s.dur,fwd.x*5,fwd.y*5+2,fwd.z*5,1.5,s.ench);
-  if(MP.conns.length){const k=MP.id+':'+(++mpDropN);for(let i=before;i<drops.length;i++)drops[i].net=k+':'+(i-before);mpSend({t:'drop',k,d:dim,id:s.id,n,x:+dx0.toFixed(2),y:+dy0.toFixed(2),z:+dz0.toFixed(2),vx:+(fwd.x*5).toFixed(2),vy:+(fwd.y*5+2).toFixed(2),vz:+(fwd.z*5).toFixed(2),dur:s.dur==null?null:s.dur,ench:s.ench||null});}
+  if(MP.conns.length){const k=MP.id+':'+(++mpDropN);for(let i=before;i<drops.length;i++){drops[i].net=k+':'+(i-before);drops[i].mine=true;}mpSend({t:'drop',k,d:dim,id:s.id,n,x:+dx0.toFixed(2),y:+dy0.toFixed(2),z:+dz0.toFixed(2),vx:+(fwd.x*5).toFixed(2),vy:+(fwd.y*5+2).toFixed(2),vz:+(fwd.z*5).toFixed(2),dur:s.dur==null?null:s.dur,ench:s.ench||null});}
   s.count-=n;if(s.count<=0)inv[sel]=null;swing();invChanged();}
 let charge=-1;
 function chargeTick(dt){if(charge<0)return;const s=inv[sel];if(!s||itemDef(s.id).kind!=='bow'||ui!=='play'){charge=-1;return;}
