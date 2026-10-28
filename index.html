@@ -2286,8 +2286,8 @@ const ONE_PHASES=[
   {at:60,n:'Underground',loot:'one1',b:[[3,30],[9,10],[20,12],[21,8],[55,6],[26,6],[2,5],[5,4],[28,2]],m:['zombie','spider','sheep']},
   {at:160,n:'Snowy forest',loot:'one2',b:[[12,16],[13,8],[18,20],[19,8],[14,4],[3,10],[21,8],[24,3],[20,6]],m:['wolf','sheep','cow','skeleton']},
   {at:260,n:'Desert',loot:'one3',b:[[4,26],[17,18],[15,5],[22,8],[56,6],[57,6],[41,4],[3,8],[26,4]],m:['husk','chicken','horse','fusebug']},
-  {at:360,n:'Deep caves',loot:'one4',b:[[3,24],[9,8],[23,6],[52,4],[22,8],[56,8],[57,8],[21,10],[28,6],[27,3],[50,3]],m:['skeleton','spider','fusebug','zombie']},
-  {at:480,n:'Nether',loot:'one5',b:[[51,30],[64,8],[50,6],[22,8],[26,4],[41,6]],m:['skeleton','fusebug','zombie']}];
+  {at:360,n:'Deep caves',loot:'one4',b:[[3,24],[9,8],[23,6],[52,4],[22,8],[56,8],[57,8],[21,10],[28,6],[27,3]],m:['skeleton','spider','fusebug','zombie']},
+  {at:480,n:'Nether',loot:'one5',b:[[51,30],[64,8],[22,8],[26,4],[41,6]],m:['skeleton','fusebug','zombie']}];
 ONE_PHASES.push({at:600,n:'Everything',loot:'one4',b:[].concat(...ONE_PHASES.map(p=>p.b)),m:[].concat(...ONE_PHASES.map(p=>p.m))});
 function onePhase(n){let p=ONE_PHASES[0];for(const ph of ONE_PHASES)if(n>=ph.at)p=ph;return p;}
 function pickW(list){let t=0;for(const e of list)t+=e[1];let r=Math.random()*t;for(const e of list){r-=e[1];if(r<0)return e[0];}return list[0][0];}
