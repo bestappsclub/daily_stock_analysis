@@ -4108,7 +4108,7 @@ function survival(dt){
 
 /* ---------- movement ---------- */
 const keys={};const joy={x:0,y:0};let jumpHeld=false,downHeld=false,lastSpace=0;
-function playerPhysics(dt){
+function playerPhysics(dt){if(worldType==='one'){if(P.fly){P.fly=false;updateTouch();}P.spec=false;if(P.speed&&P.speed!==1)P.speed=1;}
   const ctrl=ui==='play';
   const f=ctrl?(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)+joy.y:0;
   const s=ctrl?(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0)+joy.x:0;
@@ -5144,7 +5144,7 @@ function idleChat(dt){if(ui!=='play')return;chatT-=dt;if(chatT>0)return;chatT=16
   mobSay(m,line);const o=near.find(x=>x!==m&&x.T.villager===m.T.villager&&Math.hypot(x.x-m.x,x.z-m.z)<8);
   if(o&&Math.random()<.45)setTimeout(()=>mobSay(o,pick1(REPLIES)),2400);}
 function runCmd(line){const raw=line.replace(/^\//,'');const parts=raw.split(/\s+/).filter(Boolean);let name=(parts.shift()||'').toLowerCase();name=ALIAS[name]||name;
-  say('> '+line);const c=CMDS[name];if(!c){err('Unknown command "/'+name+'". Type /help to see them all');return;}
+  say('> '+line);if(worldType==='one'){err('Commands don’t work in One Block. Survive on your own!');return;}const c=CMDS[name];if(!c){err('Unknown command "/'+name+'". Type /help to see them all');return;}
   try{c.f(parts);}catch(e){err('That command didn’t work: '+e.message);}save();}
 addEventListener('blur',()=>{for(const k in keys)keys[k]=false;primaryUp();});
 addEventListener('wheel',e=>{if(ui==='play')choose(sel+(e.deltaY>0?1:-1));},{passive:true});
