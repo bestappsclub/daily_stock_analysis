@@ -2659,7 +2659,7 @@ function scanCrops(){crops.clear();fires.clear();lavaSpots.clear();edits.forEach
   if(w!==FIRE&&!cropSupported(w,y>0?world[i-WX*WZ]:0)){world[i]=0;edits.set(k,0);continue;}
   if(w!==FIRE&&!GROWS(w))continue;if(w!==FIRE)crops.add(k);else fires.set(k,fireLife(x,y,z));}}
 function setQuiet(x,y,z,id){if(x<0||z<0||x>=WX||z>=WZ||y<1||y>=WY)return;world[idx(x,y,z)]=id;const key=x+','+y+','+z;edits.set(key,id);
-  if(GROWS(id))crops.add(key);else crops.delete(key);if(id===FIRE)fires.set(key,fireLife(x,y,z));else fires.delete(key);wqNear(x,y,z);lqNear(x,y,z);}
+  if(GROWS(id))crops.add(key);else crops.delete(key);if(id===FIRE)fires.set(key,fireLife(x,y,z));else fires.delete(key);wqNear(x,y,z);lqNear(x,y,z);if(id===FIRE&&!lightingPortal)firePortalSoon(x,y,z);}
 function rebuildAround(x0,z0,x1,z1){const set=new Set();
   for(let cx=Math.max(0,Math.floor((x0-1)/CS));cx<=Math.min(NC-1,Math.floor((x1+1)/CS));cx++)for(let cz=Math.max(0,Math.floor((z0-1)/CS));cz<=Math.min(NC-1,Math.floor((z1+1)/CS));cz++)set.add(cx+cz*NC);
   relight((x0+x1)>>1,(z0+z1)>>1,set,15+Math.ceil(Math.max(x1-x0,z1-z0)/2));set.forEach(k=>{dirty.delete(k);buildChunk(k%NC,(k/NC)|0);});save();}
@@ -2882,6 +2882,9 @@ function portalFrameAt(cx,cy,cz){const isO=(x,y,z)=>get(x,y,z)===OBSIDIAN,isIn=(
     for(let j=0;j<h&&ok;j++)if(!isO(lx-st[0],by+j,lz-st[1])||!isO(lx+st[0]*w,by+j,lz+st[1]*w))ok=false;
     if(ok)return{lx,lz,by,w,h,st};}
   return null;}
+let lightingPortal=false,pendingFirePortal=[];
+function firePortal(x,y,z){if(lightingPortal||dim===2)return;const fr=portalFrameAt(x,y,z);if(!fr)return;lightingPortal=true;try{lightPortal(fr);}finally{lightingPortal=false;}}
+function firePortalSoon(x,y,z){pendingFirePortal.push([x,y,z]);if(pendingFirePortal.length===1)setTimeout(()=>{const L=pendingFirePortal;pendingFirePortal=[];for(const p of L)if(get(p[0],p[1],p[2])===FIRE)firePortal(p[0],p[1],p[2]);},0);}
 function lightPortal(f){const st=f.st;for(let i=0;i<f.w;i++)for(let j=0;j<f.h;j++)setQuiet(f.lx+st[0]*i,f.by+j,f.lz+st[1]*i,PORTAL);
   const ex=f.lx+st[0]*f.w,ez=f.lz+st[1]*f.w;rebuildAround(Math.min(f.lx,ex)-1,Math.min(f.lz,ez)-1,Math.max(f.lx,ex)+1,Math.max(f.lz,ez)+1);
   sfx('portal');flash('The portal is open. Step inside to travel');}
@@ -2946,7 +2949,7 @@ function growTree(x,y,z,id){for(let k=1;k<=(id===74?7:5);k++){const b=get(x,y+k,
 function setBlock(x,y,z,id){const _old=world[idx(x,y,z)];world[idx(x,y,z)]=id;const key=x+','+y+','+z;if(mpUser&&!MP.applying&&dim===0&&MP.conns.length)mpSend({t:'b',x,y,z,id});edits.set(key,id);if(id===LAVA)lavaSpots.add(key);else lavaSpots.delete(key);if(GROWS(id))crops.add(key);else crops.delete(key);if(id===FIRE)fires.set(key,fireLife(x,y,z));else fires.delete(key);wqNear(x,y,z);lqNear(x,y,z);
   const set=new Set();for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const xx=x+dx,zz=z+dz;if(xx<0||zz<0||xx>=WX||zz>=WZ)continue;set.add(((xx/CS)|0)+((zz/CS)|0)*NC);}
   relight(x,z,set);
-  set.forEach(k=>{dirty.delete(k);buildChunk(k%NC,(k/NC)|0);});save();rsMaybe(x,y,z,_old,id);}
+  set.forEach(k=>{dirty.delete(k);buildChunk(k%NC,(k/NC)|0);});save();rsMaybe(x,y,z,_old,id);if(id===FIRE)firePortal(x,y,z);}
 
 /* =========================================================
    Sky: sun, moon, stars, clouds
