@@ -4895,7 +4895,7 @@ const CMDS={
     let best=null,bd=1e9;for(const p of hit){const d=Math.hypot(p.x-P.x,p.z-P.z);if(d<bd){bd=d;best=p;}}
     const ty=Math.floor(best.y)+(UNDERGROUND[best.name]?-1:2);
     ok('Nearest '+best.name.toLowerCase()+' is at '+Math.floor(best.x)+' '+Math.floor(best.y)+' '+Math.floor(best.z)+', '+Math.round(bd)+' blocks away. /tp '+Math.floor(best.x)+' '+ty+' '+Math.floor(best.z)+' takes you there');}},
-  admin:{u:'/admin',d:'open the admin panel with spawn eggs (or press P)',f:()=>{setTimeout(openAdmin,60);}},
+  admin:{u:'/admin',d:'open the admin panel with spawn eggs (or press P)',f:()=>{if(worldType==='one')return err('The admin panel is banned in One Block');setTimeout(openAdmin,60);}},
   seed:{u:'/seed',d:'show the world seed',f:()=>ok('Seed: '+seed)}};
 /* ---------- spawning and the admin panel ---------- */
 function spawnAt(t,x,y,z){const m=spawnMob(t,clamp(x,1,WX-1),y,clamp(z,1,WZ-1),t==='villager'?PROFS[Math.random()*PROFS.length|0]:undefined);m.fromEgg=true;
@@ -4916,7 +4916,7 @@ function buildEggs(){const groups={A:$('eggsA'),V:$('eggsV'),M:$('eggsM')};for(c
       spawnInFront(t,eggN);
       $('adminNote').textContent='Spawned '+eggN+' × '+n.toLowerCase()+' in front of you.'+(g==='M'&&mode!=='survival'?' Monsters won’t attack you in '+modeName()+' mode.':'');});
     groups[g==='F'?'A':g].appendChild(b);}}
-function openAdmin(){if(ui!=='play')return;primaryUp();for(const k in keys)keys[k]=false;joy.x=joy.y=0;charge=-1;
+function openAdmin(){if(ui!=='play')return;if(worldType==='one'){flash('The admin panel is banned in One Block. Survive on your own!');return;}primaryUp();for(const k in keys)keys[k]=false;joy.x=joy.y=0;charge=-1;
   $('adminNote').textContent='';buildEggs();showScreen('admin');if(document.pointerLockElement)document.exitPointerLock();}
 function closeAdmin(){save();startPlay();}
 $('adminClose').addEventListener('click',closeAdmin);$('tAdmin').addEventListener('click',openAdmin);
