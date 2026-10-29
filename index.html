@@ -753,7 +753,7 @@ B(102,'Iron bars',[109,109,109],5,{tool:'pick',lvl:0,cut:1});
 B(103,'Ride button',[110,41,41],4,{tool:'pick',lvl:0});
 B(104,'Nether bricks',[111,111,111],2,{tool:'pick',lvl:0});
 for(let L=1;L<=4;L++)B(104+L,'Lava',[73,73,73],-1,{liquid:1,lava:1,flow:L});B(109,'Lava',[73,73,73],-1,{liquid:1,lava:1,fall:1});
-B(110,'End portal frame',[113,114,113],-1,{});B(111,'End portal frame',[113,115,113],-1,{});B(112,'End portal',[116,116,116],-1,{liquid:1,portal:1,glow:1});B(113,'End stone',[112,112,112],3,{tool:'pick',lvl:0});
+B(110,'End portal frame',[113,114,113],5,{tool:'pick',lvl:1,drop:1110});B(111,'End portal frame',[113,115,113],5,{tool:'pick',lvl:1,drop:1110});B(112,'End portal',[116,116,116],-1,{liquid:1,portal:1,glow:1});B(113,'End stone',[112,112,112],3,{tool:'pick',lvl:0});
 B(114,'TNT',[117,118,118],.1,{});
 B(115,'Oak door',[125,125,125],1.5,{tool:'axe',cut:1,shape:'door',drop:263});B(116,'Oak door',[126,126,126],1.5,{tool:'axe',cut:1,shape:'door',drop:0});
 B(117,'Oak door',[125,125,125],1.5,{tool:'axe',cut:1,pass:1,shape:'door',drop:263});B(118,'Oak door',[126,126,126],1.5,{tool:'axe',cut:1,pass:1,shape:'door',drop:0});
@@ -3963,7 +3963,7 @@ function updateDrops(dt){const live=(ui==='play'||ui==='inv')&&!P.dead&&!P.spec;
     if(d.age>300||d.y<-20){removeDrop(i);continue;}
     d.sp.position.set(d.x,d.y+.12+Math.sin(d.age*3)*.05,d.z);d.sp.material.color.setScalar(lightAt(d.x,d.y+.2,d.z));}}
 function blockDrops(b){const def=BL[b],d=def.drop==null?blockItem(b):def.drop;
-  if(d===0)return[];if(d===-1){const r=Math.random();if(r<.07)return[[b===19?74:73,1]];if(r<.17)return[[130,1+(Math.random()*2|0)]];if(b===6&&r<.23)return[[101,1]];return[];}
+  if(d===0)return[];if(b===FRAMEF)return[[1110,1],[261,1]];if(d===-1){const r=Math.random();if(r<.07)return[[b===19?74:73,1]];if(r<.17)return[[130,1+(Math.random()*2|0)]];if(b===6&&r<.23)return[[101,1]];return[];}
   if(d===-2)return[[161,1],[160,Math.random()*4|0]];if(d===-3)return Math.random()<.125?[[160,1]]:[];
   if(b===26&&Math.random()<.1)return[[172,1]];
   if(b===1&&Math.random()<.12)return[[2,1],[160,1]];
