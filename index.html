@@ -2683,7 +2683,7 @@ function waterTick(dt){wT-=dt;if(wT>0||!wq.size)return;wT=.25;const list=[];for(
   const ch=[];for(const k of list){wq.delete(k);const[x,y,z]=k.split(',').map(Number);const b=get(x,y,z);let w=wantWater(x,y,z);
     // water that runs into lava turns the lava into obsidian
     if(w!==b){ch.push([x,y,z,w]);if(ch.length>=160)break;}
-    if(ISW[w])for(const d of DIRS6){if(d[1]>0)continue;const nx=x+d[0],ny=y+d[1],nz=z+d[2],nb=get(nx,ny,nz);if(nb===LAVA){ch.push([nx,ny,nz,OBSIDIAN]);sfx('hiss');}else if(ISL[nb]){ch.push([nx,ny,nz,9]);sfx('hiss');}}}
+    if(ISW[w])for(const d of DIRS6){if(d[1]>0)continue;const nx=x+d[0],ny=y+d[1],nz=z+d[2],nb=get(nx,ny,nz);if(ISL[nb]){ch.push([nx,ny,nz,OBSIDIAN]);sfx('hiss');}}}
   if(!ch.length)return;const groups=new Map();
   for(const c of ch){setQuiet(c[0],c[1],c[2],c[3]);const g=((c[0]>>5)*64+(c[2]>>5));const bb=groups.get(g);
     if(bb){bb[0]=Math.min(bb[0],c[0]);bb[1]=Math.min(bb[1],c[2]);bb[2]=Math.max(bb[2],c[0]);bb[3]=Math.max(bb[3],c[2]);}else groups.set(g,[c[0],c[2],c[0],c[2]]);}
@@ -4280,9 +4280,9 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
     if(cur===LAVA&&d.fill===LAVA){flash('That’s already lava');return;}
     swing();
     if(d.fill===WATER&&dim===1){sfx('hiss');burst(x+.5,y+.5,z+.5,[.9,.9,.95],10);flash('The water boils away in the Nether heat');}
-    else if(d.fill===WATER&&cur===LAVA){setBlock(x,y,z,OBSIDIAN);sfx('hiss');burst(x+.5,y+1,z+.5,[.9,.9,.95],10);flash('Water poured onto lava made obsidian');}
+    else if(d.fill===WATER&&ISL[cur]){setBlock(x,y,z,OBSIDIAN);sfx('hiss');burst(x+.5,y+1,z+.5,[.9,.9,.95],10);flash('Water poured onto lava made obsidian');}
     else if(d.fill===LAVA&&(ISW[cur]||DIRS6.some(n=>ISW[get(x+n[0],y+n[1],z+n[2])]))){setBlock(x,y,z,9);sfx('hiss');burst(x+.5,y+1,z+.5,[.9,.9,.95],10);flash('Lava poured into water made cobblestone');}
-    else if(d.fill===WATER&&DIRS6.some(n=>get(x+n[0],y+n[1],z+n[2])===LAVA)){for(const n of DIRS6)if(get(x+n[0],y+n[1],z+n[2])===LAVA)setBlock(x+n[0],y+n[1],z+n[2],OBSIDIAN);
+    else if(d.fill===WATER&&DIRS6.some(n=>ISL[get(x+n[0],y+n[1],z+n[2])])){for(const n of DIRS6)if(ISL[get(x+n[0],y+n[1],z+n[2])])setBlock(x+n[0],y+n[1],z+n[2],OBSIDIAN);
       setBlock(x,y,z,WATER);sfx('hiss');burst(x+.5,y+.5,z+.5,[.9,.9,.95],10);flash('Water poured onto lava made obsidian');}
     else{if(BL[cur]&&BL[cur].cross&&cur!==FIRE)breakAt({x,y,z},true);setBlock(x,y,z,d.fill);sfx(d.fill===LAVA?'hiss':'splash');}
     if(mode!=='creative'){inv[sel]={id:196,count:1};invChanged();}
