@@ -823,6 +823,11 @@ ITEMS[176]={n:'Shears',kind:'tool',tool:'shears',p:'shears',pal:{a:'#d4d4d8',b:'
 // buckets: scoop up water or lava and pour it somewhere else
 ITEMS[196]={n:'Bucket',kind:'bucket',p:'bucket',pal:{a:'#cfcfd4',b:'#6c6c74',c:'#34343a'},max:16};
 ITEMS[197]={n:'Water bucket',kind:'bucket',fill:11,p:'bucket',pal:{a:'#cfcfd4',b:'#6c6c74',c:'#3b72e0'},max:1};
+ITEMS[271]={n:'Empty glass',kind:'glass',p:'glass',pal:{a:'#ffffff',b:'#b8d8e8',c:'#e8f4fa'},max:16};
+ITEMS[272]={n:'Glass of water',kind:'food',water:1,food:1,heal:0,p:'glass',pal:{a:'#ffffff',b:'#b8d8e8',c:'#4a8ae8'},max:16};
+for(const[id,t,n,col]of[[273,'cod','cod','#b8a07a'],[274,'salmon','salmon','#d06050'],[275,'pufferfish','pufferfish','#e8c030'],[276,'goldfish','goldfish','#f08a20']])
+  ITEMS[id]={n:'Bucket of '+n,kind:'bucket',fill:11,fish:t,p:'fishbucket',pal:{a:'#cfcfd4',b:'#6c6c74',c:'#3b72e0',d:col},max:1};
+const FISH_BUCKET={cod:273,salmon:274,pufferfish:275,goldfish:276};
 ITEMS[198]={n:'Lava bucket',kind:'bucket',fill:62,p:'bucket',pal:{a:'#cfcfd4',b:'#6c6c74',c:'#f2781e'},max:1};
 food(116,'Potato','potato',{a:'#c8a060',b:'#7a5a28',c:'#e8cc90'},1);food(117,'Baked potato','potato',{a:'#d8962e',b:'#7a4a14',c:'#f8d488'},5);
 ITEMS[103].place=78;ITEMS[116].place=80;
@@ -890,7 +895,7 @@ ITEMS[259]={n:'Mop',kind:'mop',p:'mop',pal:{a:'#e0ddd2',b:'#8a6034',c:'#a8a59a'}
 ITEMS[260]={n:'Broom',kind:'broom',p:'broom',pal:{a:'#d8b850',b:'#7a5a32',c:'#c83a3a'},max:1};
 ITEMS[253]={n:'Void pearl',kind:'pearl',p:'pearl',pal:{a:'#1f8a7a',b:'#0e3a40',c:'#8af5de'},max:16};
 const RC=(out,n,p,k)=>RECIPES.push({out,n,p,k}),RS=(out,n,s)=>RECIPES.push({out,n,s});
-RS(7,4,[5]);RS(40,4,[18]);RS(251,2,[250]);RC(263,3,['PP','PP','PP'],{P:'planks'});RC(270,2,['SS.','SL.','..S'],{S:162,L:136});RC(268,3,['PSP','PSP'],{P:'planks',S:130});RC(269,1,['SPS','SPS'],{S:130,P:'planks'});RC(265,16,['I.I','ISI','I.I'],{I:133,S:130});RC(266,6,['G.G','GSG','GRG'],{G:134,S:130,R:179});RC(264,1,['I.I','III'],{I:133});RC(267,1,['S','C'],{S:130,C:'stone'});RS(262,2,[172,131]);RC(1114,1,['GSG','SGS','GSG'],{G:262,S:4});RS(261,1,[253,251]);RC(259,1,['..S','.S.','W..'],{S:130,W:'wool'});RC(260,1,['..S','.S.','H..'],{S:130,H:161});
+RS(7,4,[5]);RS(40,4,[18]);RS(251,2,[250]);RC(271,3,['G.G','.G.'],{G:16});RC(263,3,['PP','PP','PP'],{P:'planks'});RC(270,2,['SS.','SL.','..S'],{S:162,L:136});RC(268,3,['PSP','PSP'],{P:'planks',S:130});RC(269,1,['SPS','SPS'],{S:130,P:'planks'});RC(265,16,['I.I','ISI','I.I'],{I:133,S:130});RC(266,6,['G.G','GSG','GRG'],{G:134,S:130,R:179});RC(264,1,['I.I','III'],{I:133});RC(267,1,['S','C'],{S:130,C:'stone'});RS(262,2,[172,131]);RC(1114,1,['GSG','SGS','GSG'],{G:262,S:4});RS(261,1,[253,251]);RC(259,1,['..S','.S.','W..'],{S:130,W:'wool'});RC(260,1,['..S','.S.','H..'],{S:130,H:161});
 RC(130,4,['P','P'],{P:'planks'});
 RC(TABLE,1,['PP','PP'],{P:'planks'});
 RC(BED,1,['WWW','PPP'],{W:'wool',P:'planks'});
@@ -988,6 +993,8 @@ fish:["........","........",".aaa..c.","aacaa.cc","aaaaaacc",".bbb..c.",".......
 puffer:["...d....",".daaad..","daacaad.","aaaaaaac","daaaaad.",".dbbbd..","...d....","........"],
 rod:[".......a","......ac",".....a.c","....a..c","...a...c","..a....c",".a.....d","a......."],
 kelp:["..a.....","..aa..a.",".aba.aa.",".aa..ab.","..a.aa..",".aba.a..",".aa..ba.","..a..a.."],
+glass:["........",".b....b.",".b....b.",".bccccb.",".bccccb.",".bccccb.","..bbbb..","........"],
+fishbucket:["........","bbbbbbbb","bccddccb","bcddddcb",".bcddcb.",".bccccb.","..bbbb..","........"],
 bucket:["........","bbbbbbbb","bccccccb","baaaaaab",".baaaab.",".baaaab.","..bbbb..","........"],
 burger:["........","..aaaa..",".adadaa.","aaaaaaaa","cccccccc","dddddddd","bbbbbbbb",".aaaaaa."],
 fries:["..c.c...",".acaca..",".acacac.","..aaca..",".bbbbbb.",".bcbbcb.",".bbbbbb.","..bbbb.."],
@@ -3434,6 +3441,9 @@ function feed(m){if(m.baby>0){m.baby=Math.max(0,m.baby-60);useOne();hearts(m);sw
 function interactMob(m){const s=inv[sel],id=s&&s.id,T=m.T;
   if(m.leash){unleash(m,true);swing();flash('You took the leash off the '+T.n.toLowerCase());return true;}
   if(id===270){if(!canLeash(m)){flash('You can only put a leash on animals');return true;}m.leash='player';useOne();swing();sfx('pop');flash('The '+T.n.toLowerCase()+' is on a leash. Walk and it will follow you. Use a fence to tie it up');return true;}
+  if(T.fish){if(id===197){const fb=FISH_BUCKET[m.type];if(fb){m.hp=0;m.dying=.01;m.mdl.g.visible=false;inv[sel]={id:fb,count:1};invChanged();sfx('splash');swing();
+      flash('You scooped up the '+m.type+' in your bucket. Pour it into water to let it swim');return true;}}
+    if(id===196){flash('Fill your bucket with water first, then scoop up the fish');return true;}}
   if(T.cart){boardRide({name:'minecart',veh:m,msg:'You got in the minecart. Press W to push it along the rails, Shift to get out',seat:()=>({x:m.x,y:m.y+.25,z:m.z}),
     exit:()=>{const d=m.dir||[0,1];for(const[ox,oz]of[[d[1],-d[0]],[-d[1],d[0]],[0,0]]){const x=m.x+ox*1.1,z=m.z+oz*1.1;if(!SOLID[get(Math.floor(x),Math.floor(m.y+.5),Math.floor(z))]&&!SOLID[get(Math.floor(x),Math.floor(m.y+1.5),Math.floor(z))])return{x,y:m.y+.3,z};}return{x:m.x,y:m.y+1,z:m.z};}});return true;}
   if(T.goldy){if(m.anger>0){mobSay(m,'Grrr! You hit one of us. No trading!');return true;}
@@ -4065,12 +4075,15 @@ function effTick(dt){let any=false;for(const k in fx){fx[k]-=dt;if(fx[k]<=0)dele
   if(fx.hunger)P.exh+=dt*1.1;
   $('sickov').style.opacity=fx.poison||fx.nausea?'1':fx.hunger?'.45':'0';}
 function fxText(){const N={poison:'Poison',hunger:'Hunger',nausea:'Nausea'};const k=Object.keys(fx);return k.length?'\nSick: '+k.map(x=>N[x]+' '+Math.ceil(fx[x])+'s').join(', '):'';}
+function releaseFish(t,x,y,z){const f=spawnMob(t,x+.5,y+.3,z+.5);f.keep=true;f.released=true;burst(x+.5,y+.6,z+.5,[.6,.8,1],6);flash('The '+t+' is swimming!');}
+function giveGlass(){if(mode==='creative')return;const s=inv[sel];if(!s){inv[sel]={id:271,count:1};invChanged();return;}const l=addItem(271,1);if(l)dropItem(271,l,P.x,P.y+1,P.z);}
 function eat(s){const d=ITEMS[s.id];
+  if(d.water){P.food=Math.min(20,P.food+1);P.burn=0;sfx('splash');swing();useOne();giveGlass();renderStats(true);flash('Ahh, cold water! Your glass is empty again. Fill it at any water');return;}
   if(d.milk){fx={};inv[sel]={id:196,count:1};sfx('eat');swing();invChanged();renderStats(true);flash('You drank the milk. Any sickness is gone!');return;}
   if(mode==='survival'&&P.food>=20&&P.hp>=20&&!d.heal){flash('You’re full and not hurt');return;}
   const heal=(d.heal||0)+d.food*.5;
   P.food=Math.min(20,P.food+d.food);P.hp=Math.min(20,P.hp+heal);sfx('eat');
-  flash('Ate '+d.n.toLowerCase()+(heal?', healed '+(heal/2)+' heart'+(heal===2?'':'s'):''));foodEffects(s.id);useOne();swing();renderStats(true);}
+  flash((s.id===230?'Drank the ':'Ate ')+d.n.toLowerCase()+(heal?', healed '+(heal/2)+' heart'+(heal===2?'':'s'):'')+(s.id===230?'. You kept the glass!':''));foodEffects(s.id);useOne();if(s.id===230)giveGlass();swing();renderStats(true);}
 let bedPos=null,nightsOn=true;
 function sleepIn(t){if(dim===1){setBlock(t.x,t.y,t.z,0);explode(t.x+.5,t.y+.5,t.z+.5,5,'bed');return;}const night=daylight<.4;
   bedPos={x:t.x,y:t.y,z:t.z};save();
@@ -4263,6 +4276,8 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
         useOne();burst(target.x+.5,target.y+1,target.z+.5,[.4,.9,.4],6);if(!grew)flash('Nothing more can grow here');return;}}}
   if(!s)return;const d=itemDef(s.id);
   if(d.kind==='eye'){useEye();return;}
+  if(d.kind==='glass'){const h=rayLiquid(eye,fwd,5.5);if(h&&h.b===WATER){if(mode!=='creative'){if(s.count>1){s.count--;const l=addItem(272,1);if(l)dropItem(272,l,P.x,P.y+1,P.z);}else inv[sel]={id:272,count:1};}
+      invChanged();sfx('splash');swing();flash('You filled the glass with water. Drink it any time');}else flash(h&&h.b===LAVA?'Lava would melt the glass!':'Point the glass at water to fill it');return;}
   if(d.kind==='leash'){flash('Use the leash on an animal to lead it');return;}
   if(d.kind==='mop'){mopUse();return;}
   if(d.kind==='broom'){broomUse();return;}
@@ -4276,7 +4291,9 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
       return;}
     if(!target&&!airSpot){flash('Point at a block to pour the bucket next to it');return;}
     const x=target?target.x+target.n[0]:airSpot.x,y=target?target.y+target.n[1]:airSpot.y,z=target?target.z+target.n[2]:airSpot.z;if(x<0||z<0||x>=WX||z>=WZ||y<1||y>=WY)return;
-    const cur=get(x,y,z);if(cur&&!(ISW[cur]&&(cur!==WATER||d.fill===LAVA))&&cur!==FIRE&&!(BL[cur].cross&&cur!==TORCH)&&!ISL[cur]){flash('There’s no room to pour it there');return;}
+    const cur=get(x,y,z);
+    if(d.fish&&ISW[cur]){releaseFish(d.fish,x,y,z);swing();sfx('splash');if(mode!=='creative'){inv[sel]={id:197,count:1};invChanged();}return;}
+    if(cur&&!(ISW[cur]&&(cur!==WATER||d.fill===LAVA))&&cur!==FIRE&&!(BL[cur].cross&&cur!==TORCH)&&!ISL[cur]){flash('There’s no room to pour it there');return;}
     if(cur===LAVA&&d.fill===LAVA){flash('That’s already lava');return;}
     swing();
     if(d.fill===WATER&&dim===1){sfx('hiss');burst(x+.5,y+.5,z+.5,[.9,.9,.95],10);flash('The water boils away in the Nether heat');}
@@ -4284,7 +4301,7 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
     else if(d.fill===LAVA&&(ISW[cur]||DIRS6.some(n=>ISW[get(x+n[0],y+n[1],z+n[2])]))){setBlock(x,y,z,9);sfx('hiss');burst(x+.5,y+1,z+.5,[.9,.9,.95],10);flash('Lava poured into water made cobblestone');}
     else if(d.fill===WATER&&DIRS6.some(n=>ISL[get(x+n[0],y+n[1],z+n[2])])){for(const n of DIRS6)if(ISL[get(x+n[0],y+n[1],z+n[2])])setBlock(x+n[0],y+n[1],z+n[2],OBSIDIAN);
       setBlock(x,y,z,WATER);sfx('hiss');burst(x+.5,y+.5,z+.5,[.9,.9,.95],10);flash('Water poured onto lava made obsidian');}
-    else{if(BL[cur]&&BL[cur].cross&&cur!==FIRE)breakAt({x,y,z},true);setBlock(x,y,z,d.fill);sfx(d.fill===LAVA?'hiss':'splash');}
+    else{if(BL[cur]&&BL[cur].cross&&cur!==FIRE)breakAt({x,y,z},true);setBlock(x,y,z,d.fill);sfx(d.fill===LAVA?'hiss':'splash');if(d.fish&&dim!==1)releaseFish(d.fish,x,y,z);}
     if(mode!=='creative'){inv[sel]={id:196,count:1};invChanged();}
     return;}
   if(d.kind==='fns'){if(target&&get(target.x,target.y,target.z)===TNT){swing();sfx('ignite');primeTNT(target.x,target.y,target.z,4,true);wear(1);flash('The TNT is lit! Run!');return;}
@@ -4388,13 +4405,13 @@ function saveNow(){if(MP.guest)return;try{stashDim();const ser=m=>{const e=[];m.
     pets:petsData(),animals:animalsData(),extra:extrasAll(),drops:dropsAll(),fx,weather:[weather.target,Math.round(weather.t)],arena:{st:arenaStats,run:[arenaRun.side,arenaRun.left]},bet:arenaBet||(fight&&!fight.end&&fight.bet)||null}));}catch(e){}}
 let pendingPets=[],pendingAnimals=null,pendingExtra={},pendingDrops={},pendingRefund=0;
 // mobs from spawn eggs, minecarts and leashed mobs, plus items lying on the ground, for every dimension
-function extraData(){return mobs.filter(m=>!m.dying&&!m.arena&&!m.exhibit&&!m.jailed&&!m.raider&&!m.tame&&!m.T.boss&&!m.T.crystal&&!m.T.fish&&!isWild(m)&&(m.fromEgg||m.T.cart||m.leash)).slice(0,200)
+function extraData(){return mobs.filter(m=>!m.dying&&!m.arena&&!m.exhibit&&!m.jailed&&!m.raider&&!m.tame&&!m.T.boss&&!m.T.crystal&&(!m.T.fish||m.released)&&!isWild(m)&&(m.fromEgg||m.T.cart||m.leash||m.released)).slice(0,200)
   .map(m=>[m.type,+m.x.toFixed(2),+m.y.toFixed(2),+m.z.toFixed(2),Math.ceil(m.hp),typeof m.prof==='string'?m.prof:0,m.leash==='player'?'p':m.leash?[m.leash.x,m.leash.y,m.leash.z]:0,m.dir||0,m.home?[+m.home.x.toFixed(1),+m.home.z.toFixed(1)]:0]);}
 function dropsData(){return drops.slice(0,400).map(d=>[d.id,d.n,+d.x.toFixed(2),+d.y.toFixed(2),+d.z.toFixed(2),d.dur==null?null:d.dur,d.ench||null]);}
 function extrasAll(){const o=Object.assign({},pendingExtra);o[dim]=extraData();return o;}
 function dropsAll(){const o=Object.assign({},pendingDrops);o[dim]=dropsData();return o;}
 function spawnExtras(d){const L=pendingExtra[d];delete pendingExtra[d];if(Array.isArray(L))for(const a of L){if(!MT[a[0]])continue;try{const m=spawnMob(a[0],a[1],a[2]+.05,a[3],a[5]||undefined);m.hp=Math.min(m.maxHp,a[4]||m.maxHp);
-    if(m.T.cart){m.keep=true;m.v=0;if(Array.isArray(a[7]))m.dir=a[7];}else m.fromEgg=true;if(Array.isArray(a[8]))m.home={x:a[8][0],z:a[8][1]};
+    if(m.T.cart){m.keep=true;m.v=0;if(Array.isArray(a[7]))m.dir=a[7];}else if(m.T.fish){m.keep=true;m.released=true;}else m.fromEgg=true;if(Array.isArray(a[8]))m.home={x:a[8][0],z:a[8][1]};
     if(Array.isArray(a[6]))m.leash={x:a[6][0],y:a[6][1],z:a[6][2]};else if(a[6]==='p')m.leash='player';}catch(e){}}
   const D=pendingDrops[d];delete pendingDrops[d];if(Array.isArray(D))for(const a of D){if(itemDef(a[0]))dropItem(a[0],a[1],a[2],a[3],a[4],a[5]==null?undefined:a[5],0,0,0,0,a[6]||undefined);}}
 function restoreExtras(){if(dim===2&&END&&!mobs.some(m=>m.T.boss||m.T.crystal))populateEnd();spawnExtras(dim);
@@ -4462,7 +4479,7 @@ let craftN=2;const craftGrid=new Array(9).fill(null);
 function returnGrid(){for(let i=0;i<9;i++){if(craftGrid[i]){give(craftGrid[i]);craftGrid[i]=null;}}}
 const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,53,BED,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,41,1104,1113,1114,11,10],
   combat:[140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,176,195,120,121,122,123,124,170,171,...Array.from({length:16},(_,i)=>200+i)],
-  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,270,264,265,266,267,259,260,1110,256,257,258]};
+  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,270,271,272,273,274,275,276,264,265,266,267,259,260,1110,256,257,258]};
 let catTab='blocks';
 function haveCount(k){let c=0;for(const s of inv)if(s&&ing(k,s.id))c+=s.count;for(const s of craftGrid)if(s&&ing(k,s.id))c+=s.count;return c;}
 function needs(r){const m=new Map();rList(r).forEach(k=>m.set(k,(m.get(k)||0)+1));return m;}
