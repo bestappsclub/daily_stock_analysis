@@ -36,6 +36,8 @@ button{font-family:inherit;color:inherit}
 #prog{position:fixed;left:50%;top:50%;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;
   background:conic-gradient(var(--ink) calc(var(--p,0)*1turn),transparent 0);
   -webkit-mask:radial-gradient(circle,transparent 12px,#000 13px);mask:radial-gradient(circle,transparent 12px,#000 13px);opacity:.85}
+#oreKey{position:fixed;left:16px;top:calc(68px + env(safe-area-inset-top,0px));display:flex;flex-wrap:wrap;gap:4px 10px;max-width:min(330px,70vw);padding:6px 10px;background:rgba(20,26,40,.72);border-radius:6px;font:400 12px/1.4 var(--display);color:#fff;pointer-events:none}
+#oreKey b{font-weight:400;width:100%}#oreKey i{display:inline-block;width:10px;height:10px;margin-right:4px;border:1px solid rgba(255,255,255,.6);vertical-align:-1px}
 #info{position:fixed;left:16px;top:calc(12px + env(safe-area-inset-top,0px));font:400 12px/1.5 var(--display);
   letter-spacing:.05em;background:rgba(19,26,40,.55);padding:6px 9px;border-radius:3px;font-variant-numeric:tabular-nums;white-space:pre}
 #mpPanel{position:fixed;right:16px;top:calc(60px + env(safe-area-inset-top,0px));width:232px;background:rgba(19,26,40,.72);border:1px solid rgba(242,184,75,.35);
@@ -276,7 +278,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <div id="vig"></div>
   <div id="cross" aria-hidden="true"></div>
   <div id="prog" hidden></div>
-  <div id="info"></div>
+  <div id="info"></div><div id="oreKey" hidden></div>
   <div id="bookUI" hidden><div class="bp" role="dialog" aria-label="Book"><div class="bk" id="bookKind">Write</div><input id="bookTitle" maxlength="40" placeholder="Title" aria-label="Title"><textarea id="bookText" placeholder="Write anything here..." aria-label="Text"></textarea><div class="row"><button class="btn" type="button" id="bookClose">Close</button><button class="btn primary" type="button" id="bookSave">Save</button></div></div></div>
   <div id="boss" hidden>Void Dragon<div class="bar"><i id="bossFill"></i></div></div>
   <div id="mpPanel" hidden><canvas id="mpRadar" width="280" height="280" aria-label="Map of where players are"></canvas><div id="mpList" aria-live="off"></div></div>
@@ -5433,6 +5435,23 @@ function sky(){
   stars.position.set(cx,cy,cz);starMat.opacity=(1-daylight)*.9;
   clouds.position.set(P.x,WY+26,P.z);ctex.offset.x=P.x/213+performance.now()/400000;ctex.offset.y=-P.z/213;
   cloudMat.color.setScalar(.3+.7*daylight);}
+// spectator ore vision: every ore better than stone glows through the rock around you
+const ORE_SEE=[[20,'Coal','#5a5a5a'],[55,'Copper','#e07a40'],[21,'Iron','#e8c4a0'],[57,'Lapis','#2a5cff'],[56,'Redstone','#ff2a2a'],[22,'Gold','#ffd23a'],[52,'Emerald','#2ae86a'],[23,'Diamond','#4af0f0'],[135,'Netherite','#b066a0']];
+const ORE_R=32,ORE_MAX=6000;let oreMesh=null,oreT=0,oreAt=null;
+function oreVision(dt){const on=P.spec&&started;$('oreKey').hidden=!on;
+  if(!on){if(oreMesh)oreMesh.visible=false;oreAt=null;return;}
+  if(!oreMesh){const mat=new THREE.MeshBasicMaterial({transparent:true,opacity:.62,depthTest:false,depthWrite:false,fog:false});
+    oreMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1.04,1.04,1.04),mat,ORE_MAX);oreMesh.instanceColor=new THREE.InstancedBufferAttribute(new Float32Array(ORE_MAX*3),3);oreMesh.renderOrder=998;oreMesh.frustumCulled=false;oreMesh.count=0;scene.add(oreMesh);
+    $('oreKey').innerHTML='<b>Ores near you glow through the rock</b>'+ORE_SEE.map(o=>'<span><i style="background:'+o[2]+'"></i>'+o[1]+'</span>').join('');}
+  oreMesh.visible=true;oreT-=dt;const px=Math.floor(P.x),py=Math.floor(P.y),pz=Math.floor(P.z);
+  if(oreT>0&&oreAt&&Math.abs(oreAt[0]-px)+Math.abs(oreAt[1]-py)+Math.abs(oreAt[2]-pz)<3)return;oreT=1;oreAt=[px,py,pz];
+  const col={};for(const o of ORE_SEE)col[o[0]]=new THREE.Color(o[2]);const found=[];
+  const x0=Math.max(0,px-ORE_R),x1=Math.min(WX-1,px+ORE_R),z0=Math.max(0,pz-ORE_R),z1=Math.min(WZ-1,pz+ORE_R),y0=Math.max(0,py-ORE_R),y1=Math.min(WY-1,py+ORE_R);
+  for(let y=y0;y<=y1;y++)for(let z=z0;z<=z1;z++){let i=idx(x0,y,z);for(let x=x0;x<=x1;x++,i++){const b=world[i];if(col[b]&&(x-px)**2+(y-py-1)**2+(z-pz)**2>4)found.push(x,y,z,b);}}
+  let list=[];for(let k=0;k<found.length;k+=4)list.push(k);
+  if(list.length>ORE_MAX){const d=k=>(found[k]-px)**2+(found[k+1]-py)**2+(found[k+2]-pz)**2;list.sort((a,b)=>d(a)-d(b));list.length=ORE_MAX;}
+  const m4=new THREE.Matrix4();list.forEach((k,n)=>{m4.makeTranslation(found[k]+.5,found[k+1]+.5,found[k+2]+.5);oreMesh.setMatrixAt(n,m4);oreMesh.setColorAt(n,col[found[k+3]]);});
+  oreMesh.count=list.length;oreMesh.instanceMatrix.needsUpdate=true;if(oreMesh.instanceColor)oreMesh.instanceColor.needsUpdate=true;}
 function frame(now){
   requestAnimationFrame(frame);
   const dt=Math.min(.05,(now-last)/1000);last=now;
@@ -5444,7 +5463,7 @@ function frame(now){
   else if(!started)yaw+=dt*.05;
   if(ui==='play'||ui==='inv'||!started||ui==='menu')updateMobs(sim?dt:0);
   updateBubbles(dt);idleChat(dt);keyLook(dt);dinerTick(dt);fishingTick(dt);factoryTick(dt);arenaTick(dt);fireDeptTick(dt);ridesTick(dt);mpTick(dt);weatherTick(dt);portalGuide();if(ui==='play')raidTick(dt);
-  updateParts(dt);updateDrops(sim?dt:0);if(sim)updateArrows(dt);
+  updateParts(dt);updateDrops(sim?dt:0);if(sim)updateArrows(dt);oreVision(dt);
   if(P.riding&&P.riding.T.vehicle){const h=P.riding;P.x=h.x-Math.sin(h.yaw)*1.4;P.y=h.y+.45;P.z=h.z-Math.cos(h.yaw)*1.4;P.vx=P.vz=P.vy=0;P.peak=P.y;}
   else if(P.riding){const h=P.riding;P.x=h.x;P.y=h.y+(h.baby>0?.5:.95);P.z=h.z;P.vx=P.vz=P.vy=0;P.peak=P.y;}
   if(ctrl==='touch')touchTick();
