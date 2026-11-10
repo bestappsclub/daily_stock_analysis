@@ -356,7 +356,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
       <dt><kbd>1–9</kbd><kbd>Wheel</kbd></dt><dd>Choose hotbar slot</dd>
       <dt><kbd>V</kbd></dt><dd>Switch first or third person</dd>
       <dt><kbd>P</kbd></dt><dd>Admin panel with spawn eggs for every mob</dd>
-      <dt><kbd>T</kbd></dt><dd>Chat. Villagers, iron golems and soldiers near you hear you and answer. Tell soldiers “follow me”, “stay”, “attack” or “go home”</dd>
+      <dt><kbd>T</kbd></dt><dd>Chat. Villagers, iron golems and soldiers near you hear you and answer. Tell soldiers “follow me”, “stay”, “attack” or “go home”. Animals understand you too: try “pigs, follow me”, “cow, stay”, “everyone jump”, “dance”, “eat” or “dog, attack”</dd>
       <dt><kbd>/</kbd></dt><dd>Command console. Type /help to see every command</dd>
       <dt><kbd>Esc</kbd></dt><dd>Pause</dd>
     </dl>
@@ -3579,14 +3579,14 @@ function interactMob(m){const s=inv[sel],id=s&&s.id,T=m.T;
     if(!m.tame){if(id===173){useOne();swing();if(Math.random()<1/3){tameMob(m);flash('You tamed a wolf! Use it with an empty hand to make it sit or follow');}
         else{burst(m.x,m.y+m.h,m.z,[.5,.5,.5],5);flash('The wolf isn’t sure yet. Try another bone');}return true;}return false;}
     if(id&&FOOD_FOR.wolf.includes(id)){if(m.hp<m.maxHp){m.hp=Math.min(m.maxHp,m.hp+4);useOne();hearts(m);swing();return true;}return feed(m);}
-    m.sit=!m.sit;flash(m.sit?'Your wolf is sitting':'Your wolf will follow you');return true;}
+    m.sit=!m.sit;m.cmd=null;flash(m.sit?'Your wolf is sitting':'Your wolf will follow you');return true;}
   if(T.horse){
     if(id===175&&m.tame&&!m.saddle&&!(m.baby>0)){m.saddle=true;useOne();sfx('place');flash('Saddled! Use the horse to ride it');return true;}
     if(id&&FOOD_FOR.horse.includes(id)){if(m.tame)return feed(m);m.temper+=10;useOne();swing();flash('The horse liked that');return true;}
     if(!(m.baby>0)&&(!s||itemDef(id).kind!=='block')){mount(m);return true;}return false;}
   if(m.type==='sheep'&&id===176&&!m.sheared&&!(m.baby>0)){m.sheared=true;m.regrow=60+Math.random()*90;if(m.mdl.wool)m.mdl.wool.visible=false;
     dropItem(24,1+(Math.random()*3|0),m.x,m.y+1,m.z);wear(1);sfx('place');swing();return true;}
-  if(isPet(m)&&!s){m.sit=!m.sit;flash(m.sit?'Your '+m.type+' is staying here':'Your '+m.type+' will follow you');mobSay(m,petSay(m,m.sit?'stay':'follow'));return true;}
+  if(isPet(m)&&!s){m.sit=!m.sit;m.cmd=null;flash(m.sit?'Your '+m.type+' is staying here':'Your '+m.type+' will follow you');mobSay(m,petSay(m,m.sit?'stay':'follow'));return true;}
   if(FOOD_FOR[m.type]&&id&&FOOD_FOR[m.type].includes(id)){
     if(!m.tame&&!(m.baby>0)&&['pig','cow','sheep','chicken'].includes(m.type)){useOne();swing();
       if(Math.random()<.4){tameMob(m);m.sit=false;flash('You tamed the '+m.type+'! It follows you now. Feed two tame '+m.type+'s to get a baby');}
@@ -3709,7 +3709,8 @@ function updateMobs(dt){
         const c=P.lastHit;if(m.order&&c&&!c.dying&&mobs.includes(c)&&!c.T.villager&&!c.T.golem&&!c.T.soldier&&!c.tame){const d=Math.hypot(c.x-m.x,c.z-m.z);if(d<20&&d<td){tgt=c;td=d;}}}}
     else if(Tp.wolf){
       if(m.tame){if(!m.sit)for(const c of[P.lastHit,P.lastAttacker]){if(c&&c!==m&&!c.dying&&!c.tame&&!c.T.villager&&mobs.includes(c)){const d=Math.hypot(c.x-m.x,c.z-m.z);if(d<16&&d<td){tgt=c;td=d;}}}}
-      else if(m.anger>0&&hostileOK&&dist<20){tgt=PL;td=dist;}}
+      else if(m.anger>0&&hostileOK&&dist<20){tgt=PL;td=dist;}
+      if(!tgt&&m.cmdTgt){const c=m.cmdTgt;if(c.dying||!mobs.includes(c))m.cmdTgt=null;else{tgt=c;td=Math.hypot(c.x-m.x,c.z-m.z);}}}
     let threat=null;
     if(Tp.villager&&!m.arena)for(const h of mobs){if(h.T.hostile&&!h.dying&&!h.jailed&&!h.arena&&Math.hypot(h.x-m.x,h.z-m.z)<8){threat=h;break;}}
     const held=inv[sel]&&inv[sel].id,food=FOOD_FOR[m.type];
@@ -3738,6 +3739,9 @@ function updateMobs(dt){
     else if((Tp.soldier||Tp.golem)&&(m.order==='follow'||m.order==='attack')&&!P.spec){
       if(dist>40&&sim){const a=Math.random()*6.283;m.x=clamp(P.x+Math.cos(a)*2.5,1,WX-1);m.z=clamp(P.z+Math.sin(a)*2.5,1,WZ-1);m.y=P.y+.3;m.vy=0;}
       else if(dist>3.4){m.yawT=Math.atan2(-dx,-dz);move=1;spd*=Tp.golem?2:1.4;}else move=0;}
+    else if(m.cmd==='stay'){move=0;}
+    else if(m.cmd==='follow'&&!P.spec){if(dist>34&&sim){const a=Math.random()*6.283;m.x=clamp(P.x+Math.cos(a)*1.5,1,WX-1);m.z=clamp(P.z+Math.sin(a)*1.5,1,WZ-1);m.y=P.y+.2;m.vy=0;}
+      else if(dist>2.8){m.yawT=Math.atan2(-dx,-dz);move=1;spd*=dist>7?2:1.4;}else move=0;}
     else if(isPet(m)&&m.sit){move=0;}
     else if(isPet(m)&&dist>3.5&&!P.spec){if(dist>22&&sim){const a=Math.random()*6.283;m.x=clamp(P.x+Math.cos(a)*1.5,1,WX-1);m.z=clamp(P.z+Math.sin(a)*1.5,1,WZ-1);m.y=P.y+.2;m.vy=0;}
       else{m.yawT=Math.atan2(-dx,-dz);move=1;spd*=1.6;}}
@@ -3754,9 +3758,13 @@ function updateMobs(dt){
     if(m.trading>0){move=0;m.yawT=Math.atan2(-dx,-dz);}
     if(m.leash&&sim){const L=leashAnchor(m);if(!L){unleash(m,false);}else{const lx=L.x-m.x,lz=L.z-m.z,ld=Math.hypot(lx,lz),lim=L.post?2.6:3.2;
       if(ld>14){unleash(m,false);flash('The leash snapped!');}
-      else if(ld>lim){m.yawT=Math.atan2(-lx,-lz);move=1;spd=Math.max(spd,Tp.spd)*(ld>6?2.2:1.4);if(ld>7){m.kx+=lx/ld*dt*20;m.kz+=lz/ld*dt*20;}}
+      else if(ld>lim||(!L.post&&ld>2.4&&Math.hypot(P.vx,P.vz)>.5)||(!L.post&&ld>1.2&&L.y-1.05>m.y+.05)){m.yawT=Math.atan2(-lx,-lz);move=1;const psp=L.post?0:Math.hypot(P.vx,P.vz);
+        spd=Math.max(spd,Tp.spd*(ld>6?2.2:ld>lim?1.4:1),psp*(ld>lim?1.2:1));if(ld>7){m.kx+=lx/ld*dt*20;m.kz+=lz/ld*dt*20;}
+        if(ld>5&&L.y-1>m.y+1)m.vy=Math.max(m.vy,4.5);}
       else if(!L.post&&ld<2.3)move=0;}}
     let dyaw=((m.yawT-m.yaw+Math.PI*3)%(Math.PI*2))-Math.PI;m.yaw+=dyaw*Math.min(1,dt*6);
+    if(m.spinT>0){m.spinT-=dt;m.yaw+=dt*9;m.yawT=m.yaw;move=0;}
+    const led=(m.leash==='player'||m.cmd==='follow')&&!P.spec&&!Tp.fly;if(led&&m.inWater&&move)spd=Math.max(spd,Tp.spd*1.3);
     m.vx=-Math.sin(m.yaw)*spd*move;m.vz=-Math.cos(m.yaw)*spd*move;
     if(Tp.vehicle){const vm=Tp.vmax*(keys.ControlLeft?1.5:1);if(!(m.vsp>-1e9))m.vsp=0;
       if(ridden){const want=Math.max(-.4,Math.min(1,P.rf||0))*vm;m.vsp+=(want-m.vsp)*Math.min(1,dt*(P.rf?1.4:2.2));
@@ -3766,7 +3774,10 @@ function updateMobs(dt){
     const kd=Math.exp(-dt*7);m.kx*=kd;m.kz*=kd;
     if(Tp.fly){const base=tgt?tgt.y+2.4:(m.hoverY!=null?m.hoverY:m.y);const want=base+Math.sin(performance.now()/600+m.burnT*7)*.5;m.vy=clamp((want-m.y)*2.2,-3.5,3.5);}
     else if(m.inWater||m.inLava){m.vy=Math.min(m.vy+20*dt,2.2);}else m.vy=Math.max(m.vy-26*dt,-40);
-    if(m.hitH&&move){if(Tp.climb)m.vy=3.5;else if(m.inWater&&m.vy<6)m.vy=8.6;else if(m.ground)m.vy=7.4;}
+    if(m.hitH&&move){if(Tp.climb)m.vy=3.5;else if(m.inWater&&m.vy<6)m.vy=8.6;else if(m.ground)m.vy=7.4;
+      else if(led&&P.y>m.y+.05&&!m.inWater)m.vy=Math.max(m.vy,4.2);}
+    if(m.jumps>0&&m.ground&&sim&&!(m.vy>0)){m.jumps--;m.vy=7.4;}
+    if(led&&m.inWater&&sim){const head=get(Math.floor(m.x),Math.floor(m.y+m.h*.8),Math.floor(m.z));if(ISW[head])m.vy=Math.max(m.vy,3);}
     if(m.onLadder&&(Tp.villager||Tp.soldier||m.type==='bandit')){m.vy=m.hitH&&move?3.2:Math.max(m.vy,-2.2);}
     if(m.onTruck){const t=m.onTruck,o=m.truckOff,c=Math.cos(t.yaw),sn=Math.sin(t.yaw);m.x=t.x+o[0]*c+o[1]*sn;m.z=t.z-o[0]*sn+o[1]*c;m.y=t.y+(o[2]!=null?o[2]:.55);m.vx=m.vz=m.vy=0;m.yaw=m.yawT=t.yaw;}
     else if(sim)moveEntity(m,dt);
@@ -5137,7 +5148,7 @@ const VNAMES=['Ada','Bram','Cora','Dell','Esme','Finn','Gus','Hilda','Ivo','Juno
 function mobName(m){return m.nm||(m.nm=pick1(VNAMES));}
 const DOGNAMES=['Rex','Buddy','Luna','Max','Bella','Scout','Rocky','Daisy','Biscuit','Shadow','Pepper','Ziggy'];
 function dogName(m){return m.nm||(m.nm=pick1(DOGNAMES));}
-function speakerOf(m){return m.T.golem?'Iron golem':m.T.wolf?'Your dog '+dogName(m):isPet(m)?'Your '+m.type+' '+dogName(m):m.T.soldier?(m.T.ranged?'Archer ':'Soldier ')+mobName(m):
+function speakerOf(m){return m.T.golem?'Iron golem':m.T.wolf&&m.tame?'Your dog '+dogName(m):isPet(m)?'Your '+m.type+' '+dogName(m):m.T.soldier?(m.T.ranged?'Archer ':'Soldier ')+mobName(m):
   m.type==='bandit'?'Bandit '+mobName(m):m.type==='hogfolk'?'Hogfolk '+mobName(m):m.type==='voidwalker'?'Voidwalker':!PROF[m.prof]?m.T.n:mobName(m)+' the '+(m.jailed?'prisoner':PROF[m.prof].n.toLowerCase());}
 const bubbles=[];
 function dropBubble(i){const b=bubbles[i];scene.remove(b.sp);b.sp.material.map.dispose();b.sp.material.dispose();bubbles.splice(i,1);}
@@ -5266,6 +5277,46 @@ function tryErrand(t,near){if(!/\b(get|fetch|bring|collect|gather|find|chop|mine
   if(!(m.paid>0)&&mode!=='creative'){setTimeout(()=>mobSay(m,'Reward me with an emerald first, commander. Hold one and right-click me.'),500);return true;}
   if(mode!=='creative')m.paid--;m.errand={id:e[1],n:e[2],label:e[3],t:50+Math.random()*15};m.order=null;m.post=false;
   setTimeout(()=>mobSay(m,pick1(['On my way to get '+e[3]+'!','Yes, commander! Back soon with '+e[3]+'.','Errand accepted: '+e[3]+'!'])),500);return true;}
+// ---------- animals understand you ----------
+const ANIMAL_T=['pig','cow','sheep','chicken','wolf','horse'],ANIMAL_SND={wolf:'Woof!',cow:'Moo!',pig:'Oink!',sheep:'Baa!',chicken:'Cluck!',horse:'Neigh!'};
+const ANIMAL_WORDS={pig:/\b(pigs?|piggy|piggies|hogs?)\b/,cow:/\b(cows?|cattle|calf|calves)\b/,sheep:/\b(sheep|lambs?)\b/,chicken:/\b(chickens?|chicks?|hens?|roosters?)\b/,
+  wolf:/\b(wolf|wolves|dogs?|doggy|doggies|puppy|puppies|pups?)\b/,horse:/\b(horses?|pony|ponies|foals?)\b/};
+function animalAct(t){
+  if(/\b(stop following|don'?t follow|go away|go play|you'?re free|be free|wander|bye|goodbye|see you|leave me|dismissed?|go home|walk around)\b/.test(t))return'free';
+  if(/\b(run|shoo|scram|flee)\b/.test(t))return'run';
+  if(/\b(sleep|lie down|nap|go to bed|rest)\b/.test(t))return'sleep';
+  if(/\b(follow|come|here|with me|heel|this way|let'?s go)\b/.test(t))return'follow';
+  if(/\b(sit|stay|stop|wait|halt|freeze|stand still|don'?t move|hold on)\b/.test(t))return'stay';
+  if(/\b(jump|hop|bounce)\b/.test(t))return'jump';
+  if(/\b(spin|dance|turn around|twirl|roll over)\b/.test(t))return'spin';
+  if(/\b(eat|hungry|food|dinner|lunch|breakfast|graze)\b/.test(t))return'eat';
+  if(/\b(attack|charge|fight|kill|get them|get him|get it|sic|bite)\b/.test(t))return'attack';
+  if(/\b(speak|talk|say|sing|hello|hi|hey|good (boy|girl)|love you|how are you|cute|thank)\b/.test(t))return'speak';
+  return'what';}
+function doAnimal(m,act){const snd=ANIMAL_SND[m.type]||'*happy noises*';m.flee=0;
+  if(act==='follow'){m.cmd='follow';m.sit=false;m.cmdTgt=null;return pick1(['*trots over to you* ','*follows you* ','*comes running* '])+snd;}
+  if(act==='stay'||act==='sleep'){m.cmd='stay';if(isPet(m))m.sit=true;return act==='sleep'?'*lies down* Zzz…':'*stops and waits* '+snd;}
+  if(act==='free'){m.cmd=null;m.sit=false;m.cmdTgt=null;return'*wanders off happily* '+snd;}
+  if(act==='run'){m.cmd=null;m.sit=false;m.flee=3;return'*runs away* '+snd+' '+snd;}
+  if(act==='jump'){m.jumps=3;return'*jumps up and down* '+snd;}
+  if(act==='spin'){m.spinT=2;return'*spins around* '+snd;}
+  if(act==='eat'){hearts(m);if(m.type==='sheep'&&m.sheared)m.regrow=Math.min(m.regrow,1);
+    return m.type==='sheep'?'*munches grass* Baa!':m.type==='wolf'?'*sniffs for a bone* Woof?':m.type==='chicken'?'*pecks at seeds* Cluck!':m.type==='horse'?'*nibbles some hay* Neigh!':'*munches happily* '+snd;}
+  if(act==='attack'){if(!m.T.wolf)return'*looks confused* '+snd;const h=nearestHostile(m,18);if(!h)return'*sniffs around* Woof? (no monsters nearby)';
+    m.cmd=null;m.sit=false;if(m.tame)P.lastHit=h;else m.cmdTgt=h;return pick1(['Grrr! *charges*','*growls* WOOF!']);}
+  if(act==='speak'){hearts(m);return pick1([snd,snd+' '+snd,'*happily* '+snd]);}
+  return'*tilts head* '+snd+'?';}
+function animalsHear(t){const all=mobs.filter(m=>!m.dying&&ANIMAL_T.includes(m.type)&&!m.arena&&!m.exhibit&&Math.hypot(m.x-P.x,m.z-P.z)<18&&Math.abs(m.y-P.y)<10);
+  const named=ANIMAL_T.filter(k=>ANIMAL_WORDS[k].test(t)),everyone=/\b(animals|everyone|everybody|all of you)\b/.test(t);
+  if(!all.length){if(named.length){setTimeout(()=>say('No '+MT[named[0]].n.toLowerCase()+' is close enough to hear you.','sys'),300);return true;}return false;}
+  const pet=all.find(m=>m.nm&&new RegExp('\\b'+m.nm.toLowerCase()+'\\b').test(t));let L;
+  if(pet)L=[pet];else if(named.length)L=all.filter(m=>named.includes(m.type));else if(everyone)L=all;else if(mobTarget&&all.includes(mobTarget))L=[mobTarget];
+  else{if(mobs.some(m=>!m.dying&&(m.T.villager||m.T.soldier||m.T.golem)&&Math.hypot(m.x-P.x,m.z-P.z)<16))return false;L=all;}
+  if(!L.length){setTimeout(()=>say('No '+MT[named[0]].n.toLowerCase()+' is close enough to hear you.','sys'),300);return true;}
+  const act=animalAct(t);L.sort((a,b)=>Math.hypot(a.x-P.x,a.z-P.z)-Math.hypot(b.x-P.x,b.z-P.z));
+  L.forEach((m,i)=>{const line=doAnimal(m,act);if(i<3)setTimeout(()=>mobSay(m,line),300+i*220);else if(i<12)setTimeout(()=>bubble(m,line),300+i*120);});
+  if(L.length>3)setTimeout(()=>say((L.length-3)+' more '+(L.length===4?'animal does':'animals do')+' the same.','sys'),300+3*220);
+  return true;}
 function talk(text){const nm=text.match(/^\s*(?:\/name\s+|\/nick\s+|my name is\s+|call me\s+|change my name to\s+)(.+?)[.!]*\s*$/i);
   if(nm&&setPlayerName(nm[1])){say('Your name is now '+charCfg.name+'.','sys');flash('Hello, '+charCfg.name+'!');
     const v=mobs.filter(m=>!m.dying&&(m.T.villager||m.T.soldier||m.T.golem)&&Math.hypot(m.x-P.x,m.z-P.z)<14).sort((a,b)=>Math.hypot(a.x-P.x,a.z-P.z)-Math.hypot(b.x-P.x,b.z-P.z))[0];
@@ -5273,6 +5324,7 @@ function talk(text){const nm=text.match(/^\s*(?:\/name\s+|\/nick\s+|my name is\s
   say('<'+charCfg.name+'> '+text,'me');if(MP.conns.length)mpSend({t:'c',n:charCfg.name,text:String(text).slice(0,200)});const t=text.toLowerCase();
   const near=mobs.filter(m=>!m.dying&&(m.T.villager||m.T.golem||m.T.soldier||isPet(m)||m.jailed)&&Math.hypot(m.x-P.x,m.z-P.z)<16&&Math.abs(m.y-P.y)<10)
     .sort((a,b)=>Math.hypot(a.x-P.x,a.z-P.z)-Math.hypot(b.x-P.x,b.z-P.z));
+  if(animalsHear(t))return;
   if(!near.length){setTimeout(()=>say('Nobody is close enough to hear you.','sys'),300);return;}
   if(tryErrand(t,near))return;
   const troopsAll=mobs.filter(m=>!m.dying&&!m.errand&&(m.T.soldier||m.T.golem)&&Math.hypot(m.x-P.x,m.z-P.z)<24&&Math.abs(m.y-P.y)<12);
