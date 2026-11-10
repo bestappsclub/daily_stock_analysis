@@ -835,7 +835,9 @@ const EGGS=[['pig','Pig','#f0a5a2','#d9787a','A'],['cow','Cow','#5c3d2a','#d8d2c
   ['wolf','Wolf','#d4cfc6','#b8916a','A'],['horse','Horse','#a0662e','#3a2414','A'],['villager','Villager','#6a4a32','#b88a5a','V'],['golem','Iron golem','#c8c4ba','#8a9a6a','V'],['soldier','Villager soldier','#8a8a94','#b8302a','V'],
   ['zombie','Zombie','#2e8a8c','#5e9a50','M'],['husk','Husk','#8a7a56','#d2bc84','M'],['skeleton','Skeleton','#c8c6bc','#5a5a56','M'],['spider','Spider','#2c2622','#b8201a','M'],['fusebug','Fusebug','#2b2f3a','#ff8a2a','M']];
 const EGG_ID={};
-const EXTRA_EGGS=[['archer','Villager archer','#3a7a3a','#8a8a94',218,'V'],['firetruck','Fire truck','#c81e1e','#f4f4f2',244,'V'],['ambulance','Ambulance','#f4f4f2','#d42020',245,'V'],['bandit','Bandit','#2a2230','#8a1a1a',219,'M'],['mutantzombie','Mutant zombie','#1e5a5c','#ff2020',246,'M'],['mutantskeleton','Mutant skeleton','#c8c6bc','#2a2a2a',247,'M'],['mutantspider','Giant spider','#3a1a18','#ff3020',248,'M'],['mutantfusebug','Giant fusebug','#2b2f3a','#ffd040',249,'M'],['cod','Cod','#a8946e','#e4d8bc',240,'F'],['salmon','Salmon','#c85a50','#4a6a5a',241,'F'],['pufferfish','Pufferfish','#e8c030','#3a8ab8',242,'F'],['goldfish','Goldfish','#f08a20','#ffffff',243,'F'],['flare','Flare','#f2b030','#fff0a0',255,'M'],['charred','Charred skeleton','#2a2a2e','#6a6a70',256,'M'],['hogfolk','Hogfolk','#e8a0a0','#f2c440',257,'M'],['voidwalker','Voidwalker','#141418','#b06cff',258,'M']];
+const EXTRA_EGGS=[['archer','Villager archer','#3a7a3a','#8a8a94',218,'V'],['firetruck','Fire truck','#c81e1e','#f4f4f2',244,'V'],['ambulance','Ambulance','#f4f4f2','#d42020',245,'V'],['bandit','Bandit','#2a2230','#8a1a1a',219,'M'],['mutantzombie','Mutant zombie','#1e5a5c','#ff2020',246,'M'],['mutantskeleton','Mutant skeleton','#c8c6bc','#2a2a2a',247,'M'],['mutantspider','Giant spider','#3a1a18','#ff3020',248,'M'],['mutantfusebug','Giant fusebug','#2b2f3a','#ffd040',249,'M'],['cod','Cod','#a8946e','#e4d8bc',240,'F'],['salmon','Salmon','#c85a50','#4a6a5a',241,'F'],['pufferfish','Pufferfish','#e8c030','#3a8ab8',242,'F'],['goldfish','Goldfish','#f08a20','#ffffff',243,'F'],['flare','Flare','#f2b030','#fff0a0',255,'M'],['charred','Charred skeleton','#2a2a2e','#6a6a70',256,'M'],['hogfolk','Hogfolk','#e8a0a0','#f2c440',257,'M'],['voidwalker','Voidwalker','#141418','#b06cff',258,'M'],
+  ['whaleshark','Whale shark','#2e4a6a','#f2f2f2',293,'F'],['nurseshark','Nurse shark','#a8885a','#e8d8b0',294,'F'],['greatwhite','Great white shark','#6a7480','#f4f4f4',295,'S'],
+  ['bullshark','Bull shark','#5a6066','#d8d8d0',296,'S'],['tigershark','Tiger shark','#6a6a58','#2a2a24',297,'S']];
 EGGS.forEach(([t,n,a,b],i)=>{const id=181+i;EGG_ID[t]=id;ITEMS[id]={n:n+' spawn egg',kind:'egg',mob:t,p:'egg',pal:{a,b,c:'#ffffff'},max:64};});
 EXTRA_EGGS.forEach(([t,n,a,b,id])=>{EGG_ID[t]=id;ITEMS[id]={n:n+' spawn egg',kind:'egg',mob:t,p:'egg',pal:{a,b,c:'#ffffff'},max:64};});
 ITEMS[170]={n:'Bow',kind:'bow',p:'bow',pal:{a:'#8a6034',b:'#5a3a1a',c:'#e8e8e8'},dur:384,max:1};
@@ -3180,6 +3182,11 @@ const MT={
   salmon:{n:'Salmon',fish:1,w:.25,h:.32,hp:3,spd:2,drops:[[221,1,1]],build:()=>fishModel('salmon')},
   pufferfish:{n:'Pufferfish',fish:1,w:.25,h:.4,hp:3,spd:1.1,drops:[[223,1,1]],build:()=>fishModel('puffer')},
   goldfish:{n:'Goldfish',fish:1,w:.18,h:.25,hp:2,spd:1.5,drops:[[224,1,1]],build:()=>fishModel('gold')},
+  whaleshark:{n:'Whale shark',fish:1,shark:1,w:1.3,h:1.3,hp:80,spd:1.1,drops:[[114,3,6]],build:()=>sharkModel('whale')},
+  nurseshark:{n:'Nurse shark',fish:1,shark:1,w:.55,h:.5,hp:24,spd:.9,drops:[[114,1,3]],build:()=>sharkModel('nurse')},
+  greatwhite:{n:'Great white shark',fish:1,shark:1,bite:7,w:.85,h:.9,hp:50,spd:3,drops:[[114,2,4]],build:()=>sharkModel('white')},
+  bullshark:{n:'Bull shark',fish:1,shark:1,bite:6,w:.6,h:.62,hp:32,spd:2.8,drops:[[114,1,3]],build:()=>sharkModel('bull')},
+  tigershark:{n:'Tiger shark',fish:1,shark:1,bite:6,w:.7,h:.72,hp:40,spd:2.6,drops:[[114,2,4]],build:()=>sharkModel('tiger')},
   soldier:{n:'Villager soldier',soldier:1,friendly:1,w:.3,h:1.9,hp:30,spd:2.4,dmg:[4,7],reach:1.7,drops:[],build:soldierModel},
   golem:{n:'Iron golem',golem:1,w:.7,h:2.65,hp:100,spd:1.5,dmg:[7,15],reach:2.4,drops:[[133,3,5]],build:golemModel},
   skeleton:{n:'Skeleton',hostile:1,ranged:1,w:.3,h:1.9,hp:20,spd:2.1,dmg:3,reach:1.4,burns:1,drops:[[173,0,2],[171,0,2]],build:skeletonModel},
@@ -3369,6 +3376,27 @@ function fishModel(k){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;}
   if(k==='puffer')for(const[x,y,z]of[[.19,.2,0],[-.19,.2,0],[0,.4,0],[0,.2,.21],[0,.2,-.21],[.14,.33,.14],[-.14,.33,-.14]])part(g,.04,.04,.04,fin,x,y,z);
   const tail=pivot(g,0,H/2+.03,L/2);part(tail,.02,H*1.1,.16,pat==='plain'?fin:R([fin,mark]),0,0,.08);
   const sc=.85+Math.random()*.35;g.scale.setScalar(sc);return{g,mats,tail,fish:true};}
+// sharks: a long body that tapers to the snout, a tall fin on the back and a swinging tail
+function sharkModel(k){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;};const g=new THREE.Group();
+  const C={whale:['#2e4a6a','#e8ecf0','#24384e'],nurse:['#a8885a','#d8c49a','#8a6a40'],white:['#6a7480','#f4f4f4','#56606a'],bull:['#5a6066','#d8d8d0','#4a5056'],tiger:['#6a6a58','#d8d4c0','#565644']}[k];
+  const[L,W,H]={whale:[6,1.3,1.2],nurse:[2.4,.55,.42],white:[4,.85,.85],bull:[2.8,.62,.6],tiger:[3.5,.7,.68]}[k];
+  const body=M(C[0]),belly=M(C[1]),fin=M(C[2]),eye=M('#0c0c0c'),white=M('#fafafa'),mark=M(k==='whale'?'#f4f4f4':'#2c2c22'),y0=H*.08;
+  part(g,W,H,L*.5,body,0,y0+H/2,-L*.06);part(g,W*.82,H*.82,L*.2,body,0,y0+H*.46,-L*.39);part(g,W*.6,H*.58,L*.08,body,0,y0+H*.36,-L*.52);
+  part(g,W*.68,H*.72,L*.16,body,0,y0+H*.5,L*.26);part(g,W*.42,H*.46,L*.1,body,0,y0+H*.5,L*.39);
+  part(g,W+.02,H*.3,L*.5,belly,0,y0+H*.15,-L*.06);part(g,W*.84,H*.26,L*.2,belly,0,y0+H*.13,-L*.39);
+  const df=pivot(g,0,y0+H*.95,-L*.02);df.rotation.x=-.45;part(df,Math.max(.05,W*.08),H*(k==='nurse'?.45:.75),L*.11,fin,0,H*(k==='nurse'?.2:.35),0);
+  part(g,Math.max(.04,W*.06),H*.3,L*.05,fin,0,y0+H*1.02,L*.3);
+  for(const sx of[-1,1]){const pf=pivot(g,sx*W*.5,y0+H*.25,-L*.16);pf.rotation.z=sx*-.35;part(pf,W*.9,.05,L*.1,fin,sx*W*.42,0,L*.03);
+    part(g,.03,.07,.07,eye,sx*(W*.41+.012),y0+H*.58,-L*.42);}
+  if(k==='white'||k==='bull'||k==='tiger')part(g,W*.52,.05,.05,white,0,y0+H*.2,-L*.5);
+  if(k==='whale'){part(g,W*.62,.07,.04,M('#1a2636'),0,y0+H*.3,-L*.56);for(let i=0;i<46;i++){const sx=Math.random()<.5?1:-1,top=Math.random()<.4,z=-L*.42+Math.random()*L*.72;
+    if(top)part(g,.1,.012,.1,mark,(Math.random()-.5)*W*.8,y0+H+.006,z);else part(g,.012,.1,.1,mark,sx*(W/2+.006),y0+H*.42+Math.random()*H*.5,z);}}
+  if(k==='tiger')for(let i=0;i<9;i++){const z=-L*.3+i*L*.075;part(g,W+.012,H*.32,.07,mark,0,y0+H*.82,z);}
+  if(k==='nurse')for(const sx of[-1,1])part(g,.03,.12,.03,fin,sx*W*.14,y0+H*.08,-L*.54);
+  const tail=pivot(g,0,y0+H*.5,L*.43);part(tail,W*.3,H*.36,L*.08,body,0,0,L*.04);
+  const up=pivot(tail,0,0,L*.07);up.rotation.x=-.65;part(up,Math.max(.04,W*.07),H*(k==='nurse'?.55:1.1),L*.06,fin,0,H*(k==='nurse'?.25:.5),0);
+  if(k!=='nurse'){const lo=pivot(tail,0,0,L*.07);lo.rotation.x=.6;part(lo,Math.max(.04,W*.07),H*.55,L*.05,fin,0,-H*.25,0);}
+  g.scale.setScalar(.9+Math.random()*.2);return{g,mats,tail,fish:true};}
 function vehicleModel(kind){const mats=[],extra=[],M=c=>{const m=lam(c);mats.push(m);return m;},B=c=>{const m=new THREE.MeshBasicMaterial({color:c});extra.push(m);return m;};
   if(kind==='car'||kind==='bus'){const g=new THREE.Group(),tyre=M('#151517'),hub=M('#b8bcc4'),chrome=M('#d8dce4'),glass=M('#8fc4e8'),dark=M('#2a2a2e'),head=B(0xfff4c0),tail=B(0xff3020),wheels=[];
     const wheel=(x,z,r)=>{const w=pivot(g,x,r,z);part(w,.3,r*2,r*2,tyre,0,0,0);part(w,.32,r*.9,r*.9,hub,0,0,0);wheels.push(w);};
@@ -3462,12 +3490,15 @@ function fishTick(m,dt,sim){if(!(m.think>-1e9))m.think=0;if(!(m.hurt>-1e9))m.hur
       m.dryT=(m.dryT||0)+dt;if(m.dryT>1.5){m.dryT=0;hurtMob(m,1,null);}}
     else{m.dryT=0;m.vy=0;if(m.think<=0){m.think=1+Math.random()*3;m.yawT=Math.random()*6.283;m.pitchT=(Math.random()-.5)*.7;
         if(m.home&&Math.hypot(m.x-m.home.x,m.z-m.home.z)>(m.homeR||14))m.yawT=Math.atan2(-(m.home.x-m.x),-(m.home.z-m.z));}
-      const dy=((m.yawT-m.yaw+Math.PI*3)%(Math.PI*2))-Math.PI;m.yaw+=dy*Math.min(1,dt*3);
-      const sp=m.T.spd*(m.hurt>0?2.6:1),nx=m.x-Math.sin(m.yaw)*sp*dt,nz=m.z-Math.cos(m.yaw)*sp*dt,ny=m.y+(m.pitchT||0)*sp*dt;
+      let chase=false;if(m.T.bite){m.biteCd=(m.biteCd||0)-dt;const px=P.x-m.x,pz=P.z-m.z,py=P.y+.9-(m.y+m.h/2),pd=Math.hypot(px,pz);
+        if(mode==='survival'&&!P.dead&&!P.spec&&P.inWater&&pd<18&&Math.abs(py)<10){chase=true;m.yawT=Math.atan2(-px,-pz);m.pitchT=clamp(py/Math.max(pd,1),-.9,.9);m.think=Math.max(m.think,.4);
+          if(m.biteCd<=0&&Math.hypot(pd,py)<m.w+1.1){m.biteCd=1.4;damagePlayer(m.T.bite,'Bitten by a '+m.T.n.toLowerCase(),m);sfx('hurt');}}}
+      const dy=((m.yawT-m.yaw+Math.PI*3)%(Math.PI*2))-Math.PI;m.yaw+=dy*Math.min(1,dt*(m.T.shark?2:3));
+      const sp=m.T.spd*(m.hurt>0?(m.T.shark?1.5:2.6):1)*(chase?1.35:1),nx=m.x-Math.sin(m.yaw)*sp*dt,nz=m.z-Math.cos(m.yaw)*sp*dt,ny=m.y+(m.pitchT||0)*sp*dt;
       if(ok(nx,m.y+.15,nz))
         {m.x=nx;m.z=nz;}else{m.yawT=m.yaw+Math.PI;m.think=1.2;}
       if(ok(m.x,ny+.1,m.z)&&ok(m.x,ny+m.h,m.z))m.y=ny;else m.pitchT=-(m.pitchT||0);}}
-  md.g.position.set(m.x,m.y,m.z);md.g.rotation.y=m.yaw;md.tail.rotation.y=Math.sin(performance.now()/110+m.x)*.6;
+  md.g.position.set(m.x,m.y,m.z);md.g.rotation.y=m.yaw;md.tail.rotation.y=Math.sin(performance.now()/(m.T.shark?260:110)+m.x)*(m.T.shark?.35:.6);
   const e=m.hurt>0?.6:0;md.mats.forEach(x=>x.emissive.setRGB(e,0,0));shade(md,lightAt(m.x,m.y+.2,m.z));}
 function spawnAnimals(n,near){let made=0;
   for(let tries=0;tries<500&&made<n;tries++){let x,z;
@@ -5043,7 +5074,7 @@ const CMDS={
   seed:{u:'/seed',d:'show the world seed',f:()=>ok('Seed: '+seed)}};
 /* ---------- spawning and the admin panel ---------- */
 function spawnAt(t,x,y,z){const m=spawnMob(t,clamp(x,1,WX-1),y,clamp(z,1,WZ-1),t==='villager'?PROFS[Math.random()*PROFS.length|0]:undefined);m.fromEgg=true;
-  if(t==='villager'||t==='golem'||t==='soldier'||t==='archer')m.home={x:m.x,z:m.z};burst(m.x,m.y+.5,m.z,[.95,.95,.95],6);return m;}
+  if(t==='villager'||t==='golem'||t==='soldier'||t==='archer')m.home={x:m.x,z:m.z};if(m.T.fish){m.keep=true;m.released=true;}burst(m.x,m.y+.5,m.z,[.95,.95,.95],6);return m;}
 function spawnInFront(t,n){const T=MT[t];
   fwd.x=-Math.sin(yaw)*Math.cos(pitch);fwd.z=-Math.cos(yaw)*Math.cos(pitch);const fl=Math.hypot(fwd.x,fwd.z)||1;
   for(let i=0;i<n;i++){const x=P.x+fwd.x/fl*3+(Math.random()-.5)*(n>1?3:.4),z=P.z+fwd.z/fl*3+(Math.random()-.5)*(n>1?3:.4);
@@ -5051,15 +5082,15 @@ function spawnInFront(t,n){const T=MT[t];
     for(let k=0;k<40&&boxHits(x,y,z,T.w,T.h);k++)y++;spawnAt(t,x,y,z);}sfx('pop');}
 let eggMode='now',eggN=1;
 function buildEggs(){const groups={A:$('eggsA'),V:$('eggsV'),M:$('eggsM')};for(const k in groups)groups[k].innerHTML='';
-  for(const[t,n,,,g]of EGGS.concat(EXTRA_EGGS.map(e=>[e[0],e[1],e[2],e[3],e[5]]))){const b=document.createElement('button');b.type='button';b.className='egg'+(g==='M'?' hostile':'');
-    b.innerHTML='<img alt="" src="'+iconOf(EGG_ID[t])+'"><span>'+n+'</span><small>'+(g==='M'?'Monster':g==='V'?'Village':g==='F'?'Fish':'Animal')+'</small>';
+  for(const[t,n,,,g]of EGGS.concat(EXTRA_EGGS.map(e=>[e[0],e[1],e[2],e[3],e[5]]))){const b=document.createElement('button');b.type='button';b.className='egg'+(g==='M'||g==='S'?' hostile':'');
+    b.innerHTML='<img alt="" src="'+iconOf(EGG_ID[t])+'"><span>'+n+'</span><small>'+(g==='M'?'Monster':g==='V'?'Village':g==='F'?'Fish':g==='S'?'Bites':'Animal')+'</small>';
     b.setAttribute('aria-label',(eggMode==='now'?'Spawn ':'Get ')+eggN+' '+n);
     b.addEventListener('click',()=>{
       if(eggMode==='give'){const left=addItem(EGG_ID[t],eggN);if(left)dropItem(EGG_ID[t],left,P.x,P.y+1,P.z);sfx('pop');
         $('adminNote').textContent='Added '+eggN+' '+n.toLowerCase()+' spawn egg'+(eggN>1?'s':'')+' to your inventory. Hold one and use it on the ground.'+(P.spec?' Switch out of Spectator to use eggs.':'');return;}
       spawnInFront(t,eggN);
       $('adminNote').textContent='Spawned '+eggN+' × '+n.toLowerCase()+' in front of you.'+(g==='M'&&mode!=='survival'?' Monsters won’t attack you in '+modeName()+' mode.':'');});
-    groups[g==='F'?'A':g].appendChild(b);}}
+    groups[g==='F'||g==='S'?'A':g].appendChild(b);}}
 function openAdmin(){if(ui!=='play')return;if(worldType==='one'){flash('The admin panel is banned in One Block. Survive on your own!');return;}primaryUp();for(const k in keys)keys[k]=false;joy.x=joy.y=0;charge=-1;
   $('adminNote').textContent='';buildEggs();showScreen('admin');if(document.pointerLockElement)document.exitPointerLock();}
 function closeAdmin(){save();startPlay();}
