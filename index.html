@@ -494,6 +494,13 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
     <div class="trades" id="enchList"></div>
   </div>
 </div>
+<div id="anvil" class="screen" hidden>
+  <div class="panel wide" role="dialog" aria-labelledby="anvilTitle">
+    <div class="ihead"><h2 id="anvilTitle">Anvil</h2><button class="btn ghost small" id="anvilClose" type="button">Done</button></div>
+    <p class="tip" id="anvilNote"></p>
+    <div class="trades" id="anvilList"></div>
+  </div>
+</div>
 <div id="bank" class="screen" hidden>
   <div class="panel wide" role="dialog" aria-labelledby="bankTitle">
     <div class="ihead"><h2 id="bankTitle">Bank</h2><button class="btn ghost small" id="bankClose" type="button">Done</button></div>
@@ -515,7 +522,7 @@ if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">Th
    Constants & helpers
    ========================================================= */
 const CS=16,NC=32,WX=CS*NC,WZ=CS*NC,WY=96,SEA=22,DAY=900,DAYPART=.68;
-const T=16,NT=133;
+const T=16,NT=134;
 const WATER=11,CHEST=25,FURNACE=29,BEDROCK=10,TABLE=30,FARMLAND=42,WHEAT0=43,WHEAT1=44,TORCH=49,BED=54,FIRE=61,LAVA=62,PORTAL=63,GLOW=64,OBSIDIAN=50,NETHERRACK=51;
 const DIRS6=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
 const SAVE_KEY='blockland-world-v3',CHAR_KEY='blockland-character',LAST_KEY='blockland-last';
@@ -680,6 +687,7 @@ paint(128,(x,y)=>{if(y<=3)return((x+y)%6<3)?jit([226,188,40],8):jit([30,30,32],4
 paint(129,(x,y)=>{const d=Math.hypot(x-7.5,y-7.5);return(x===y||x===15-y||x===7||y===7||Math.abs(d-6)<.5||Math.abs(d-3.2)<.45)?[232,232,238,220]:null;});
 paint(130,(x,y)=>{if(y<=1||y===7||y===8||y>=14||x<=1||x>=14)return jit([168,128,78],12);return jit([44,30,18],6);});
 paint(131,(x,y)=>{const v=Math.sin((y+Math.sin(x*.8)*1.6)*1.15);if(v>.6)return jit([126,100,92],10);if(R()<.07)return jit([170,140,128],10);return jit([62,44,42],8);});
+paint(133,(x,y)=>{if(y===0||x===0||x===15)return jit([92,92,98],6);if((x+y*3)%11===0)return jit([82,82,88],5);return jit([60,60,66],5);});
 paint(132,(x,y)=>{const d=Math.hypot(x-7.5,y-7.5);if(Math.floor(d)%3===0)return jit([122,96,90],8);return jit([58,42,40],8);});
 paint(119,(x,y)=>{if(x===3||x===12)return jit([160,160,168],8);if(x===2||x===13)return jit([105,105,112],6);if((y%4===1||y%4===2)&&x>=1&&x<=14)return jit([112,80,46],10);return null;});
 paint(120,(x,y)=>{const d=Math.hypot(15.5-x,15.5-y),a=Math.atan2(15.5-y,15.5-x);if(Math.abs(d-4)<.8||Math.abs(d-12.5)<.8)return jit([160,160,168],8);if(d>3&&d<13.5&&(Math.floor(a/(Math.PI/2)*6))%2===0)return jit([112,80,46],10);return null;});
@@ -782,11 +790,11 @@ B(122,'Redstone wire',[123,123,123],0,{pass:1,cut:1,shape:'wire',drop:179});B(12
 B(124,'Lever',[9,9,9],.3,{pass:1,cut:1,shape:'lever',drop:267});
 B(129,'Conveyor belt',[128,127,128],2,{tool:'pick',lvl:0,shape:'conveyor',drop:279});B(130,'Conveyor belt',[128,127,128],2,{tool:'pick',lvl:0,shape:'conveyor',drop:279});
 B(131,'Conveyor belt',[128,127,128],2,{tool:'pick',lvl:0,shape:'conveyor',drop:279});B(132,'Conveyor belt',[128,127,128],2,{tool:'pick',lvl:0,shape:'conveyor',drop:279});
-B(133,'Cobweb',[129,129,129],1.2,{cross:1,drop:162});B(134,'Empty bookshelf',[130,8,8],1.5,{tool:'axe'});B(135,'Netherite ore',[131,132,131],8,{tool:'pick',lvl:3});
+B(133,'Cobweb',[129,129,129],1.2,{cross:1,drop:162});B(134,'Empty bookshelf',[130,8,8],1.5,{tool:'axe'});B(135,'Netherite ore',[131,132,131],8,{tool:'pick',lvl:3});B(136,'Anvil',[133,133,133],5,{tool:'pick',lvl:0,cut:1,shape:'anvil'});
 B(126,'Oak fence',[8,8,8],2,{tool:'axe',cut:1,shape:'fence',drop:268});B(127,'Oak fence gate',[8,8,8],2,{tool:'axe',cut:1,shape:'gate',drop:269});B(128,'Oak fence gate',[8,8,8],2,{tool:'axe',cut:1,pass:1,shape:'gate',drop:269});B(125,'Lever',[9,9,9],.3,{pass:1,cut:1,shape:'lever',drop:267});
-const NBRICK=104,FALLL=109,FRAME=110,FRAMEF=111,END_P=112,ENDSTONE=113,TNT=114,DOORLC=115,DOORUC=116,DOORLO=117,DOORUO=118,RAIL=119,PRAIL=120,PRAILON=121,WIRE=122,WIREON=123,LEVER=124,LEVERON=125,FENCE=126,GATEC=127,GATEO=128,COBWEB=133,SHELF0=134,NETHORE=135;
+const NBRICK=104,FALLL=109,FRAME=110,FRAMEF=111,END_P=112,ENDSTONE=113,TNT=114,DOORLC=115,DOORUC=116,DOORLO=117,DOORUO=118,RAIL=119,PRAIL=120,PRAILON=121,WIRE=122,WIREON=123,LEVER=124,LEVERON=125,FENCE=126,GATEC=127,GATEO=128,COBWEB=133,SHELF0=134,NETHORE=135,ANVIL=136;
 const CONVDIR={129:[1,0],130:[-1,0],131:[0,1],132:[0,-1]};
-const NB=136,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
+const NB=137,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
 const SOLID=new Uint8Array(256),OPAQ=new Uint8Array(256);
 for(let i=1;i<NB;i++){const b=BL[i];SOLID[i]=(b.liquid||b.cross||b.pass)?0:1;OPAQ[i]=(b.liquid||b.cut||b.cross)?0:1;}
 const PLANT_ON={87:[4,26,2,3,9,87],88:[4,26,2,3,9],78:[FARMLAND],80:[FARMLAND],73:[1,2,12,42],74:[1,2,12,42],43:[FARMLAND],44:[FARMLAND],45:[1,2,12],46:[1,2,12],47:[1,2,12],48:[1,2,4,12,48]};
@@ -954,6 +962,7 @@ RC(FURNACE,1,['CCC','C.C','CCC'],{C:'stone'});
   RC(202+i*4,1,['MMM','M.M','M.M'],{M:m});RC(203+i*4,1,['M.M','M.M'],{M:m});});
 // netherite: smelt netherite ore into scrap, mix 2 scrap with 2 gold for an ingot, then add an ingot to any diamond tool or armour
 RS(290,1,[289,289,134,134]);
+RC(1136,1,['BBB','.I.','III'],{B:32,I:133});
 [[124,284],[144,285],[149,286],[154,287],[159,288],[212,280],[213,281],[214,282],[215,283]].forEach(([d,n])=>RS(n,1,[d,290]));
 RC(291,1,['PIP','PPP','.P.'],{P:'planks',I:133});[['planks',298],['stone',299],[133,292],[134,300],[135,301]].forEach(([m,id])=>RC(id,1,['..M','.S.','S..'],{M:m,S:130}));RS(302,1,[301,290]);
 RC(TORCH,4,['C','S'],{C:131,S:130});
@@ -2810,6 +2819,8 @@ function shapeMesh(A,x,y,z,id,b){const lp=litAt(x,y,z),ls=(lp>>4)/15,lb=b.glow?1
     if(straight){emitFlat(A,x,y,z,.06,b.t[0],c[0][0]?1:0,ls,lb);return;}
     for(let r=0;r<4;r++){const a=rotV(c[0],r),q=rotV(c[1],r);const ok=(a[0]===0&&a[1]===1&&q[0]===1&&q[1]===0)||(q[0]===0&&q[1]===1&&a[0]===1&&a[1]===0);if(ok){emitFlat(A,x,y,z,.06,120,r,ls,lb);return;}}
     emitFlat(A,x,y,z,.06,b.t[0],0,ls,lb);return;}
+  if(b.shape==='anvil'){const t=b.t[0];emitBox(A,x,y,z,.14,0,.18,.86,.22,.82,t,ls,lb);emitBox(A,x,y,z,.26,.22,.3,.74,.32,.7,t,ls,lb);
+    emitBox(A,x,y,z,.36,.32,.38,.64,.62,.62,t,ls,lb);emitBox(A,x,y,z,0,.62,.2,1,1,.8,t,ls,lb);return;}
   if(b.shape==='wire'){emitFlat(A,x,y,z,.03,b.t[0],0,ls,id===WIREON?1:lb);return;}
   if(b.shape==='lever'){const on=id===LEVERON;emitBox(A,x,y,z,.32,0,.28,.68,.14,.72,BL[9].t[0],ls,lb);
     emitBox(A,x,y,z,.45,.1,on?.55:.35,.55,.62,on?.65:.45,BL[7].t[0],ls,lb);emitBox(A,x,y,z,.42,.58,on?.52:.32,.58,.72,on?.68:.48,on?BL[59].t[0]:BL[3].t[0],ls,on?1:lb);return;}
@@ -3028,7 +3039,8 @@ function growTree(x,y,z,id){for(let k=1;k<=(id===74?7:5);k++){const b=get(x,y+k,
 function setBlock(x,y,z,id){const _old=world[idx(x,y,z)];world[idx(x,y,z)]=id;const key=x+','+y+','+z;if(mpUser&&!MP.applying&&dim===0&&MP.conns.length)mpSend({t:'b',x,y,z,id});edits.set(key,id);if(id===LAVA)lavaSpots.add(key);else lavaSpots.delete(key);if(GROWS(id))crops.add(key);else crops.delete(key);if(id===FIRE)fires.set(key,fireLife(x,y,z));else fires.delete(key);wqNear(x,y,z);lqNear(x,y,z);
   const set=new Set();for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const xx=x+dx,zz=z+dz;if(xx<0||zz<0||xx>=WX||zz>=WZ)continue;set.add(((xx/CS)|0)+((zz/CS)|0)*NC);}
   relight(x,z,set);
-  set.forEach(k=>{dirty.delete(k);buildChunk(k%NC,(k/NC)|0);});save();rsMaybe(x,y,z,_old,id);if(id===FIRE)firePortal(x,y,z);}
+  set.forEach(k=>{dirty.delete(k);buildChunk(k%NC,(k/NC)|0);});save();rsMaybe(x,y,z,_old,id);if(id===FIRE)firePortal(x,y,z);
+  if(!MP.applying){if(id===ANVIL)anvilQ.push([x,y,z]);if(y+1<WY&&world[idx(x,y+1,z)]===ANVIL)anvilQ.push([x,y+1,z]);}}
 
 /* =========================================================
    Sky: sun, moon, stars, clouds
@@ -4137,6 +4149,7 @@ function sfx(k){if(!AC||!soundOn)return;try{
   else if(k==='boom'){noise(.9,.55,380);tone(70,.6,'sine',.25,30);}else if(k==='hiss')noise(1.4,.09,5000);
   else if(k==='ignite')noise(.12,.18,3000);else if(k==='portal')tone(110,1.6,'sine',.06,70);
   else if(k==='step')noise(.04,.05,300);else if(k==='splash')noise(.25,.15,1200);
+  else if(k==='anvil'){tone(220,.25,'square',.09,110);tone(660,.2,'triangle',.05,400);noise(.12,.18,900);}
   else if(k==='clang'){tone(880,.14,'square',.07,420);noise(.08,.12,2500);}else if(k==='whoosh')noise(.28,.16,1800);}catch(e){}}
 
 /* =========================================================
@@ -4146,7 +4159,7 @@ const P={x:0,y:0,z:0,vx:0,vy:0,vz:0,kx:0,kz:0,w:.3,h:1.8,ground:false,hitH:false
   peak:0,hp:20,food:20,air:10,exh:0,regenT:0,starveT:0,airT:0,inv:0,dead:false,step:0};
 let yaw=Math.PI*.75,pitch=-.12,mode='survival',view=0,timeOfDay=.06,dayNum=1,daylight=1;
 const EYE=1.62;
-const inv=new Array(36).fill(null),armor=[null,null,null,null],offArr=[null];
+const inv=new Array(36).fill(null),armor=[null,null,null,null],offArr=[null];const anvilQ=[],fallingAnvils=[];
 let cursor=null,sel=0,openChest=null;
 const DEFAULT_CHAR={name:'Wanderer',skin:'#e8b48f',hair:'#5a3a22',style:'Short',shirt:'#2f7fd6',pants:'#2a3a8a',shoes:'#3a2a1e'};
 let charCfg=Object.assign({},DEFAULT_CHAR);
@@ -4403,6 +4416,7 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
     if(b===TABLE){openInv(null,true);return;}
     if(b===BANKC||b===ATM){openBank();return;}
     if(b===ENCHT){openEnch();return;}
+    if(b===ANVIL){openAnvil();return;}
     if(MACHINES[b]){useMachine(b,target.x,target.y,target.z);return;}
     if(b===RIDEB){let best=null,bd=1e9;for(const r of rides){const d=Math.hypot(r.btn[0]-target.x,r.btn[1]-target.y,r.btn[2]-target.z);if(d<bd){bd=d;best=r;}}if(best&&bd<3){boardRide(best);swing();}return;}
     if(b===ARENAC){if(fight){flash(fight.clean?'Wait for the cleaner to finish cleaning the arena':'A fight is already on: '+fight.F[0]);return;}startFight(arenaIdx++);swing();return;}
@@ -4480,7 +4494,7 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;const s=inv[sel];
   if(pid&&spot){const x=spot[0],y=spot[1],z=spot[2];
     if(x<0||z<0||x>=WX||z>=WZ||y<1||y>=WY)return;const cur=get(x,y,z),pb=BL[pid];
     if(cur&&!((ISW[cur]||ISL[cur])&&(!pb.cross||pb.aqua))&&!(BL[cur].cross&&cur!==TORCH&&!pb.cross))return;
-    if(pb.shape&&pb.shape!=='fence'&&pb.shape!=='gate'&&(!SOLID[get(x,y-1,z)]||BL[get(x,y-1,z)].shape)){flash('Put it on top of a solid block');return;}
+    if(pb.shape&&pb.shape!=='fence'&&pb.shape!=='gate'&&pid!==ANVIL&&(!SOLID[get(x,y-1,z)]||BL[get(x,y-1,z)].shape)){flash('Put it on top of a solid block');return;}
     if(pb.cross){const below=get(x,y-1,z);
       const ok=pid===TORCH?(SOLID[below]&&!BL[below].cross):(PLANT_ON[pid]||[]).includes(below);
       if(!ok){flash(pid===WHEAT0?'Seeds only grow on farmland. Use a hoe on grass or dirt first':pid===48?'Sugar cane grows on sand, grass or dirt':'That can’t grow there');return;}}
@@ -4646,7 +4660,7 @@ const craftGridEl=$('craftGrid');for(let i=0;i<9;i++)mkSlot(craftGridEl,'craft:'
 const outSlot=mkSlot($('outHost'),'out:0');
 let craftN=2;const craftGrid=new Array(9).fill(null);
 function returnGrid(){for(let i=0;i<9;i++){if(craftGrid[i]){give(craftGrid[i]);craftGrid[i]=null;}}}
-const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,53,BED,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,1135,41,1104,1113,1114,1133,1134,11,10],
+const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,53,BED,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,1135,1136,41,1104,1113,1114,1133,1134,11,10],
   combat:[140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,176,195,120,121,122,123,124,170,171,...Array.from({length:16},(_,i)=>200+i),284,285,286,287,288,280,281,282,283,291,298,299,292,300,301,302],
   food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,270,271,272,273,274,275,276,279,164,165,264,265,266,267,259,260,1110,256,257,258,289,290]};
 let catTab='blocks';
@@ -4876,6 +4890,30 @@ function renderEnch(msg){const s=inv[sel],d=s&&itemDef(s.id),opts=d?enchOptions(
   inv.forEach((b,i)=>{if(!b||b.id!==199||!b.ench)return;const k=Object.keys(b.ench)[0];
     row(199,'Enchanted book: '+enchText(b.ench),opts.includes(k)?'Use it on the item in your hand':'This book does not fit the item in your hand','Apply',opts.includes(k),()=>{
       applyEnch(s,k,b.ench[k]);inv[i]=null;sfx('portal');invChanged();renderEnch('Your '+d.n.toLowerCase()+' now has '+enchText(s.ench)+'!');});});}
+// anvil: fix worn tools with the material they are made of (each piece mends a quarter), or join two of the same tool
+function repairMat(d){const n=d.n;if(/^Wooden|^Shield/.test(n))return{ids:GRP.planks,n:'planks'};if(/^Stone/.test(n))return{ids:GRP.stone,n:'cobblestone'};
+  if(/^Iron|^Shears|^Flint/.test(n))return{ids:[133],n:'iron ingots'};if(/^Gold/.test(n))return{ids:[134],n:'gold ingots'};if(/^Diamond/.test(n))return{ids:[135],n:'diamonds'};
+  if(/^Netherite/.test(n))return{ids:[290],n:'netherite ingots'};if(/^Bow|^Fishing/.test(n))return{ids:[162],n:'string'};return null;}
+function countIds(ids){return ids.reduce((c,id)=>c+countOf(id),0);}
+function takeIds(ids,n){for(const id of ids){const k=Math.min(n,countOf(id));takeN(id,k);n-=k;}}
+function renderAnvil(msg){const L=$('anvilList');L.innerHTML='';const all=[...inv.map((s,i)=>({s,a:inv,i})),{s:offArr[0],a:offArr,i:0}].filter(o=>o.s&&o.s.dur!=null&&itemDef(o.s.id).dur);
+  const worn=all.filter(o=>o.s.dur<itemDef(o.s.id).dur);
+  $('anvilNote').textContent=msg||(worn.length?'Fix your worn tools. Each piece of the material they are made of mends a quarter of the damage bar, or join two of the same tool into one.':'None of your tools are worn. Come back when one is damaged.');
+  const row=(icon,title,sub,label,ok,fn)=>{const r=document.createElement('div');r.className='brow';r.innerHTML='<div class="titem"><img alt="" src="'+iconOf(icon)+'"><span></span></div>';
+    const sp=r.querySelector('span');sp.textContent=title;const sm=document.createElement('small');sm.textContent=sub;sp.appendChild(sm);
+    const b=document.createElement('button');b.type='button';b.className='btn primary';b.textContent=label;b.disabled=!ok;b.addEventListener('click',fn);r.appendChild(b);L.appendChild(r);};
+  const done=(d,s)=>{sfx('anvil');burst(P.x,P.y+1.2,P.z,[1,.75,.3],12);invChanged();renderAnvil('Your '+d.n.toLowerCase()+' is now '+Math.round(s.dur/d.dur*100)+'% repaired!');};
+  for(const o of worn){const s=o.s,d=itemDef(s.id),max=d.dur,pct=Math.round(s.dur/max*100),m=repairMat(d);
+    if(m){const need=Math.ceil((max-s.dur)/(max*.25)),have=countIds(m.ids),use=mode==='creative'?need:Math.min(need,have);
+      row(s.id,d.n+' ('+pct+'% left)','Needs '+need+' '+m.n+' to fix completely (you have '+have+')',use>=need||!use?'Repair':'Repair to '+Math.min(100,pct+use*25)+'%',use>0,()=>{
+        if(mode!=='creative')takeIds(m.ids,use);s.dur=Math.min(max,s.dur+Math.ceil(max*.25)*use);done(d,s);});}
+    const twin=all.find(t=>t!==o&&t.s.id===s.id);
+    if(twin)row(s.id,'Join two '+d.n.toLowerCase()+'s','Makes one with both of their uses added together, and keeps the magic from both','Join',true,()=>{
+      const t=twin.s;s.dur=Math.min(max,s.dur+t.dur+Math.round(max*.12));if(t.ench)for(const k in t.ench)applyEnch(s,k,t.ench[k]);twin.a[twin.i]=null;done(d,s);});
+    if(!m&&!twin)row(s.id,d.n+' ('+pct+'% left)','This one can only be fixed by joining it with another '+d.n.toLowerCase(),'Repair',false,()=>{});}}
+function openAnvil(){primaryUp();for(const k in keys)keys[k]=false;joy.x=joy.y=0;showScreen('anvil');renderAnvil();if(document.pointerLockElement)document.exitPointerLock();}
+function closeAnvil(){save();startPlay();}
+$('anvilClose').addEventListener('click',closeAnvil);
 function openEnch(){primaryUp();for(const k in keys)keys[k]=false;joy.x=joy.y=0;showScreen('ench');renderEnch();if(document.pointerLockElement)document.exitPointerLock();}
 function closeEnch(){save();startPlay();}
 $('enchClose').addEventListener('click',closeEnch);
@@ -4923,7 +4961,7 @@ function updateGreet(){$('greet').textContent=started?'Welcome back, '+charCfg.n
    Screens & controls
    ========================================================= */
 let ui='menu',ctrl=null,started=false;
-const SCREENS=['menu','inv','char','dead','trade','admin','bank','ench'];
+const SCREENS=['menu','inv','char','dead','trade','admin','bank','ench','anvil'];
 function showScreen(name){ui=name;SCREENS.forEach(s=>{$(s).hidden=s!==name;});const playing=name==='play';
   $('hud').hidden=!(playing||name==='inv');$('cross').hidden=!playing;$('touch').hidden=!(playing&&ctrl==='touch');
   if(name!=='inv'){returnGrid();if(cursor){const c=cursor;cursor=null;addItem(c.id,c.count,c.dur,c.ench);}renderCursor();}
@@ -5012,6 +5050,7 @@ addEventListener('keydown',e=>{
   }else if(ui==='inv'){if(e.code==='KeyE'||e.code==='Escape'){e.preventDefault();closeInv();}}
   else if(ui==='trade'){if(e.code==='KeyE'||e.code==='Escape'){e.preventDefault();closeTrade();}}
   else if(ui==='ench'){if(e.code==='KeyE'||e.code==='Escape'){e.preventDefault();closeEnch();}}
+  else if(ui==='anvil'){if(e.code==='KeyE'||e.code==='Escape'){e.preventDefault();closeAnvil();}}
   else if(ui==='bank'){if(e.code==='KeyE'||e.code==='Escape'){e.preventDefault();closeBank();}}
   else if(ui==='admin'){if(e.code==='KeyP'||e.code==='Escape'){e.preventDefault();closeAdmin();}}
   else if(ui==='char'&&e.code==='Escape')closeCharScreen();});
@@ -5507,6 +5546,23 @@ function oreVision(dt){const on=P.spec&&started;$('oreKey').hidden=!on;
   if(list.length>ORE_MAX){const d=k=>(found[k]-px)**2+(found[k+1]-py)**2+(found[k+2]-pz)**2;list.sort((a,b)=>d(a)-d(b));list.length=ORE_MAX;}
   const m4=new THREE.Matrix4();list.forEach((k,n)=>{m4.makeTranslation(found[k]+.5,found[k+1]+.5,found[k+2]+.5);oreMesh.setMatrixAt(n,m4);oreMesh.setColorAt(n,col[found[k+3]]);});
   oreMesh.count=list.length;oreMesh.instanceMatrix.needsUpdate=true;if(oreMesh.instanceColor)oreMesh.instanceColor.needsUpdate=true;}
+// ---------- falling anvils: they drop when nothing holds them up and squash whatever is underneath ----------
+function anvilModel(){const g=new THREE.Group(),mt=new THREE.MeshLambertMaterial({color:'#4c4c54'});
+  for(const b of[[.72,.22,.64,.11],[.28,.3,.24,.47],[1,.38,.6,.81]]){const me=new THREE.Mesh(new THREE.BoxGeometry(b[0],b[1],b[2]),mt);me.position.y=b[3];g.add(me);}return g;}
+function updateAnvils(dt){
+  while(anvilQ.length){const[x,y,z]=anvilQ.shift();if(get(x,y,z)!==ANVIL||y<1)continue;const below=get(x,y-1,z);if(SOLID[below])continue;
+    setBlock(x,y,z,0);const g=anvilModel();g.position.set(x+.5,y,z+.5);scene.add(g);fallingAnvils.push({x,z,y,y0:y,vy:0,g,hit:new Set()});}
+  for(let i=fallingAnvils.length-1;i>=0;i--){const a=fallingAnvils[i];a.vy=Math.max(a.vy-30*dt,-40);const ny=a.y+a.vy*dt;
+    const fallen=a.y0-ny,dmg=fallen>1?Math.min(40,Math.round(fallen*2.5)):0;
+    if(dmg>0){const inCol=(ex,ey,ez,w,h)=>ex+w>a.x&&ex-w<a.x+1&&ez+w>a.z&&ez-w<a.z+1&&ey<a.y+1&&ey+h>ny;
+      if(!a.hit.has('me')&&!P.dead&&!P.spec&&inCol(P.x,P.y,P.z,P.w,P.h)){a.hit.add('me');damagePlayer(dmg,'Squashed by a falling anvil');}
+      for(const m of mobs)if(!m.dying&&!a.hit.has(m)&&!m.T.boss&&inCol(m.x,m.y,m.z,m.w,m.h)){a.hit.add(m);hurtMob(m,dmg,'player');burst(m.x,m.y+m.h*.6,m.z,[.85,.2,.2],8);}
+      for(const[id,o]of MP.others)if(o.dim===dim&&!o.dead&&!a.hit.has(id)&&inCol(o.x,o.y,o.z,.3,1.8)){a.hit.add(id);mpHit(id,dmg,'Squashed by '+charCfg.name+'’s anvil');}}
+    const fy=Math.floor(ny);let land=-1;if(fy<1)land=1;else if(SOLID[get(a.x,fy,a.z)])land=fy+1;
+    if(land<0){a.y=ny;a.g.position.y=ny;continue;}
+    scene.remove(a.g);fallingAnvils.splice(i,1);sfx('anvil');shake=Math.max(shake||0,.15);burst(a.x+.5,land+.1,a.z+.5,[.55,.55,.6],10);
+    const cur=land<WY?get(a.x,land,a.z):1;if(land>=WY||(cur&&SOLID[cur])){dropItem(1136,1,a.x+.5,land+.5,a.z+.5);continue;}
+    if(cur&&BL[cur].cross)dropItem(blockItem(cur),1,a.x+.5,land+.5,a.z+.5);setBlock(a.x,land,a.z,ANVIL);}}
 function frame(now){
   requestAnimationFrame(frame);
   const dt=Math.min(.05,(now-last)/1000);last=now;
@@ -5518,7 +5574,7 @@ function frame(now){
   else if(!started)yaw+=dt*.05;
   if(ui==='play'||ui==='inv'||!started||ui==='menu')updateMobs(sim?dt:0);
   updateBubbles(dt);idleChat(dt);keyLook(dt);dinerTick(dt);fishingTick(dt);factoryTick(dt);arenaTick(dt);fireDeptTick(dt);ridesTick(dt);mpTick(dt);weatherTick(dt);portalGuide();if(ui==='play')raidTick(dt);
-  updateParts(dt);updateDrops(sim?dt:0);if(sim)updateArrows(dt);oreVision(dt);
+  updateParts(dt);updateDrops(sim?dt:0);if(sim){updateArrows(dt);updateAnvils(dt);}oreVision(dt);
   if(P.riding&&P.riding.T.vehicle){const h=P.riding;P.x=h.x-Math.sin(h.yaw)*1.4;P.y=h.y+.45;P.z=h.z-Math.cos(h.yaw)*1.4;P.vx=P.vz=P.vy=0;P.peak=P.y;}
   else if(P.riding){const h=P.riding;P.x=h.x;P.y=h.y+(h.baby>0?.5:.95);P.z=h.z;P.vx=P.vz=P.vy=0;P.peak=P.y;}
   if(ctrl==='touch')touchTick();
