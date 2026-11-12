@@ -280,7 +280,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <div id="prog" hidden></div>
   <div id="info"></div><div id="oreKey" hidden></div>
   <div id="bookUI" hidden><div class="bp" role="dialog" aria-label="Book"><div class="bk" id="bookKind">Write</div><input id="bookTitle" maxlength="40" placeholder="Title" aria-label="Title"><textarea id="bookText" placeholder="Write anything here..." aria-label="Text"></textarea><div class="row"><button class="btn" type="button" id="bookClose">Close</button><button class="btn primary" type="button" id="bookSave">Save</button></div></div></div>
-  <div id="boss" hidden>Void Dragon<div class="bar"><i id="bossFill"></i></div></div>
+  <div id="boss" hidden><span id="bossName">Void Dragon</span><div class="bar"><i id="bossFill"></i></div></div>
   <div id="mpPanel" hidden><canvas id="mpRadar" width="280" height="280" aria-label="Map of where players are"></canvas><div id="mpList" aria-live="off"></div></div>
   <img id="held" alt=""><img id="heldL" alt="" hidden>
   <div id="bottom">
@@ -522,7 +522,7 @@ if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">Th
    Constants & helpers
    ========================================================= */
 const CS=16,NC=32,WX=CS*NC,WZ=CS*NC,WY=96,SEA=22,DAY=900,DAYPART=.68;
-const T=16,NT=134;
+const T=16,NT=144;
 const WATER=11,CHEST=25,FURNACE=29,BEDROCK=10,TABLE=30,FARMLAND=42,WHEAT0=43,WHEAT1=44,TORCH=49,BED=54,FIRE=61,LAVA=62,PORTAL=63,GLOW=64,OBSIDIAN=50,NETHERRACK=51;
 const DIRS6=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
 const SAVE_KEY='blockland-world-v3',CHAR_KEY='blockland-character',LAST_KEY='blockland-last';
@@ -687,6 +687,16 @@ paint(128,(x,y)=>{if(y<=3)return((x+y)%6<3)?jit([226,188,40],8):jit([30,30,32],4
 paint(129,(x,y)=>{const d=Math.hypot(x-7.5,y-7.5);return(x===y||x===15-y||x===7||y===7||Math.abs(d-6)<.5||Math.abs(d-3.2)<.45)?[232,232,238,220]:null;});
 paint(130,(x,y)=>{if(y<=1||y===7||y===8||y>=14||x<=1||x>=14)return jit([168,128,78],12);return jit([44,30,18],6);});
 paint(131,(x,y)=>{const v=Math.sin((y+Math.sin(x*.8)*1.6)*1.15);if(v>.6)return jit([126,100,92],10);if(R()<.07)return jit([170,140,128],10);return jit([62,44,42],8);});
+paint(134,(x,y)=>{const a=x%8,b=y%8;if((b===2||b===3)&&(a===2||a===5))return jit([38,26,20],6);if(b===5&&a>=2&&a<=5)return jit([44,30,24],6);return jit([88,66,52],12);});
+paint(135,(x,y)=>R()<.12?jit([110,14,22],10):jit([164,28,40],14));
+paint(136,(x,y)=>{if(y<3||(y<6&&R()<.4))return jit([164,28,40],14);return jit([104,36,36],12);});
+paint(137,(x,y)=>x%4===0?jit([62,18,40],8):jit([112,34,62],12));
+paint(138,(x,y)=>{const d=Math.max(Math.abs(x-7.5),Math.abs(y-7.5));return d>6?jit([112,34,62],10):d%2<1?jit([150,60,80],8):jit([120,44,66],8);});
+paint(139,(x,y)=>R()<.15?jit([100,6,14],10):jit([150,14,24],16));
+paint(140,(x,y)=>(Math.sin(x*1.3)+Math.cos(y*1.1))>.8?jit([255,214,150],8):jit([250,160,70],12));
+paint(141,(x,y)=>{if(y>=3&&y<=7&&x>=3&&x<=12&&!(y===3&&(x<5||x>10))){return(x===5&&y===5)||(x===9&&y===4)||(x===10&&y===6)?[240,240,240]:jit([200,30,30],10);}if(y>=8&&y<=13&&x>=7&&x<=8)return jit([230,220,200],6);return null;});
+paint(142,(x,y)=>{if(y>=5&&y<=8&&x>=2&&x<=13&&!(y===5&&(x<4||x>11)))return jit([150,110,80],10);if(y>=9&&y<=13&&x>=7&&x<=8)return jit([226,214,196],6);return null;});
+paint(143,(x,y)=>{if(y>=5&&y<=7&&((x>=3&&x<=5)||(x>=10&&x<=12)))return[14,14,16];if(y===11&&x>=4&&x<=11&&x%2===0)return[20,20,22];return jit([58,58,62],8);});
 paint(133,(x,y)=>{if(y===0||x===0||x===15)return jit([92,92,98],6);if((x+y*3)%11===0)return jit([82,82,88],5);return jit([60,60,66],5);});
 paint(132,(x,y)=>{const d=Math.hypot(x-7.5,y-7.5);if(Math.floor(d)%3===0)return jit([122,96,90],8);return jit([58,42,40],8);});
 paint(119,(x,y)=>{if(x===3||x===12)return jit([160,160,168],8);if(x===2||x===13)return jit([105,105,112],6);if((y%4===1||y%4===2)&&x>=1&&x<=14)return jit([112,80,46],10);return null;});
@@ -791,13 +801,16 @@ B(124,'Lever',[9,9,9],.3,{pass:1,cut:1,shape:'lever',drop:267});
 B(129,'Conveyor belt',[128,127,128],2,{tool:'pick',lvl:0,shape:'conveyor',drop:279});B(130,'Conveyor belt',[128,127,128],2,{tool:'pick',lvl:0,shape:'conveyor',drop:279});
 B(131,'Conveyor belt',[128,127,128],2,{tool:'pick',lvl:0,shape:'conveyor',drop:279});B(132,'Conveyor belt',[128,127,128],2,{tool:'pick',lvl:0,shape:'conveyor',drop:279});
 B(133,'Cobweb',[129,129,129],1.2,{cross:1,drop:162});B(134,'Empty bookshelf',[130,8,8],1.5,{tool:'axe'});B(135,'Netherite ore',[131,132,131],8,{tool:'pick',lvl:3});B(136,'Anvil',[133,133,133],5,{tool:'pick',lvl:0,cut:1,shape:'anvil'});
+B(137,'Soul sand',[134,134,134],.5,{tool:'shovel'});B(138,'Crimson moss',[136,135,60],.4,{tool:'pick',lvl:0});B(139,'Nether stem',[137,138,138],2,{tool:'axe'});
+B(140,'Wart block',[139,139,139],1,{tool:'hoe'});B(141,'Shroomlight',[140,140,140],1,{tool:'hoe'});B(142,'Red mushroom',[141,141,141],0,{cross:1});B(143,'Brown mushroom',[142,142,142],0,{cross:1});
+B(144,'Charred skull block',[143,143,143],1,{shape:'skull',cut:1,drop:252});
 B(126,'Oak fence',[8,8,8],2,{tool:'axe',cut:1,shape:'fence',drop:268});B(127,'Oak fence gate',[8,8,8],2,{tool:'axe',cut:1,shape:'gate',drop:269});B(128,'Oak fence gate',[8,8,8],2,{tool:'axe',cut:1,pass:1,shape:'gate',drop:269});B(125,'Lever',[9,9,9],.3,{pass:1,cut:1,shape:'lever',drop:267});
-const NBRICK=104,FALLL=109,FRAME=110,FRAMEF=111,END_P=112,ENDSTONE=113,TNT=114,DOORLC=115,DOORUC=116,DOORLO=117,DOORUO=118,RAIL=119,PRAIL=120,PRAILON=121,WIRE=122,WIREON=123,LEVER=124,LEVERON=125,FENCE=126,GATEC=127,GATEO=128,COBWEB=133,SHELF0=134,NETHORE=135,ANVIL=136;
+const NBRICK=104,FALLL=109,FRAME=110,FRAMEF=111,END_P=112,ENDSTONE=113,TNT=114,DOORLC=115,DOORUC=116,DOORLO=117,DOORUO=118,RAIL=119,PRAIL=120,PRAILON=121,WIRE=122,WIREON=123,LEVER=124,LEVERON=125,FENCE=126,GATEC=127,GATEO=128,COBWEB=133,SHELF0=134,NETHORE=135,ANVIL=136,SOULSAND=137,NYLIUM=138,NSTEM=139,WART=140,SHROOM=141,RMUSH=142,BMUSH=143,SKULLB=144;
 const CONVDIR={129:[1,0],130:[-1,0],131:[0,1],132:[0,-1]};
-const NB=137,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
+const NB=145,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
 const SOLID=new Uint8Array(256),OPAQ=new Uint8Array(256);
 for(let i=1;i<NB;i++){const b=BL[i];SOLID[i]=(b.liquid||b.cross||b.pass)?0:1;OPAQ[i]=(b.liquid||b.cut||b.cross)?0:1;}
-const PLANT_ON={87:[4,26,2,3,9,87],88:[4,26,2,3,9],78:[FARMLAND],80:[FARMLAND],73:[1,2,12,42],74:[1,2,12,42],43:[FARMLAND],44:[FARMLAND],45:[1,2,12],46:[1,2,12],47:[1,2,12],48:[1,2,4,12,48]};
+const PLANT_ON={142:[138,51,137,1,2,3,9,12],143:[138,51,137,1,2,3,9,12],87:[4,26,2,3,9,87],88:[4,26,2,3,9],78:[FARMLAND],80:[FARMLAND],73:[1,2,12,42],74:[1,2,12,42],43:[FARMLAND],44:[FARMLAND],45:[1,2,12],46:[1,2,12],47:[1,2,12],48:[1,2,4,12,48]};
 
 const ITEMS={};
 function food(id,n,p,pal,f,heal){ITEMS[id]={n,kind:'food',p,pal,food:f,heal:heal||0,max:64};}
@@ -912,7 +925,7 @@ PIECES.forEach((p,si)=>{ITEMS[280+si]={n:'Netherite '+p[0],kind:'armor',p:p[1],p
   ITEMS[286]={n:'Netherite axe',kind:'tool',tool:'axe',p:'axe',pal,spd:10,lvl:4,dur:2031,atk:5,max:1};
   ITEMS[287]={n:'Netherite shovel',kind:'tool',tool:'shovel',p:'shovel',pal,spd:10,lvl:4,dur:2031,atk:3,max:1};
   ITEMS[288]={n:'Netherite hoe',kind:'tool',tool:'hoe',p:'hoe',pal,spd:10,lvl:4,dur:2031,atk:1,max:1};}
-mat(289,'Netherite scrap','coal',{a:'#5a4440',b:'#2a1e1c',c:'#9a7a70'});mat(290,'Netherite ingot','ingot',{a:'#4a4048',b:'#221c20',c:'#a08c9c'});
+mat(303,'Wither star','star',{a:'#f4f4ff',b:'#9aa0c8',c:'#ffffff'});mat(289,'Netherite scrap','coal',{a:'#5a4440',b:'#2a1e1c',c:'#9a7a70'});mat(290,'Netherite ingot','ingot',{a:'#4a4048',b:'#221c20',c:'#a08c9c'});
 const SHIELD=291,SPEAR=292;
 ITEMS[291]={n:'Shield',kind:'shield',p:'shield',pal:{a:'#a0703c',b:'#6a6a72',c:'#d0d0d8'},dur:336,max:1};
 // spears in every material: a stronger tip hits harder in a dash; gold is weak but ready again fastest
@@ -926,14 +939,14 @@ const maxOf=id=>itemDef(id).max;
 function mk(id,n){const d=itemDef(id);return d.dur?{id,count:1,dur:d.dur}:{id,count:n};}
 
 /* ---------- crafting recipes ---------- */
-const GRP={log:[5,18],planks:[7,40],stone:[9,28],wool:[24,35,36,37,38,39]};
+const GRP={log:[5,18,1139],planks:[7,40],stone:[9,28],wool:[24,35,36,37,38,39]};
 const GRPNAME={log:'log',planks:'planks',stone:'cobblestone',wool:'wool'};
 const ing=(k,id)=>typeof k==='string'?GRP[k].includes(id):k===id;
 const ingName=k=>typeof k==='string'?GRPNAME[k]:itemDef(k).n.toLowerCase();
 const RECIPES=[];
 mat(250,'Flare rod','stick',{a:'#ffcf4a',b:'#c87a10',c:'#fff3b0'});
 mat(251,'Flare powder','dust',{a:'#ffb020',b:'#c86a10',c:'#ffe680'});
-ITEMS[252]={n:'Charred skull',kind:'mat',p:'skull',pal:{a:'#3e3e44',b:'#141416',c:'#7a7a80'},max:64};
+ITEMS[252]={n:'Charred skull',kind:'mat',place:144,p:'skull',pal:{a:'#3e3e44',b:'#141416',c:'#7a7a80'},max:64};
 ITEMS[261]={n:'Eye of the Void',kind:'eye',p:'eye',pal:{a:'#3ec890',b:'#1a5a44',c:'#a0ffd8',d:'#0a1410'},max:64};
 ITEMS[179].place=122;
 ITEMS[270]={n:'Leash',kind:'leash',p:'leash',pal:{a:'#c8a46a',b:'#8a6a3a'},max:64};
@@ -1007,7 +1020,8 @@ boots:["........","........",".aa..aa.",".aa..aa.",".ac..ac.","aaa.aaa.","bbb.bb
 heart:[".bb.bb..","baabaab.","bacaaab.","baaaaab.",".baaab..","..bab...","...b....","........"],
 drum:["....bbb.","...baaab","...bacab","..bbaaab",".bcbbbb.","bccb....",".bb.....","........"],
 shield:["bbbbbbb.","baacaab.","baaaaab.","baaaaab.",".baaab..",".baaab..","..bab...","...b...."],
-spear:["......cc","....ccac",".....ac.","....b...","...b....","..b.....",".b......","b......."],
+star:["...c....","...a....","..aaa...","caaaaac.","..aaa...",".a...a..","a.....a.","........"],
+  spear:["......cc","....ccac",".....ac.","....b...","...b....","..b.....",".b......","b......."],
 bubble:["..bbbb..",".bccaab.","bcaaaaab","baaaaaab","baaaaaab","baaaaaab",".baaaab.","..bbbb.."],
 pick:["caaaaac.","a..b..a.","...b....","...b....","...b....","...b....","...b....","........"],
 axe:["..caab..",".caaab..",".aaa.b..","..a..b..",".....b..",".....b..",".....b..","........"],
@@ -2338,6 +2352,7 @@ const AREA=(WX*WZ)/25600;
 const ORE_VEINS=[[20,1100,9,6,56],[55,520,8,12,48],[21,620,6,4,46],[57,140,6,4,26],[22,170,6,3,28],[56,230,7,2,16],[23,90,5,2,14]];
 const places=[],mineCrews=[];
 function addPlace(name,x,y,z){places.push({name,x:x+.5,y,z:z+.5});}
+function netherBiome(x,z){const v=vnoise3(x/110,.5,z/110,seed+7808);return v<.43?'soul':v>.63?'forest':'wastes';}
 function generateNether(){if(worldType==='chunk'){generateNetherChunk();return;}world.fill(0);CHEST_T.clear();villages.length=0;const s=seed+7777;
   for(let z=0;z<WZ;z++)for(let x=0;x<WX;x++)for(let y=0;y<64;y++){let id=0;
     if(y===0||y===63||(y<3&&hash3(x,y,z,s)<.5)||(y>60&&hash3(x,y,z,s+1)<.5))id=BEDROCK;
@@ -2352,6 +2367,20 @@ function generateNether(){if(worldType==='chunk'){generateNetherChunk();return;}
   // netherite ore: small clumps hidden in the netherrack, mostly low down
   {const RO=mulberry(s+4242);for(let k=0;k<2200;k++){const x=1+(RO()*(WX-3)|0),z=1+(RO()*(WZ-3)|0),y=8+(RO()*(k%3?20:44)|0),n=1+(RO()*3|0);
     for(let j=0;j<n;j++){const ax=x+(j&1),az=z+(j>>1);if(world[idx(ax,y,az)]===NETHERRACK)world[idx(ax,y,az)]=NETHORE;}}}
+  // biomes: soul sand valleys and crimson forests where voidwalkers roam
+  {const RB=mulberry(s+515);
+    const tree=(x,y,z)=>{const h=4+(RB()*4|0);for(let k=0;k<h+3;k++)if(get(x,y+k,z)!==0)return;for(let k=0;k<h;k++)S(x,y+k,z,NSTEM);const top=y+h-1;
+      for(let dy=-2;dy<=1;dy++){const r=dy===1?1:2;for(let dx=-r;dx<=r;dx++)for(let dz=-r;dz<=r;dz++){if(r===2&&Math.abs(dx)===2&&Math.abs(dz)===2&&RB()<.6)continue;
+        if(get(x+dx,top+dy,z+dz)===0)S(x+dx,top+dy,z+dz,RB()<.08?SHROOM:WART);}}};
+    for(let z=3;z<WZ-3;z++)for(let x=3;x<WX-3;x++){const bm=netherBiome(x,z);if(bm==='wastes')continue;
+      for(let y=58;y>=12;y--){if(world[idx(x,y,z)]!==NETHERRACK||world[idx(x,y+1,z)]!==0)continue;
+        if(bm==='soul'){world[idx(x,y,z)]=SOULSAND;if(world[idx(x,y-1,z)]===NETHERRACK)world[idx(x,y-1,z)]=SOULSAND;
+          if(RB()<.003){const h=3+(RB()*4|0);for(let k=1;k<=h;k++)if(world[idx(x,y+k,z)]===0)world[idx(x,y+k,z)]=41;}}
+        else{world[idx(x,y,z)]=NYLIUM;const r=RB();if(r<.007)tree(x,y+1,z);else if(r<.05)world[idx(x,y+1,z)]=RB()<.6?RMUSH:BMUSH;}}}
+    for(const[bm,name]of[['soul','Soul sand valley'],['forest','Crimson forest']]){let done=false;
+      for(let r=10;r<200&&!done;r+=8)for(let a=0;a<16&&!done;a++){const x=Math.floor(WX/2+Math.cos(a/16*6.283)*r),z=Math.floor(WZ/2+Math.sin(a/16*6.283)*r);
+        if(x<4||z<4||x>=WX-4||z>=WZ-4||netherBiome(x,z)!==bm||netherBiome(x+12,z)!==bm||netherBiome(x,z+12)!==bm)continue;
+        for(let y=50;y>12;y--){const b=get(x,y-1,z);if((b===SOULSAND||b===NYLIUM)&&!get(x,y,z)&&!get(x,y+1,z)){addPlace(name,x,y,z);done=true;break;}}}}}
   buildNetherPlaces(s);
   edits.forEach((id,k)=>{const p=k.split(',').map(Number);if(p[0]>=0&&p[0]<WX&&p[1]>=0&&p[1]<WY&&p[2]>=0&&p[2]<WZ)world[idx(p[0],p[1],p[2])]=id;});
   spawnPt=null;
@@ -2602,7 +2631,7 @@ const COST=new Uint8Array(256);COST[11]=2;COST[6]=1;COST[19]=1;
 const EMIT=new Uint8Array(256);EMIT[88]=10;EMIT[49]=14;EMIT[61]=15;EMIT[62]=15;EMIT[63]=11;EMIT[64]=15;
 const ISL=new Uint8Array(256);for(const i of[62,105,106,107,108,109]){ISL[i]=1;EMIT[i]=i===62?15:13;}
 const lLevel=b=>b===62||b===109?0:(b>=105&&b<=108?b-104:99),lTop=b=>b===62?.88:b===109?1:Math.max(.12,(5-(b-104))/5*.88);
-EMIT[112]=12;
+EMIT[112]=12;EMIT[141]=15;
 const FALLW=72,ISW=new Uint8Array(256);ISW[WATER]=1;for(let i=65;i<=72;i++){ISW[i]=1;COST[i]=2;}
 const wLevel=b=>b===WATER||b===FALLW?0:(b>=65&&b<=71?b-64:99);
 const wTop=b=>b===WATER?.88:b===FALLW?1:Math.max(.12,(8-(b-64))/8*.88);
@@ -2819,6 +2848,7 @@ function shapeMesh(A,x,y,z,id,b){const lp=litAt(x,y,z),ls=(lp>>4)/15,lb=b.glow?1
     if(straight){emitFlat(A,x,y,z,.06,b.t[0],c[0][0]?1:0,ls,lb);return;}
     for(let r=0;r<4;r++){const a=rotV(c[0],r),q=rotV(c[1],r);const ok=(a[0]===0&&a[1]===1&&q[0]===1&&q[1]===0)||(q[0]===0&&q[1]===1&&a[0]===1&&a[1]===0);if(ok){emitFlat(A,x,y,z,.06,120,r,ls,lb);return;}}
     emitFlat(A,x,y,z,.06,b.t[0],0,ls,lb);return;}
+  if(b.shape==='skull'){emitBox(A,x,y,z,.25,0,.25,.75,.5,.75,b.t[0],ls,lb);return;}
   if(b.shape==='anvil'){const t=b.t[0];emitBox(A,x,y,z,.14,0,.18,.86,.22,.82,t,ls,lb);emitBox(A,x,y,z,.26,.22,.3,.74,.32,.7,t,ls,lb);
     emitBox(A,x,y,z,.36,.32,.38,.64,.62,.62,t,ls,lb);emitBox(A,x,y,z,0,.62,.2,1,1,.8,t,ls,lb);return;}
   if(b.shape==='wire'){emitFlat(A,x,y,z,.03,b.t[0],0,ls,id===WIREON?1:lb);return;}
@@ -2908,7 +2938,7 @@ function portalHint(){if(!nPortal)return'';const dx=nPortal.x-P.x,dz=nPortal.z-P
   const fw=dx*-Math.sin(yaw)+dz*-Math.cos(yaw),rt=dx*Math.cos(yaw)-dz*Math.sin(yaw),a=Math.atan2(rt,fw)*180/Math.PI;
   const way=Math.abs(a)<25?'straight ahead':Math.abs(a)>150?'behind you':a>0?'to your right':'to your left';
   return'\nYour portal: '+Math.round(d)+' blocks '+dirName(dx,dz)+', '+way+(dy>3?', '+dy+' up':dy<-3?', '+(-dy)+' down':'');}
-function portalGuide(){{const b=$('boss');if(!b.hidden&&(dim!==2||performance.now()-bossSeen>800||ui==='menu'))b.hidden=true;}if(dim!==1){if(nPortalTag)nPortalTag.visible=false;return;}
+function portalGuide(){{const b=$('boss');if(!b.hidden&&(performance.now()-bossSeen>800||ui==='menu'))b.hidden=true;}if(dim!==1){if(nPortalTag)nPortalTag.visible=false;return;}
   if(!nPortal&&!nPortalScan&&worldReady!==undefined){nPortalScan=true;nPortal=scanForPortal();}
   if(!nPortal)return;if(get(Math.floor(nPortal.x),nPortal.y,Math.floor(nPortal.z))!==PORTAL&&!nPortalScan){nPortalScan=true;const p=scanForPortal();if(p)nPortal=p;}
   if(!nPortalTag){nPortalTag=labelSprite('🌀 Your portal');nPortalTag.material.depthTest=false;nPortalTag.material.depthWrite=false;nPortalTag.renderOrder=999;nPortalTag.userData.base=nPortalTag.scale.clone();scene.add(nPortalTag);}
@@ -2955,7 +2985,7 @@ function explode(x,y,z,power,src){sfx('boom');burst(x,y,z,[1,.62,.22],18);burst(
   if(!safe&&!P.dead&&!P.spec){const dx=P.x-x,dy=P.y+.9-y,dz=P.z-z,d=Math.hypot(dx,dy,dz);if(d<reach){const f=1-d/reach;shake=Math.max(shake,f*.6);
     const dmg=Math.round(f*f*power*6+f*2),blk=mode==='survival'&&shieldBlocks(x,z),kr=(blk?.3:1)*(1-.2*toughN());
     if(blk){if(dmg>0){wearShield(Math.max(1,Math.ceil(dmg/3)));shieldFx();flash('Your shield blocked the explosion!');}}
-    else if(dmg>0)damagePlayer(dmg,src==='bed'?'Blown up by a bed':src==='tnt'?'Blown up by TNT':'Blown up by a fusebug',{x,z});
+    else if(dmg>0)damagePlayer(dmg,src==='bed'?'Blown up by a bed':src==='tnt'?'Blown up by TNT':src==='wailer'?'Blown up by a wailer’s fireball':src==='wither'?'Blasted by the Wither Lord':'Blown up by a fusebug',{x,z});
     P.kx+=dx/(d||1)*f*12*kr;P.kz+=dz/(d||1)*f*12*kr;P.vy=Math.max(P.vy,f*8*kr);}}
   for(const m of mobs){if(m===src||m.dying||safe&&!m.arena)continue;const dx=m.x-x,dz=m.z-z,d=Math.hypot(dx,m.y+m.h/2-y,dz);
     if(d<reach){const f=1-d/reach;hurtMob(m,Math.round((f*f*power*6+f*2)*(src&&src.arena?Math.max(.4,src.dmgMul||1):1)),null);m.kx+=dx/(d||1)*f*10;m.kz+=dz/(d||1)*f*10;m.vy=f*7;}}}
@@ -3040,7 +3070,7 @@ function setBlock(x,y,z,id){const _old=world[idx(x,y,z)];world[idx(x,y,z)]=id;co
   const set=new Set();for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const xx=x+dx,zz=z+dz;if(xx<0||zz<0||xx>=WX||zz>=WZ)continue;set.add(((xx/CS)|0)+((zz/CS)|0)*NC);}
   relight(x,z,set);
   set.forEach(k=>{dirty.delete(k);buildChunk(k%NC,(k/NC)|0);});save();rsMaybe(x,y,z,_old,id);if(id===FIRE)firePortal(x,y,z);
-  if(!MP.applying){if(id===ANVIL)anvilQ.push([x,y,z]);if(y+1<WY&&world[idx(x,y+1,z)]===ANVIL)anvilQ.push([x,y+1,z]);}}
+  if(!MP.applying){if(id===SKULLB)setTimeout(()=>checkWither(x,y,z),0);if(id===ANVIL)anvilQ.push([x,y,z]);if(y+1<WY&&world[idx(x,y+1,z)]===ANVIL)anvilQ.push([x,y+1,z]);}}
 
 /* =========================================================
    Sky: sun, moon, stars, clouds
@@ -3216,11 +3246,34 @@ const MT={
   charred:{n:'Charred skeleton',hostile:1,fireproof:1,w:.36,h:2.3,hp:26,spd:2.5,dmg:[5,8],reach:1.7,drops:[[131,0,1],[173,0,2],[252,0,1]],build:()=>mutantOf(skeletonModel,1.25,[.24,.24,.26])},
   hogfolk:{n:'Hogfolk',hostile:1,goldy:1,calmArms:1,w:.32,h:1.9,hp:18,spd:2.4,dmg:[3,5],reach:1.4,drops:[[134,0,1],[105,0,2]],build:hogfolkModel},
   voidwalker:{n:'Voidwalker',hostile:1,stare:1,calmArms:1,w:.3,h:2.9,hp:40,spd:3.3,dmg:[5,8],reach:1.8,drops:[[253,0,1]],build:voidwalkerModel},
+  wailer:{n:'Wailer',hostile:1,ranged:1,fly:1,fireball:1,boom:1.4,noPuff:1,fireproof:1,far:44,range:40,hover:7,w:1,h:2.9,hp:10,spd:1.6,dmg:4,reach:1,drops:[[171,0,2],[250,0,1]],build:wailerModel},
+  strider:{n:'Strider',strider:1,lavaWalk:1,fireproof:1,w:.45,h:1.7,hp:20,spd:1.6,drops:[[162,1,3]],build:striderModel},
+  wither:{n:'Wither Lord',hostile:1,ranged:1,fly:1,fireball:1,boom:1.2,skullShot:1,multi:3,bigBoss:1,noPuff:1,fireproof:1,far:48,range:30,hover:5,w:.9,h:3.2,hp:300,spd:3,dmg:8,reach:2,drops:[[303,1,1]],build:witherModel},
   dragon:{n:'Void Dragon',boss:1,hostile:1,w:2.6,h:3.2,hp:180,spd:0,drops:[],build:dragonModel},
   minecart:{n:'Minecart',cart:1,w:.45,h:.75,hp:6,spd:0,drops:[[264,1,1]],build:minecartModel},
   crystal:{n:'Void crystal',crystal:1,w:.55,h:1.6,hp:1,spd:0,drops:[],build:crystalModel},
   horse:{n:'Horse',horse:1,w:.6,h:1.6,hp:22,spd:2.2,drops:[[136,0,2]],build:c=>horseModel(c)}
 };
+function wailerModel(){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;};const g=new THREE.Group();
+  const w=M('#f2f2ee'),gr=M('#cfcfca'),dk=M('#34343a'),tear=M('#9ab8e0');
+  const head=pivot(g,0,1.9,0);part(head,2,2,2,w,0,0,0);
+  part(head,.34,.14,.02,dk,-.45,.28,-1.01);part(head,.34,.14,.02,dk,.45,.28,-1.01);part(head,.08,.34,.02,tear,-.5,.02,-1.01);part(head,.08,.34,.02,tear,.5,.02,-1.01);
+  part(head,.56,.2,.02,dk,0,-.45,-1.01);
+  const legs=[];for(let i=0;i<9;i++){const p=pivot(g,((i%3)-1)*.6,.9,(Math.floor(i/3)-1)*.6);part(p,.16,.7+((i*7)%4)*.16,.16,gr,0,-.4,0);legs.push(p);}
+  return{g,mats,legs,head};}
+function striderModel(){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;};const g=new THREE.Group();
+  const body=M('#a8403e'),dk=M('#6e2626'),hair=M('#d8a8a4'),eye=M('#1a0a0a'),sad=M('#6a4424');
+  const legs=[];for(const sx of[-1,1]){const p=pivot(g,sx*.2,.95,0);part(p,.16,.95,.16,dk,0,-.47,0);legs.push(p);}
+  part(g,.82,.78,.82,body,0,1.34,0);part(g,.14,.08,.02,eye,-.18,1.5,-.415);part(g,.14,.08,.02,eye,.18,1.5,-.415);part(g,.42,.05,.02,eye,0,1.27,-.415);
+  for(let k=0;k<6;k++)part(g,.05,.3+(k%3)*.08,.05,hair,-.3+k*.12,1.86,-.1+(k%2)*.2);
+  const saddle=part(g,.84,.12,.5,sad,0,1.74,0);saddle.visible=false;return{g,mats,legs,saddle};}
+function witherModel(){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;};const g=new THREE.Group();
+  const bone=M('#232328'),dk=M('#101012'),eye=new THREE.MeshBasicMaterial({color:0xe8e8ff});
+  part(g,.24,1.4,.24,bone,0,1.3,0);for(let k=0;k<3;k++)part(g,1.05,.12,.5,bone,0,1.25+k*.3,.05);part(g,.2,.6,.2,dk,0,.4,.1);
+  part(g,2.5,.3,.36,bone,0,2.25,0);
+  const mk=(x,y,sz)=>{const h=pivot(g,x,y,0);part(h,sz,sz,sz,bone,0,0,0);part(h,sz*.22,sz*.13,.02,eye,-sz*.2,sz*.1,-sz/2-.01);part(h,sz*.22,sz*.13,.02,eye,sz*.2,sz*.1,-sz/2-.01);
+    part(h,sz*.5,sz*.08,.02,dk,0,-sz*.22,-sz/2-.01);return h;};
+  const head=mk(0,2.8,.82),hl=mk(-1.05,2.6,.6),hr=mk(1.05,2.6,.6);return{g,mats,legs:[],head,heads:[head,hl,hr],extra:[eye]};}
 function flareModel(){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;};const g=new THREE.Group();
   const skin=M('#f2b632'),dk=M('#b86a12'),eye=M('#2a1206');
   const glow=new THREE.MeshBasicMaterial({color:0xffc83a}),glow2=new THREE.MeshBasicMaterial({color:0xff6a10});
@@ -3531,11 +3584,12 @@ function boxHits(x,y,z,w,h){for(let by=Math.floor(y);by<=Math.floor(y+h-1e-4);by
   for(let bx=Math.floor(x-w);bx<=Math.floor(x+w-1e-4);bx++)if(SOLID[get(bx,by,bz)])return true;
   if(FENCE_TALL&&y-Math.floor(y)<.5){const fy=Math.floor(y)-1;for(let bz=Math.floor(z-w);bz<=Math.floor(z+w-1e-4);bz++)for(let bx=Math.floor(x-w);bx<=Math.floor(x+w-1e-4);bx++){const v=get(bx,fy,bz);if(v===FENCE||v===GATEC)return true;}}return false;}
 function inWeb(e){for(let x=Math.floor(e.x-e.w);x<=Math.floor(e.x+e.w);x++)for(let z=Math.floor(e.z-e.w);z<=Math.floor(e.z+e.w);z++)for(let y=Math.floor(e.y);y<=Math.floor(e.y+e.h);y++)if(get(x,y,z)===COBWEB)return true;return false;}
-function moveEntity(e,dt){FENCE_TALL=e!==P;e.webbed=inWeb(e);const cd=CONVDIR[get(Math.floor(e.x),Math.floor(e.y-.08),Math.floor(e.z))];e.cvx=cd&&e.vy<=.5?cd[0]*2.4:0;e.cvz=cd&&e.vy<=.5?cd[1]*2.4:0;
+function moveEntity(e,dt){FENCE_TALL=e!==P;e.webbed=inWeb(e);const ub=get(Math.floor(e.x),Math.floor(e.y-.08),Math.floor(e.z)),cd=CONVDIR[ub];
+  e.sf=ub===SOULSAND&&!(e.T&&e.T.lavaWalk)&&!(e===P&&P.riding)?.42:1;e.cvx=cd&&e.vy<=.5?cd[0]*2.4:0;e.cvz=cd&&e.vy<=.5?cd[1]*2.4:0;
   if(e.webbed){e.vy=Math.max(-1.3,Math.min(e.vy,1.3));if(e===P)P.peak=P.y;}try{moveEntity2(e,dt);}finally{FENCE_TALL=true;}}
 function moveEntity2(e,dt){const n=Math.max(1,Math.ceil(dt/.016)),s=dt/n;e.hitH=false;let ground=false;
   for(let i=0;i<n;i++){
-    const wf=e.webbed?.16:1;let d=((e.vx+e.kx)*wf+(e.cvx||0))*s;if(d){const o=e.x;e.x+=d;if(boxHits(e.x,e.y,e.z,e.w,e.h)){e.x=o;e.hitH=true;
+    const wf=(e.webbed?.16:1)*(e.sf||1);let d=((e.vx+e.kx)*wf+(e.cvx||0))*s;if(d){const o=e.x;e.x+=d;if(boxHits(e.x,e.y,e.z,e.w,e.h)){e.x=o;e.hitH=true;
       if(e!==P&&e.w>.3){const cz=Math.floor(e.z)+.5,dz=cz-e.z;if(Math.abs(dz)>.01){const oz=e.z;e.z+=Math.sign(dz)*Math.min(Math.abs(dz),.06);if(boxHits(e.x,e.y,e.z,e.w,e.h))e.z=oz;else{e.x+=d;if(boxHits(e.x,e.y,e.z,e.w,e.h))e.x=o;else e.hitH=false;}}}}}
     d=((e.vz+e.kz)*wf+(e.cvz||0))*s;if(d){const o=e.z;e.z+=d;if(boxHits(e.x,e.y,e.z,e.w,e.h)){e.z=o;e.hitH=true;
       if(e!==P&&e.w>.3){const cx=Math.floor(e.x)+.5,dx=cx-e.x;if(Math.abs(dx)>.01){const ox=e.x;e.x+=Math.sign(dx)*Math.min(Math.abs(dx),.06);if(boxHits(e.x,e.y,e.z,e.w,e.h))e.x=ox;else{e.z+=d;if(boxHits(e.x,e.y,e.z,e.w,e.h))e.z=o;else e.hitH=false;}}}}}
@@ -3595,6 +3649,8 @@ function interactMob(m){const s=inv[sel],id=s&&s.id,T=m.T;
         else{burst(m.x,m.y+m.h,m.z,[.5,.5,.5],5);flash('The wolf isn’t sure yet. Try another bone');}return true;}return false;}
     if(id&&FOOD_FOR.wolf.includes(id)){if(m.hp<m.maxHp){m.hp=Math.min(m.maxHp,m.hp+4);useOne();hearts(m);swing();return true;}return feed(m);}
     m.sit=!m.sit;m.cmd=null;flash(m.sit?'Your wolf is sitting':'Your wolf will follow you');return true;}
+  if(T.strider){if(id===1142||id===1143){if(!m.tame){useOne();swing();tameMob(m);m.saddle=true;flash('The strider loves mushrooms! Right-click it with your hand to ride it across lava');return true;}return feed(m);}
+    if(m.tame&&!(m.baby>0)){mount(m);return true;}flash('Feed the strider a mushroom to tame it');return true;}
   if(T.horse){
     if(id===175&&m.tame&&!m.saddle&&!(m.baby>0)){m.saddle=true;useOne();sfx('place');flash('Saddled! Use the horse to ride it');return true;}
     if(id&&FOOD_FOR.horse.includes(id)){if(m.tame)return feed(m);m.temper+=10;useOne();swing();flash('The horse liked that');return true;}
@@ -3610,6 +3666,7 @@ function interactMob(m){const s=inv[sel],id=s&&s.id,T=m.T;
   return false;}
 function mount(h){if(P.riding)return;P.riding=h;P.rideT=1.5+Math.random()*2.5;P.vx=P.vy=P.vz=P.kx=P.kz=0;primaryUp();updateTouch();
   if(h.T.vehicle){flash('Driving the '+h.T.n.toLowerCase()+'. W/S or Up/Down to drive, A/D or Left/Right to steer, Ctrl to go faster, Shift to get out');sfx('pop');return;}
+  if(h.T.strider){flash('Riding a strider. Walk where you look, even across lava. Shift to get off');sfx('pop');return;}
   flash(h.tame?(h.saddle?'Riding. Press Shift to get off':'This horse needs a saddle before you can steer it. Shift to get off'):'Hold on, the horse is deciding about you…');}
 function dismount(){const h=P.riding;if(!h)return;P.riding=null;
   for(const[ox,oz]of[[1.2,0],[-1.2,0],[0,1.2],[0,-1.2],[0,0]]){if(!boxHits(h.x+ox,h.y+.1,h.z+oz,P.w,P.h)){P.x=h.x+ox;P.z=h.z+oz;P.y=h.y+.1;break;}}
@@ -3627,8 +3684,10 @@ function rideTick(dt){const h=P.riding;if(!h)return;if(h.dying||!mobs.includes(h
 /* arrows */
 const arrows=[];const arrowMat=lam('#8a6a42');
 const fireMat=new THREE.MeshBasicMaterial({color:0xff8a20}),pearlMat=new THREE.MeshBasicMaterial({color:0x3fd8c0}),fireGeo=sbox(.32,.32,.32),pearlGeo=sbox(.2,.2,.2);
-function shootFire(m,t){const ox=m.x,oy=m.y+1.5,oz=m.z,dx=t.x-ox+(Math.random()-.5)*1.4,dy=t.y+1.1-oy+(Math.random()-.5)*.8,dz=t.z-oz+(Math.random()-.5)*1.4,l=Math.hypot(dx,dy,dz)||1,v=13;
-  const me=new THREE.Mesh(fireGeo,fireMat);me.position.set(ox,oy,oz);scene.add(me);arrows.push({x:ox,y:oy,z:oz,vx:dx/l*v,vy:dy/l*v,vz:dz/l*v,owner:m,dmg:5,me,stuck:0,life:0,fire:true});sfx('hiss');}
+const skullMat=new THREE.MeshBasicMaterial({color:0x1a1a1e});
+function shootFire(m,t){const ox=m.x+(m.T.bigBoss?(Math.random()-.5)*2:0),oy=m.y+(m.T.bigBoss?2.7:m.T.boom?1.9:1.5),oz=m.z,dx=t.x-ox+(Math.random()-.5)*1.4,dy=t.y+1.1-oy+(Math.random()-.5)*.8,dz=t.z-oz+(Math.random()-.5)*1.4,l=Math.hypot(dx,dy,dz)||1,v=13;
+  const me=new THREE.Mesh(fireGeo,m.T.skullShot?skullMat:fireMat);me.position.set(ox,oy,oz);if(m.T.boom)me.scale.setScalar(1.6);scene.add(me);
+  arrows.push({x:ox,y:oy,z:oz,vx:dx/l*v,vy:dy/l*v,vz:dz/l*v,owner:m,dmg:5,me,stuck:0,life:0,fire:true,boom:m.T.boom||0,src:m.T.bigBoss?'wither':m.T.boom?'wailer':''});sfx(m.T.boom&&!m.T.bigBoss?'wail':'hiss');}
 function mopUse(){const cx=target?target.x:Math.floor(P.x),cy=target?target.y:Math.floor(P.y),cz=target?target.z:Math.floor(P.z);let n=0,f=0;const ch=[];
   for(let dx=-2;dx<=2;dx++)for(let dy=-2;dy<=2;dy++)for(let dz=-2;dz<=2;dz++){const x=cx+dx,y=cy+dy,z=cz+dz,b=get(x,y,z);if(ISW[b]){ch.push([x,y,z]);n++;}else if(b===FIRE){ch.push([x,y,z]);f++;}}
   swing();if(!ch.length){flash('Nothing to mop here. Use the mop near water or fire');return;}
@@ -3639,6 +3698,7 @@ function broomUse(){let n=0;for(const d of drops){if(Math.hypot(d.x-P.x,d.y-P.y,
 function throwPearl(){const me=new THREE.Mesh(pearlGeo,pearlMat);const o={x:P.x+fwd.x*.5,y:P.y+EYE+fwd.y*.5,z:P.z+fwd.z*.5};me.position.set(o.x,o.y,o.z);scene.add(me);
   arrows.push({x:o.x,y:o.y,z:o.z,vx:fwd.x*24+P.vx*.5,vy:fwd.y*24+2,vz:fwd.z*24+P.vz*.5,owner:'player',dmg:0,me,stuck:0,life:0,pearl:true});sfx('pop');swing();}
 function projHit(a,m){const px=Math.floor(a.x-a.vx*.02),py=Math.floor(a.y-a.vy*.02),pz=Math.floor(a.z-a.vz*.02);
+  if(a.boom){explode(a.x-a.vx*.02,a.y-a.vy*.02,a.z-a.vz*.02,a.boom,a.src||'wailer');return;}
   if(a.fire){burst(a.x,a.y,a.z,[1,.55,.1],6);if(!get(px,py,pz)&&SOLID[get(px,py-1,pz)]&&dim===1)setBlock(px,py,pz,FIRE);return;}
   if(a.pearl){if(P.dead)return;let x=m?m.x:px+.5,z=m?m.z:pz+.5,y=m?m.y:py;
     for(let k=0;k<4;k++){if(!SOLID[get(Math.floor(x),Math.floor(y),Math.floor(z))]&&!SOLID[get(Math.floor(x),Math.floor(y)+1,Math.floor(z))])break;y++;}
@@ -3658,13 +3718,14 @@ function updateArrows(dt){for(let i=arrows.length-1;i>=0;i--){const a=arrows[i];
     if(a.owner!=='player'&&!(a.owner&&a.owner.arena)&&!(a.owner&&a.owner.T&&a.owner.T.friendly)&&!P.dead&&!P.spec&&Math.abs(a.x-P.x)<.4&&Math.abs(a.z-P.z)<.4&&a.y>P.y&&a.y<P.y+1.85){
       if(mode==='survival'&&shieldBlocks(P.x-a.vx,P.z-a.vz)){a.vx=-a.vx*.6;a.vz=-a.vz*.6;a.vy=Math.abs(a.vy)*.3+(a.fire?0:3);a.x+=a.vx*.05;a.z+=a.vz*.05;a.owner='player';
         wearShield(1);shieldFx();burst(a.x,a.y,a.z,[.9,.9,.95],5);flash(a.fire?'Your shield knocked the fireball back!':'Your shield blocked the arrow!');continue;}
+      if(a.boom){projHit(a,null);killArrow(i);gone=2;break;}
       damagePlayer(a.dmg,'Shot by a '+(a.owner&&a.owner.T?a.owner.T.n.toLowerCase():'skeleton'),{x:a.x-a.vx*.05,z:a.z-a.vz*.05});if(a.owner&&a.owner.T)P.lastAttacker=a.owner;
       if(a.fire){P.burn=Math.max(P.burn||0,3);burst(a.x,a.y,a.z,[1,.55,.1],6);}else dropItem(171,1,P.x,P.y+.6,P.z,undefined,(Math.random()-.5)*1.5,2,(Math.random()-.5)*1.5,.7);killArrow(i);gone=2;break;}
     if(a.owner==='player'&&!a.pearl&&MP.others.size){let hitP=null;for(const[id,o]of MP.others){if(o.dim!==dim||o.dead)continue;if(Math.abs(a.x-o.x)<.4&&Math.abs(a.z-o.z)<.4&&a.y>o.y&&a.y<o.y+1.85){hitP=id;break;}}
       if(hitP){const o=MP.others.get(hitP);if(o.oh===SHIELD&&!o.gm&&facingFrom(o.x-a.vx,o.z-a.vz,o.yaw,o.x,o.z)){sfx('clang');burst(a.x,a.y,a.z,[.9,.9,.95],6);flash((o.n||'They')+' blocked your arrow with a shield');killArrow(i);gone=2;break;}
         mpHit(hitP,a.dmg,'Shot by '+charCfg.name);killArrow(i);gone=2;break;}}
     for(const m of mobs){if(m===a.owner||m.dying||P.riding===m&&a.owner==='player')continue;if(a.owner&&a.owner.T&&a.owner.T.friendly&&(m.T.villager||m.T.golem||m.T.soldier||m.tame||m.jailed))continue;if(a.owner&&a.owner.arena&&!m.arena)continue;
-      if(Math.abs(a.x-m.x)<m.w+.1&&Math.abs(a.z-m.z)<m.w+.1&&a.y>m.y&&a.y<m.y+m.h){if(a.fire&&m.T.fireproof)continue;if(a.pearl){projHit(a,m);killArrow(i);gone=2;break;}hurtMob(m,a.dmg,a.owner==='player'?'player':a.owner);if(a.fire)m.fireT=4;else if(a.owner!=='player')dropItem(171,1,m.x,m.y+.6,m.z);killArrow(i);gone=2;break;}}}
+      if(Math.abs(a.x-m.x)<m.w+.1&&Math.abs(a.z-m.z)<m.w+.1&&a.y>m.y&&a.y<m.y+m.h){if(a.boom&&m!==a.owner){projHit(a,m);killArrow(i);gone=2;break;}if(a.fire&&m.T.fireproof)continue;if(a.pearl){projHit(a,m);killArrow(i);gone=2;break;}hurtMob(m,a.dmg,a.owner==='player'?'player':a.owner);if(a.fire)m.fireT=4;else if(a.owner!=='player')dropItem(171,1,m.x,m.y+.6,m.z);killArrow(i);gone=2;break;}}}
   if(gone===2)continue;
   if(a.life>30||a.y<-10){killArrow(i);continue;}
   a.me.position.set(a.x,a.y,a.z);if(!a.stuck)a.me.lookAt(a.x+a.vx,a.y+a.vy,a.z+a.vz);
@@ -3681,7 +3742,7 @@ function hurtMob(m,dmg,src){if(m.dying)return;m.hp-=dmg;m.hurt=.35;sfx('hit');
     if(src==='player'){P.lastHit=m;if(m.T.goldy)for(const h of mobs)if(h.T.goldy&&Math.hypot(h.x-m.x,h.z-m.z)<16)h.anger=60;if(m.T.stare&&m.hp>0&&Math.random()<.65)vwTeleport(m,m.x,m.z,8,16);if(m.T.golem||m.T.soldier){m.anger=40;m.order=null;}if(m.T.villager&&!m.jailed)angerGolems(m.x,m.z);
       if(m.T.wolf&&!m.tame)for(const w of mobs)if(w.T.wolf&&!w.tame&&Math.hypot(w.x-m.x,w.z-m.z)<16)w.anger=30;}}
   if(m.hp<=0&&m.type==='bandit'&&!m.jailed&&src&&src!=='player'&&src.T&&src.T.soldier&&captureBandit(m,src))return;
-  if(m.hp<=0){m.dying=.6;burst(m.x,m.y+m.h/2,m.z,[.9,.9,.9],10);if(P.riding===m)dismount();if(m.T.boss){m.dying=2.5;dragonDefeated(m);}if(m.T.crystal)crystalBoom(m);
+  if(m.hp<=0){m.dying=.6;burst(m.x,m.y+m.h/2,m.z,[.9,.9,.9],10);if(P.riding===m)dismount();if(m.T.boss){m.dying=2.5;dragonDefeated(m);}if(m.T.bigBoss)witherDefeated(m);if(m.T.crystal)crystalBoom(m);
     if(src==='player'&&mode==='survival'&&!(m.baby>0)){
       for(const[id,a,b]of m.T.drops){if(id===24&&m.sheared)continue;const k=a+Math.floor(Math.random()*(b-a+1));if(k>0)dropItem(id,k,m.x,m.y+.6,m.z);}
       if(m.saddle)dropItem(175,1,m.x,m.y+.6,m.z);
@@ -3713,7 +3774,7 @@ function updateMobs(dt){
     // pick a target
     let tgt=null,td=1e9;
     if(m.arena){for(const h of mobs){if(h===m||!h.arena||h.team===m.team||h.dying)continue;const d=Math.hypot(h.x-m.x,h.z-m.z);if(d<td&&Math.abs(h.y-m.y)<5){tgt=h;td=d;}}}
-    else if(Tp.hostile&&!m.jailed){if(hostileOK&&dist<(m.anger>0?40:18)&&Math.abs(P.y-m.y)<(m.anger>0?14:8)&&wantsPlayer(m)){tgt=PL;td=dist;}
+    else if(Tp.hostile&&!m.jailed){if(hostileOK&&dist<(m.anger>0?Math.max(40,Tp.far||0):(Tp.far||18))&&Math.abs(P.y-m.y)<(m.anger>0?Math.max(14,Tp.far?30:0):(Tp.far?30:8))&&wantsPlayer(m)){tgt=PL;td=dist;}
       if(!Tp.stare&&!Tp.goldy)for(const v of mobs){if(!(v.T.villager||v.T.soldier)||v.dying||v.hide||v.jailed||v.arena)continue;const d=Math.hypot(v.x-m.x,v.z-m.z);if(d<14&&d<td&&Math.abs(v.y-m.y)<6){tgt=v;td=d;}}}
     else if(Tp.golem){if(m.anger>0&&hostileOK&&dist<24){tgt=PL;td=dist;}
       else for(const h of mobs){if(!h.T.hostile||h.dying||h.jailed||h.arena)continue;const d=Math.hypot(h.x-m.x,h.z-m.z);if(d<16&&d<td){tgt=h;td=d;}}}
@@ -3733,7 +3794,7 @@ function updateMobs(dt){
     let mate=null;if(m.love>0&&!(m.baby>0))for(const o of mobs){if(o!==m&&o.type===m.type&&o.love>0&&!o.dying&&!(o.baby>0)&&Math.hypot(o.x-m.x,o.z-m.z)<9){mate=o;break;}}
     if(ridden&&m.tame&&m.saddle||Tp.vehicle){}
     else if(tgt){m.yawT=Math.atan2(-(tgt.x-m.x),-(tgt.z-m.z));move=1;
-      if(Tp.ranged){move=m.post?0:td<5?-.8:td>11?1:0;if(m.atk<=0&&td<(m.post?26:15)&&sees(m,tgt)){m.atk=1.6+Math.random()*1.2;(Tp.fireball?shootFire:shootAt)(m,tgt);for(let k=1;k<(Tp.multi||1);k++)(Tp.fireball?shootFire:shootAt)(m,tgt);}}
+      if(Tp.ranged){const rg=Tp.range||15;move=m.post?0:td<(Tp.range?rg*.35:5)?-.8:td>rg*.72?1:0;if(m.atk<=0&&td<(m.post?26:rg)&&sees(m,tgt)){m.atk=1.6+Math.random()*1.2;(Tp.fireball?shootFire:shootAt)(m,tgt);for(let k=1;k<(Tp.multi||1);k++)(Tp.fireball?shootFire:shootAt)(m,tgt);}}
       else if(Tp.fuse){if(!(m.fusing>0)&&td<Tp.reach&&Math.abs(tgt.y-m.y)<2.5){m.fusing=1.5;sfx('hiss');}
         else if(m.fusing>0&&td>5.5&&!m.ignited)m.fusing=0;if(m.fusing>0)move=0;}
       else{if(td<Tp.reach&&Math.abs(tgt.y-m.y)<1.9&&m.atk<=0){m.atk=Tp.golem?1.3:1;m.swing=.5;
@@ -3768,7 +3829,7 @@ function updateMobs(dt){
         if(ridden){m.think=.8;m.walk=true;}}
       move=m.walk?1:0;spd*=ridden?1.5:.7;
       if(move&&!ridden&&!Tp.fly){const ax=Math.floor(m.x-Math.sin(m.yaw)*(m.w+.5)),az=Math.floor(m.z-Math.cos(m.yaw)*(m.w+.5)),fy=Math.floor(m.y);
-        const below=get(ax,fy-1,az);if((!SOLID[below]&&!SOLID[get(ax,fy-2,az)])||ISW[below]||ISL[below]||get(ax,fy,az)===15||ISL[get(ax,fy,az)]||get(ax,fy,az)===FIRE){m.think=0;move=0;}}}
+        const below=get(ax,fy-1,az),lw=Tp.lavaWalk;if((!SOLID[below]&&!(lw&&ISL[below])&&!SOLID[get(ax,fy-2,az)])||ISW[below]||(ISL[below]&&!lw)||get(ax,fy,az)===15||(ISL[get(ax,fy,az)]&&!lw)||get(ax,fy,az)===FIRE){m.think=0;move=0;}}}
     if(m.baby>0)spd*=1.2;
     if(m.trading>0){move=0;m.yawT=Math.atan2(-dx,-dz);}
     if(m.leash&&sim){const L=leashAnchor(m);if(!L){unleash(m,false);}else{const lx=L.x-m.x,lz=L.z-m.z,ld=Math.hypot(lx,lz),lim=L.post?2.6:3.2;
@@ -3787,8 +3848,10 @@ function updateMobs(dt){
       else if(m.auto)autoDrive(m,dt);else if(m.route)routeDrive(m,dt);else m.vsp*=Math.exp(-dt*3);m.yawT=m.yaw;m.vx=-Math.sin(m.yaw)*m.vsp;m.vz=-Math.cos(m.yaw)*m.vsp;if(m.hitH&&m.ground&&Math.abs(m.vsp)>.5)m.vy=7.4;if(m.hitH)m.vsp*=.6;}
     else if(ridden&&m.tame&&m.saddle){m.yaw=yaw;m.yawT=yaw;m.vx=P.rvx;m.vz=P.rvz;if(P.rjump&&m.ground&&!m.inWater)m.vy=11;}
     const kd=Math.exp(-dt*7);m.kx*=kd;m.kz*=kd;
-    if(Tp.fly){const base=tgt?tgt.y+2.4:(m.hoverY!=null?m.hoverY:m.y);const want=base+Math.sin(performance.now()/600+m.burnT*7)*.5;m.vy=clamp((want-m.y)*2.2,-3.5,3.5);}
+    if(Tp.fly){const base=tgt?tgt.y+(Tp.hover||2.4):(m.hoverY!=null?m.hoverY:m.y);const want=base+Math.sin(performance.now()/600+m.burnT*7)*.5;m.vy=clamp((want-m.y)*2.2,-3.5,3.5);}
     else if(m.inWater||m.inLava){m.vy=Math.min(m.vy+20*dt,2.2);}else m.vy=Math.max(m.vy-26*dt,-40);
+    if(Tp.lavaWalk){const fx=Math.floor(m.x),fz=Math.floor(m.z);if(ISL[get(fx,Math.floor(m.y+.1),fz)])m.vy=Math.max(m.vy,4);
+      else if(ISL[get(fx,Math.floor(m.y-.02),fz)]&&m.vy<=0){m.vy=0;m.y=Math.floor(m.y-.02)+1;}}
     if(m.hitH&&move){if(Tp.climb)m.vy=3.5;else if(m.inWater&&m.vy<6)m.vy=8.6;else if(m.ground)m.vy=7.4;
       else if(led&&P.y>m.y+.05&&!m.inWater)m.vy=Math.max(m.vy,4.2);}
     if(m.jumps>0&&m.ground&&sim&&!(m.vy>0)){m.jumps--;m.vy=7.4;}
@@ -3833,7 +3896,8 @@ function hogTrade(m){let tot=0;for(const t of HOG_TRADES)tot+=t[3];let r=Math.ra
   const n=pick[1]+Math.floor(Math.random()*(pick[2]-pick[1]+1)),dx=P.x-m.x,dz=P.z-m.z,l=Math.hypot(dx,dz)||1;
   dropItem(pick[0],n,m.x,m.y+1.3,m.z,undefined,dx/l*3,3,dz/l*3);sfx('pop');mobSay(m,pick1(['Here, take this!','A fair trade. Off you go!','For you, gold friend!','Hehe, enjoy!']));}
 function specialTick(m,dt,dist){const T=m.T;
-  if(T.fly){if(m.hoverY==null)m.hoverY=m.y+1.5;m.puffT=(m.puffT||0)-dt;if(m.puffT<=0&&dist<40){m.puffT=.35;burst(m.x,m.y+.6,m.z,[1,.55,.12],1);}}
+  if(T.bigBoss){showBoss(m,T.n);if(m.hp<m.maxHp)m.hp=Math.min(m.maxHp,m.hp+dt*.6);}
+  if(T.fly&&!T.noPuff){if(m.hoverY==null)m.hoverY=m.y+1.5;m.puffT=(m.puffT||0)-dt;if(m.puffT<=0&&dist<40){m.puffT=.35;burst(m.x,m.y+.6,m.z,[1,.55,.12],1);}}
   if(T.goldy){if(m.trading>0){m.trading-=dt;if(m.trading<=0)hogTrade(m);}}
   if(T.stare){m.wetT=(m.wetT||0)-dt;
     if(m.wetT<=0){m.wetT=.5;const wet=m.inWater||(dim===0&&weather.rain>.25&&exposed(m.x,m.y+m.h,m.z));
@@ -3924,7 +3988,16 @@ function netherSpawn(){const cnt={};for(const m of mobs)if(!m.dying)cnt[m.type]=
   if(near(NF.bastion,95)){if((cnt.hogfolk||0)<9&&Math.random()<.5)spawnAtSpot('hogfolk',NF.bastion.spots,2);
     if(!NF.hinted&&near(NF.bastion,40)){NF.hinted=true;flash(wearingGold()?'Hogfolk like your gold armor. Give them gold ingots to trade':'Hogfolk attack anyone without gold armor! Wear gold to trade with them');}}
   if((cnt.voidwalker||0)<5&&Math.random()<.25){const inH=near(NF.hollow,60),s2=inH?nSpot(NF.hollow.x,NF.hollow.z,12,3,0):nSpot(P.x,P.z,44,3,18);if(s2)spawnMob('voidwalker',s2.x,s2.y,s2.z);}
-  if((cnt.hogfolk||0)<4&&Math.random()<.12){const s2=nSpot(P.x,P.z,40,2,18);if(s2)spawnMob('hogfolk',s2.x,s2.y,s2.z);}}
+  if((cnt.hogfolk||0)<4&&Math.random()<.12){const s2=nSpot(P.x,P.z,40,2,18);if(s2&&netherBiome(s2.x,s2.z)==='wastes')spawnMob('hogfolk',s2.x,s2.y,s2.z);}
+  if(worldType==='chunk')return;const nb=netherBiome(P.x,P.z);
+  if(nb==='forest'&&(cnt.voidwalker||0)<9&&Math.random()<.5){const s2=nSpot(P.x,P.z,36,3,12);if(s2&&netherBiome(s2.x,s2.z)==='forest')spawnMob('voidwalker',s2.x,s2.y,s2.z);}
+  if(nb==='soul'&&(cnt.charred||0)<5&&Math.random()<.2){const s2=nSpot(P.x,P.z,36,3,16);if(s2)spawnMob('charred',s2.x,s2.y,s2.z);}
+  if(nb!=='forest'&&(cnt.wailer||0)<3&&Math.random()<.16){const s2=wailerSpot();if(s2){const m=spawnMob('wailer',s2.x,s2.y,s2.z);m.hoverY=s2.y;}}
+  if((cnt.strider||0)<5&&Math.random()<.3){for(let t=0;t<12;t++){const a=Math.random()*6.283,r=12+Math.random()*30,x=Math.floor(P.x+Math.cos(a)*r),z=Math.floor(P.z+Math.sin(a)*r);
+      if(x<2||z<2||x>=WX-2||z>=WZ-2)continue;if(ISL[get(x,11,z)]&&!get(x,12,z)&&!get(x,13,z)&&!get(x,14,z)){spawnMob('strider',x+.5,12,z+.5);break;}}}}
+function wailerSpot(){for(let t=0;t<16;t++){const a=Math.random()*6.283,r=20+Math.random()*26,x=Math.floor(P.x+Math.cos(a)*r),z=Math.floor(P.z+Math.sin(a)*r);
+    if(x<4||z<4||x>=WX-4||z>=WZ-4)continue;for(let y=Math.min(52,Math.floor(P.y)+14);y>14;y--){let ok=true;
+      for(let k=0;k<6&&ok;k++)for(const[dx,dz]of[[0,0],[2,0],[-2,0],[0,2],[0,-2]])if(get(x+dx,y+k,z+dz))ok=false;if(ok)return{x:x+.5,y,z:z+.5};}}return null;}
 /* ---------- rain ---------- */
 const weather={rain:0,target:0,t:240+Math.random()*360};const RAINC=new THREE.Color(0x5e6772);
 const RAIN_N=1400,rainPos=new Float32Array(RAIN_N*6),rainGround=new Float32Array(RAIN_N);
@@ -4031,7 +4104,8 @@ function dragonTick(m,dt,dist){const md=m.mdl,E=END,sim=ui==='play'||ui==='inv';
   md.g.visible=true;md.g.position.set(m.x,m.y,m.z);md.g.rotation.y=m.yaw;md.g.rotation.x=clamp(m.vy*.04,-.45,.45);
   const fl=Math.sin(performance.now()/260)*.55;md.wingL.rotation.z=fl;md.wingR.rotation.z=-fl;
   const e=m.hurt>0?.6:0;md.mats.forEach(x=>x.emissive.setRGB(e,0,0));shade(md,.9);
-  bossSeen=performance.now();const b=$('boss');if(b.hidden)b.hidden=false;$('bossFill').style.width=Math.max(0,m.hp/m.maxHp*100).toFixed(1)+'%';}
+  showBoss(m,'Void Dragon');}
+function showBoss(m,name){bossSeen=performance.now();const b=$('boss');if(b.hidden)b.hidden=false;if($('bossName').textContent!==name)$('bossName').textContent=name;$('bossFill').style.width=Math.max(0,m.hp/m.maxHp*100).toFixed(1)+'%';}
 function dragonDefeated(m){dragonDead=true;sfx('boom');for(let k=0;k<6;k++)setTimeout(()=>{burst(m.x+(Math.random()-.5)*4,m.y+1.5+(Math.random()-.5)*3,m.z+(Math.random()-.5)*4,[.8,.4,1],16);sfx('boom');},k*300);
   setTimeout(()=>{exitPortal(false);sfx('portal');},1200);
   say('🏆 You defeated the Void Dragon! An exit portal appeared in the middle of the island. Jump in to go home','sys');flash('You defeated the Void Dragon!');
@@ -4039,6 +4113,16 @@ function dragonDefeated(m){dragonDead=true;sfx('boom');for(let k=0;k<6;k++)setTi
 function endSpawn(){if(!END)return;let n=0;for(const m of mobs)if(m.type==='voidwalker'&&!m.dying)n++;
   if(n<8&&Math.random()<.4){const s2=nSpot(END.x,END.z,38,3,6);if(s2)spawnMob('voidwalker',s2.x,s2.y,s2.z);}
   if(performance.now()-bossSeen>800){const b=$('boss');if(!b.hidden)b.hidden=true;}}
+function checkWither(x,y,z){if(get(x,y,z)!==SKULLB)return false;
+  for(const ax of[[1,0],[0,1]])for(let o=-2;o<=0;o++){const p=k=>[x+ax[0]*(o+k),z+ax[1]*(o+k)];let ok=true;
+    for(let k=0;k<3&&ok;k++){const[a,c]=p(k);if(get(a,y,c)!==SKULLB||get(a,y-1,c)!==SOULSAND)ok=false;}
+    const[mx,mz]=p(1);if(ok&&get(mx,y-2,mz)!==SOULSAND)ok=false;
+    if(ok){for(let k=0;k<3;k++){const[a,c]=p(k);setBlock(a,y,c,0);setBlock(a,y-1,c,0);}setBlock(mx,y-2,mz,0);summonWither(mx+.5,y-2,mz+.5);return true;}}return false;}
+function summonWither(x,y,z){const m=spawnMob('wither',x,y,z);m.keep=true;m.hoverY=y+5;m.atk=4;sfx('boom');burst(x,y+1.5,z,[.3,.3,.4],30);shake=Math.max(shake||0,.4);
+  flash('The Wither Lord rises! Fight it, or run!');say('💀 The Wither Lord has been summoned. It flies, shoots exploding skulls and heals itself over time','sys');
+  if(MP.conns.length)mpSend({t:'c',n:'💀',text:charCfg.name+' summoned the Wither Lord!'});}
+function witherDefeated(m){sfx('boom');for(let k=0;k<4;k++)setTimeout(()=>{burst(m.x+(Math.random()-.5)*3,m.y+2+(Math.random()-.5)*2,m.z+(Math.random()-.5)*3,[.5,.5,.6],16);sfx('boom');},k*250);
+  say('🏆 You defeated the Wither Lord! It dropped a Wither star','sys');flash('You defeated the Wither Lord!');if(MP.conns.length)mpSend({t:'c',n:'🏆',text:charCfg.name+' defeated the Wither Lord!'});}
 function showWin(){let w=$('win');if(!w){w=document.createElement('div');w.id='win';document.body.appendChild(w);}
   w.innerHTML='<div class="wp"><div class="wt">🏆 You beat Blockland!</div><p>You found the stronghold, opened the End portal, broke the void crystals and defeated the Void Dragon.</p><p>The world is safe. Now go home and live happily ever after!</p><button class="btn primary" type="button" id="winOk">Back to my world</button></div>';
   w.hidden=false;primaryUp();if(document.pointerLockElement)document.exitPointerLock();$('winOk').onclick=()=>{w.hidden=true;startPlay();};
@@ -4150,6 +4234,7 @@ function sfx(k){if(!AC||!soundOn)return;try{
   else if(k==='ignite')noise(.12,.18,3000);else if(k==='portal')tone(110,1.6,'sine',.06,70);
   else if(k==='step')noise(.04,.05,300);else if(k==='splash')noise(.25,.15,1200);
   else if(k==='anvil'){tone(220,.25,'square',.09,110);tone(660,.2,'triangle',.05,400);noise(.12,.18,900);}
+  else if(k==='wail'){tone(520,.5,'sine',.06,260);tone(390,.6,'sine',.04,200);}
   else if(k==='clang'){tone(880,.14,'square',.07,420);noise(.08,.12,2500);}else if(k==='whoosh')noise(.28,.16,1800);}catch(e){}}
 
 /* =========================================================
@@ -4660,9 +4745,9 @@ const craftGridEl=$('craftGrid');for(let i=0;i<9;i++)mkSlot(craftGridEl,'craft:'
 const outSlot=mkSlot($('outHost'),'out:0');
 let craftN=2;const craftGrid=new Array(9).fill(null);
 function returnGrid(){for(let i=0;i<9;i++){if(craftGrid[i]){give(craftGrid[i]);craftGrid[i]=null;}}}
-const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,53,BED,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,1135,1136,41,1104,1113,1114,1133,1134,11,10],
+const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,53,BED,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,1135,1136,1137,1138,1139,1140,1141,1142,1143,41,1104,1113,1114,1133,1134,11,10],
   combat:[140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,176,195,120,121,122,123,124,170,171,...Array.from({length:16},(_,i)=>200+i),284,285,286,287,288,280,281,282,283,291,298,299,292,300,301,302],
-  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,270,271,272,273,274,275,276,279,164,165,264,265,266,267,259,260,1110,256,257,258,289,290]};
+  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,270,271,272,273,274,275,276,279,164,165,264,265,266,267,259,260,1110,256,257,258,289,290,303]};
 let catTab='blocks';
 function haveCount(k){let c=0;for(const s of inv)if(s&&ing(k,s.id))c+=s.count;for(const s of craftGrid)if(s&&ing(k,s.id))c+=s.count;return c;}
 function needs(r){const m=new Map();rList(r).forEach(k=>m.set(k,(m.get(k)||0)+1));return m;}
