@@ -6077,13 +6077,14 @@ function jobProgress(){return job?(job.kind==='deliver'?Math.min(job.need,job.it
 function jobLine(){if(!job)return'';return(job.kind==='harvest'?'Harvest crops':job.kind==='serve'?'Serve diners':'Deliver '+itemDef(job.items[0]).n.toLowerCase())+' '+jobProgress()+'/'+job.need;}
 /* ---------- CRIME: breaking village or city buildings, or stealing from their chests. A guard who sees it fines you, or sends you to jail ---------- */
 const NATURAL=new Set([1,2,3,4,12,13,26,45,46,47,48,43,44,5,6,18,19,175,176,178,179,15,73,74,181,182,9,20,21,22,23,52,55,56,57,42,78,79,80,81,MELON,PUMPKIN,FIRE,TORCH]);
-const OWNED_CHESTS=new Set(['city','house','kitchen','library','mayor','shop','hospital','school','castle','vault','armory','factory','burgerstock','command','mine','emine','tower','sky']);
+// only chests that belong to people living in a village or city. Temples, dungeons, ruined towers, wrecks and other ruins are free to loot
+const OWNED_CHESTS=new Set(['city','house','kitchen','library','mayor','shop','hospital','school','castle','vault','armory','factory','burgerstock','command','mine','sky']);
 let crimes=[],jail=null;
 function settlementAt(x,z){for(const v of villages){if(v.enemy)continue;const r=v.R||(v.downtown?27:v.castle?31:v.prison?16:v.base?22:v.factory?18:24);if(Math.abs(x-v.x)<=r&&Math.abs(z-v.z)<=r)return v;}return null;}
 function witness(x,y,z){let best=null,bd=1e9;for(const m of mobs){if(m.dying||m.jailed||m.hide||m.arena||m.onTruck)continue;if(!(m.T.villager||m.T.soldier||m.T.golem))continue;const d=Math.hypot(m.x-x,m.z-z);if(d<30&&Math.abs(m.y-y)<12&&d<bd){bd=d;best=m;}}return best;}
 function crimeBreak(x,y,z,b){if(mode!=='survival'||P.spec||jail||arc||worldType!=='classic'||dim!==0)return;if(NATURAL.has(b)||BL[b].cross)return;const k=x+','+y+','+z;if(edits.has(k))return;
   const v=settlementAt(x,z);if(!v)return;crimeCaught('break',1,x,y,z,v);}
-function crimeChest(oc){if(mode!=='survival'||jail||worldType!=='classic'||dim!==0)return;const t=CHEST_T.get(oc.key);if(!t||!OWNED_CHESTS.has(t))return;
+function crimeChest(oc){if(mode!=='survival'||jail||worldType!=='classic'||dim!==0)return;const t=CHEST_T.get(oc.key);if(!t||!OWNED_CHESTS.has(t))return;{const[x,,z]=oc.key.split(',').map(Number);if(!settlementAt(x,z))return;}
   const now=oc.arr.reduce((a,s)=>a+(s?s.count:0),0),took=(oc.had||0)-now;if(took<=0)return;const[x,y,z]=oc.key.split(',').map(Number);crimeCaught('steal',took,x,y,z,settlementAt(x,z));}
 function crimeCaught(kind,n,x,y,z,v){const w=witness(x,y,z);if(!w){if(Math.random()<.4)flash(kind==='steal'?'Nobody saw you take that… this time':'Nobody saw that… this time');return;}
   const t=performance.now()/1000;crimes=crimes.filter(c=>t-c<90);crimes.push(t);const fine=kind==='steal'?Math.max(2,Math.ceil(n/3)*2):2;
