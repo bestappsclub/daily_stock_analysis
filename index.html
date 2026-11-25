@@ -1064,6 +1064,7 @@ ITEMS[364]={n:'Boat',kind:'mat',p:'boat',pal:{a:'#a0703c',b:'#6e4a24',c:'#c89a5a
 ITEMS[365]={n:'Ultimate craft separator',kind:'mat',p:'sep',pal:{a:'#3a2a5a',b:'#c070ff',c:'#ffe070'},max:1};
 ITEMS[366]={n:'Build copier',kind:'mat',p:'copier',pal:{a:'#1a4a6a',b:'#60e0ff',c:'#ffffff'},max:1};
 ITEMS[376]={n:'Command block',kind:'mat',p:'cmdb',pal:{a:'#d87a30',b:'#5a3018',c:'#fff0c0',d:'#2a2a30'},max:1};
+ITEMS[378]={n:'Treasure map',kind:'mat',p:'tmap',pal:{a:'#e8d6a8',b:'#8a6a3a',c:'#d0302a'},max:1};
 ITEMS[357]={n:'Bullet',kind:'mat',p:'bullet',pal:{a:'#d8a838',b:'#9a6a18',c:'#fff0b0'},max:16};
 mat(303,'Wither star','star',{a:'#f4f4ff',b:'#9aa0c8',c:'#ffffff'});mat(289,'Netherite scrap','coal',{a:'#5a4440',b:'#2a1e1c',c:'#9a7a70'});mat(290,'Netherite ingot','ingot',{a:'#4a4048',b:'#221c20',c:'#a08c9c'});
 const SHIELD=291,SPEAR=292;
@@ -1155,6 +1156,7 @@ function matchRecipe(grid,n){let minx=9,miny=9,maxx=-1,maxy=-1;const items=[];
 
 /* ---------- pixel icons ---------- */
 const PAT={
+tmap:["bbbbbbbb","baaaaaab","bab.a.ab","baac.cab","baaacaab","baac.cab","baaaaaab","bbbbbbbb"],
 cmdb:["bbbbbbbb","baaaaaab","badddcab","baddddab","badcddab","baddddab","baaaaaab","bbbbbbbb"],
 sep:["..bbbb..",".baaaab.","bacaacab","baaccaab","baaccaab","bacaacab",".baaaab.","..bbbb.."],
 copier:["aaaaaaa.","abbbbba.","abcbcba.","abbbbbaa","aaaaaaab",".abbbbba",".abcbcba",".aaaaaaa"],
@@ -2667,6 +2669,27 @@ function cmdBuild(kind){const fx0=-Math.sin(yaw),fz0=-Math.cos(yaw),ax=Math.abs(
     for(let v=-1;v<=1;v++)for(let h=0;h<3;h++)put(10,v,h,0);put(10,-2,3,TORCH);put(10,2,3,TORCH);}
   if(x1>=x0)rebuildAround(x0,z0,x1,z1);sfx('place');for(let i=0;i<6;i++){const[x,z]=W(4+Math.random()*6,(Math.random()-.5)*6);burst(x,by+2,z,[1,.85,.5],14);}save();
   flash('🏗️ Built: '+{house:'a house',tower:'a watch tower',farm:'a farm',bridge:'a bridge',castle:'a castle wall'}[kind]+'!');}
+/* ---------- TREASURE MAPS from shipwrecks: X marks the spot of a chest buried in the sand by the sea ---------- */
+let mapOpen=null;
+function mapTarget(s){const m=s&&s.text&&/^TMAP:(-?\d+),(-?\d+),(-?\d+)/.exec(s.text);return m?{x:+m[1],y:+m[2],z:+m[3]}:null;}
+function openTreasureMap(s){const t=mapTarget(s);if(!t){flash('This map is too faded to read');return;}if(dim!==0){flash('The map only works in the Overworld');return;}mapOpen=t;openCasino('map');}
+function dirWords(dx,dz){const a=Math.atan2(dx,-dz)*180/Math.PI,i=Math.round(((a+360)%360)/45)%8;return['north','north-east','east','south-east','south','south-west','west','north-west'][i];}
+function mapMenu(row,msg){const t=mapOpen;if(!t){closeCasino();return;}const dx=t.x+.5-P.x,dz=t.z+.5-P.z,d=Math.hypot(dx,dz);
+  $('casNote').textContent=d<3?'⛏️ X marks the spot! You are standing on it. Dig down through the sand':'The X is about '+Math.round(d)+' blocks '+dirWords(dx,dz)+' of you, buried in the sand by the sea. Hold the map to see the way while you walk.';
+  const box=document.createElement('div');box.style.cssText='padding:6px 4px 10px;text-align:center';const cv=document.createElement('canvas');cv.width=cv.height=360;
+  cv.style.cssText='width:100%;max-width:360px;border-radius:6px;border:6px solid #8a6a3a;box-shadow:0 4px 14px rgba(0,0,0,.35)';drawTreasureMap(cv,t);box.appendChild(cv);$('casList').appendChild(box);
+  row(166,'Close','Back to the game','Close',true,()=>{mapOpen=null;closeCasino();});}
+function drawTreasureMap(cv,t){const g=cv.getContext('2d'),W=cv.width,span=clamp(Math.max(96,Math.hypot(P.x-t.x,P.z-t.z)*2.4),96,420),cx=(t.x+P.x)/2,cz=(t.z+P.z)/2,sc=W/span;
+  const img=g.createImageData(W,W),px=img.data,step=Math.max(1,Math.round(span/W*2)/2);
+  for(let j=0;j<W;j++)for(let i=0;i<W;i++){const x=Math.floor(cx-span/2+i/sc),z=Math.floor(cz-span/2+j/sc);let c=[214,196,150];
+    if(x>0&&z>0&&x<WX&&z<WZ){const h=HM[x+z*WX],b=get(x,h,z);if(ISW[get(x,SEA,z)]&&h<=SEA)c=[96,132,170];else if(b===4||b===17)c=[226,206,150];else if(b===12||b===13)c=[236,236,232];else if(BL[b]&&(b===6||b===19||b===176||b===179))c=[110,140,84];else c=[150+Math.min(60,(h-SEA)*3),160+Math.min(40,(h-SEA)*2),110];}
+    const k=(j*W+i)*4,noise=((i*7+j*13)%9)-4;px[k]=c[0]*.85+30+noise;px[k+1]=c[1]*.85+24+noise;px[k+2]=c[2]*.7+14+noise;px[k+3]=255;}
+  g.putImageData(img,0,0);const S2=(x,z)=>[(x-(cx-span/2))*sc,(z-(cz-span/2))*sc];
+  // dotted trail from you to the X
+  const a=S2(P.x,P.z),b=S2(t.x+.5,t.z+.5);g.setLineDash([6,7]);g.strokeStyle='rgba(120,40,20,.8)';g.lineWidth=3;g.beginPath();g.moveTo(a[0],a[1]);g.lineTo(b[0],b[1]);g.stroke();g.setLineDash([]);
+  g.strokeStyle='#c0201a';g.lineWidth=6;g.lineCap='round';g.beginPath();g.moveTo(b[0]-11,b[1]-11);g.lineTo(b[0]+11,b[1]+11);g.moveTo(b[0]+11,b[1]-11);g.lineTo(b[0]-11,b[1]+11);g.stroke();
+  g.save();g.translate(a[0],a[1]);g.rotate(-yaw);g.fillStyle='#fff';g.strokeStyle='#222';g.lineWidth=2;g.beginPath();g.moveTo(0,-10);g.lineTo(7,8);g.lineTo(0,4);g.lineTo(-7,8);g.closePath();g.fill();g.stroke();g.restore();
+  g.font='bold 14px serif';g.fillStyle='#5a3a1a';g.fillText('N ↑',W-36,22);g.fillText('You',a[0]+10,a[1]+4);g.fillText('X',b[0]+14,b[1]-10);}
 let copyPending=null;
 function copyMenu(row,msg){const bp=loadBP();
   if(copyPending){const c=copyPending;
@@ -2916,6 +2939,9 @@ function mineshaft(sx,sy,sz,rng){addPlace('Mineshaft',sx,sy+2,sz);mineCrews.push
         if(rng()<.35)S(x,sy,z,TORCH);}
       else if(rng()<.03)chestAt(x+(dz?1:0),sy,z+(dx?1:0),'mine');}
     dir=dir<2?2+(rng()*2|0):(rng()*2|0);}}
+function findBeach(sx,sz,rng){for(let r=18;r<160;r+=6){const tries=Math.max(12,r);for(let t=0;t<tries;t++){const a=rng()*6.283,x=Math.round(sx+Math.cos(a)*r),z=Math.round(sz+Math.sin(a)*r);
+    if(x<6||z<6||x>=WX-6||z>=WZ-6)continue;const h=HM[x+z*WX];if(h<SEA||h>SEA+3||get(x,h,z)!==4||get(x,h-1,z)!==4)continue;
+    let sea=false;for(let dx=-4;dx<=4&&!sea;dx++)for(let dz=-4;dz<=4;dz++)if(ISW[get(x+dx,SEA,z+dz)]||ISW[get(x+dx,SEA-1,z+dz)]){sea=true;break;}if(sea)return{x,z,h};}}return null;}
 function shipwreck(x0,z0,fl,rng){const y=fl+1;addPlace('Shipwreck',x0+4,y+5,z0+1);
   for(let i=0;i<9;i++){const end=i===0||i===8;
     for(let w=0;w<3;w++){if(end&&w!==1)continue;if(rng()<.12)continue;S(x0+i,y,z0+w,40);}
@@ -3070,7 +3096,8 @@ function generateVoid(){world.fill(0);CHEST_T.clear();villages.length=0;HM.fill(
   edits.forEach((id,k)=>{const p=k.split(',').map(Number);if(p[0]>=0&&p[0]<WX&&p[1]>=0&&p[1]<WY&&p[2]>=0&&p[2]<WZ)world[idx(p[0],p[1],p[2])]=id;});
   scanCrops();computeAllLight();}
 let bigHoles=[];
-function generate(){places.length=0;bigHoles.length=0;STRONG=dim===0?null:STRONG;if(dim===2){generateEnd();return;}if(dim===1){generateNether();return;}
+const SHIP_MAP=new Map(),BURIED=[];
+function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.length=0;STRONG=dim===0?null:STRONG;if(dim===2){generateEnd();return;}if(dim===1){generateNether();return;}
   if(worldType!=='classic'){generateVoid();return;}
   world.fill(0);CHEST_T.clear();const s=seed;
   for(let z=0;z<WZ;z++)for(let x=0;x<WX;x++){
@@ -3200,7 +3227,10 @@ function generate(){places.length=0;bigHoles.length=0;STRONG=dim===0?null:STRONG
     if(ok)claim(x0+6,z0+6,10);}
   {let made=0;for(let t=0;t<Math.round(60*AREA)&&made<Math.round(4*AREA);t++){const x0=4+(R2()*(WX-16)|0),z0=4+(R2()*(WZ-8)|0);let deep=true,fl=99;
     for(let i=0;i<9&&deep;i++)for(let w=0;w<3;w++){const h=HM[(x0+i)+(z0+w)*WX];if(h>SEA-4)deep=false;fl=Math.min(fl,h);}
-    if(deep&&free(x0+4,z0+1,8)){shipwreck(x0,z0,fl,R2);claim(x0+4,z0+1,8);made++;}}}
+    if(deep&&free(x0+4,z0+1,8)){shipwreck(x0,z0,fl,R2);claim(x0+4,z0+1,8);made++;
+      // buried treasure: a chest two blocks under the sand on a beach, next to the sea
+      const spot=findBeach(x0+4,z0+1,R2);if(spot){const{x,z,h}=spot;S(x,h-2,z,CHEST);CHEST_T.set(x+','+(h-2)+','+z,'buried');S(x,h-1,z,4);S(x,h,z,4);BURIED.push({x,y:h-2,z});
+        SHIP_MAP.set((x0+7)+','+(fl+2)+','+(z0+1),{x,y:h-2,z});}}}}
   for(let k=0;k<Math.round(5*AREA);k++){const x0=8+(R2()*(WX-26)|0),z0=8+(R2()*(WZ-26)|0),y0=5+(R2()*10|0);
     if(HM[(x0+4)+(z0+4)*WX]>y0+12)dungeon(x0,y0,z0);}
   for(let k=0;k<Math.round(3*AREA);k++)mineshaft(12+(R2()*(WX-24)|0),11+(R2()*10|0),12+(R2()*(WZ-24)|0),R2);
@@ -5489,7 +5519,7 @@ function beltGrab(){let best=null,bt=5.2;if(target)bt=Math.min(bt,Math.hypot(tar
   if(left>=n){flash('Your inventory is full');return true;}
   swing();sfx('pop');flash('+ '+(n-left)+' '+itemDef(best.id).n);
   if(left>0){best.n=left;return true;}const i=drops.indexOf(best);if(best.net&&MP.conns.length)mpSend({t:'take',k:best.net});removeDrop(i);return true;}
-function useAction(){if(ui!=='play'||P.dead||P.spec)return;if(hayUse())return;const s=inv[sel];if(s&&s.id===365){openCasino('sep');return;}if(s&&s.id===376){openCasino('cmd');return;}if(s&&s.id===366){try{localStorage.setItem(COPIER_KEY,'1');}catch(e){}openCasino('copy');return;}if(s&&s.id===364&&!mobTarget){placeBoat();return;}
+function useAction(){if(ui!=='play'||P.dead||P.spec)return;if(hayUse())return;const s=inv[sel];if(s&&s.id===378){openTreasureMap(s);return;}if(s&&s.id===365){openCasino('sep');return;}if(s&&s.id===376){openCasino('cmd');return;}if(s&&s.id===366){try{localStorage.setItem(COPIER_KEY,'1');}catch(e){}openCasino('copy');return;}if(s&&s.id===364&&!mobTarget){placeBoat();return;}
   if(pvpTarget&&!mobTarget){if(s){mpGive(pvpTarget,keys.ShiftLeft||keys.ShiftRight);return;}const o=MP.others.get(pvpTarget);flash('Hold something to give it to '+((o&&o.n)||'your friend')+'. Shift + right-click gives the whole stack');return;}
   if(mobTarget&&interactMob(mobTarget))return;
   if(beltGrab())return;
@@ -5735,6 +5765,7 @@ function rocketTick(dt){for(let i=rockets.length-1;i>=0;i--){const r=rockets[i],
     r.g.lookAt(p.x+r.v.x,p.y+r.v.y,p.z+r.v.z);if(Math.random()<.8)burst(p.x-r.v.x*.01,p.y,p.z-r.v.z*.01,[1,.6,.2],1);
     if(boom){scene.remove(r.g);rockets.splice(i,1);explode(p.x-r.v.x*.012,p.y-r.v.y*.012,p.z-r.v.z*.012,4.2,'rpg');if(MP.conns.length)mpSend({t:'fxb',x:+p.x.toFixed(1),y:+p.y.toFixed(1),z:+p.z.toFixed(1),d:dim});}}}
 function gunTick(dt){homingTick(dt);rocketTick(dt);const s=inv[sel],d=s&&itemDef(s.id),am=$('ammo');
+  if(s&&s.id===378){const t=mapTarget(s);if(t&&dim===0){const dx=t.x+.5-P.x,dz=t.z+.5-P.z,dd=Math.hypot(dx,dz);am.hidden=false;am.textContent=dd<2.5?'🗺️ X marks the spot! Dig down':'🗺️ Treasure: '+Math.round(dd)+' blocks '+dirWords(dx,dz);}return;}
   if(!d||d.kind!=='gun'){am.hidden=true;spin=Math.max(0,spin-dt*2);locks=[];showLocks();return;}
   const g=d.gun||'gun';am.hidden=false;const b=countOf(g==='rpg'?362:357);
   am.textContent=mode==='creative'?d.n+' · ∞':g==='mg'||g==='mini'?d.n+' · '+(clipLeft[s.id]||0)+' in belt · '+b+' bullet'+(b===1?'':'s'):d.n+' · '+b+(g==='rpg'?' rocket':' bullet')+(b===1?'':'s');
@@ -5780,6 +5811,7 @@ const LOOT={
   village:[[.8,102,1,4],[.6,161,2,8],[.5,160,2,6],[.5,101,1,3],[.35,166,1,3],[.3,133,1,3],[.2,123,1,1],[.25,'t0',1,1],[.3,TORCH,2,6],[.25,175,1,1],[.15,170,1,1]],
   igloo:[[.8,101,1,3],[.6,131,1,4],[.3,166,1,2],[.15,113,1,1],[.5,24,1,3]],
   portal:[[.7,134,2,7],[.4,'t1',1,1],[.3,'t1',1,1],[.25,113,1,1],[.4,50,1,2],[.3,122,1,1],[.2,142,1,1]],
+  buried:[[1,166,8,20],[1,134,4,12],[1,135,3,8],[.9,133,6,14],[.5,289,1,3],[.85,'t3',1,1],[.7,'t2',1,1],[.6,357,1,3],[.4,362,1,2],[.6,304,1,1],[.5,34,1,2],[.6,175,1,1]],
   ship:[[.8,102,1,3],[.5,'t0',1,1],[.5,133,1,4],[.4,134,1,3],[.25,135,1,2],[.5,166,1,3],[.5,171,4,10],[.3,170,1,1],[.4,175,1,1],[.6,131,2,6],[.2,195,1,1]],
   camp:[[.9,102,1,3],[.7,101,1,3],[.6,105,1,3],[.5,TORCH,3,8],[.4,162,2,5],[.4,171,3,8],[.3,170,1,1],[.35,195,1,1],[.5,131,2,5]],
   mine:[[.7,102,1,3],[.6,131,3,8],[.5,133,1,5],[.3,134,1,3],[.4,TORCH,4,12],[.15,135,1,2],[.2,166,1,2],[.1,113,1,1],[.3,140,1,1]]};
@@ -5817,6 +5849,7 @@ function rollLoot(type,rng){const arr=new Array(18).fill(null);
   return arr;}
 function chestArr(key){if(chests[key])return chests[key];const type=CHEST_T.get(key);let arr;
   if(type){const p=key.split(',').map(Number);arr=rollLoot(type,mulberry(Math.floor(hash3(p[0],p[1],p[2],seed)*1e9)));}else arr=new Array(18).fill(null);
+  const tm=type==='ship'&&SHIP_MAP.get(key);if(tm){let sl=arr.findIndex(x=>!x);if(sl<0)sl=0;arr[sl]={id:378,count:1,text:'TMAP:'+tm.x+','+tm.y+','+tm.z,title:'Treasure map'};}
   chests[key]=arr;return arr;}
 
 /* =========================================================
@@ -6000,6 +6033,7 @@ function positionCursor(){$('cursor').style.left=mouseX+'px';$('cursor').style.t
 $('inv').addEventListener('click',e=>{const el=e.target.closest('.islot');if(!el)return;mouseX=e.clientX||mouseX;mouseY=e.clientY||mouseY;slotClick(el.dataset.ref,false,e.shiftKey);});
 $('inv').addEventListener('contextmenu',e=>{const el=e.target.closest('.islot');e.preventDefault();if(!el)return;mouseX=e.clientX;mouseY=e.clientY;slotClick(el.dataset.ref,true,false);});
 function openInv(chestKey,table){if(P.spec){flash('Spectators can’t use the inventory. Type /gamemode creative to build');return;}primaryUp();for(const k in keys)keys[k]=false;joy.x=joy.y=0;
+  if(chestKey&&CHEST_T.get(chestKey)==='buried'&&!chests[chestKey]){setTimeout(()=>{flash('🏴‍☠️ You found the buried treasure!');sfx('portal');},100);}
   openChest=chestKey?{key:chestKey,arr:chestArr(chestKey)}:null;if(openChest)openChest.had=openChest.arr.reduce((a,s)=>a+(s?s.count:0),0);if(chestKey){sfx('place');mpChestLast='';mpSendChest(true);}
   returnGrid();craftN=table?3:2;
   showScreen('inv');$('prevInv').appendChild(prevCanvas);sizePreview();renderInv();
@@ -6215,7 +6249,7 @@ const REELS=['🍒','🍋','🔔','⭐','💎','7️⃣'],REEL_PAY=[4,5,8,10,20,
 const BLOCK_PACK=[[9,20],[7,16],[16,10],[24,8],[35,6],[38,6],[33,2],[34,1],[1159,4],[64,6],[1170,4],[1153,3],[1154,3]],ITEM_PACK=[[133,16],[134,12],[105,12],[113,4],[135,6],[166,8],[289,3],[304,1],[171,10],[351,8],[345,5],[307,4],[309,4],[311,4]];
 function rollPack(list){let tot=0;for(const t of list)tot+=t[1];let r=Math.random()*tot;for(const t of list){r-=t[1];if(r<=0)return t[0];}return list[0][0];}
 function renderCasino(msg){const L=$('casList');L.innerHTML='';const em=countOf(166),cr=mode==='creative',pay=n=>cr||em>=n;
-  $('casTitle').textContent=casTab==='cmd'?'Command block':casTab==='sep'?'Ultimate craft separator':casTab==='copy'?'Build copier':casTab==='battle'?'Big battle sign-up':casTab==='hay'?'Haystack upgrades':casTab==='arcade'?'Arcade':casTab==='packs'?'Pack machine':'Casino';
+  $('casTitle').textContent=casTab==='map'?'Treasure map':casTab==='cmd'?'Command block':casTab==='sep'?'Ultimate craft separator':casTab==='copy'?'Build copier':casTab==='battle'?'Big battle sign-up':casTab==='hay'?'Haystack upgrades':casTab==='arcade'?'Arcade':casTab==='packs'?'Pack machine':'Casino';
   $('casNote').textContent=(msg?msg+' · ':'')+'You have '+em+' emerald'+(em===1?'':'s')+'.';
   const row=(icon,title,sub,label,ok,fn)=>{const r=document.createElement('div');r.className='brow';r.innerHTML='<div class="titem"><img alt="" src="'+iconOf(icon)+'"><span></span></div>';
     const sp=r.querySelector('span');sp.textContent=title;const sm=document.createElement('small');sm.textContent=sub;sp.appendChild(sm);
@@ -6225,6 +6259,7 @@ function renderCasino(msg){const L=$('casList');L.innerHTML='';const em=countOf(
   if(casTab==='battle'){battleMenu(row,msg);return;}
   if(casTab==='sep'){sepMenu(row,msg);return;}
   if(casTab==='cmd'){cmdMenu(row,msg);return;}
+  if(casTab==='map'){mapMenu(row,msg);return;}
   if(casTab==='copy'){copyMenu(row,msg);return;}
   if(casTab==='games'){
     row(1162,'Slot machine','Three of a kind pays up to 50 times your bet. Two the same gives your bet back',[1,5,20].map(n=>['Bet '+n,()=>{if(!cr)takeN(166,n);
