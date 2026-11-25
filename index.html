@@ -1063,6 +1063,7 @@ ITEMS[363]={n:'Minigun',kind:'gun',gun:'mini',p:'mini',pal:{a:'#3a3a40',b:'#8a8a
 ITEMS[364]={n:'Boat',kind:'mat',p:'boat',pal:{a:'#a0703c',b:'#6e4a24',c:'#c89a5a'},max:1};
 ITEMS[365]={n:'Ultimate craft separator',kind:'mat',p:'sep',pal:{a:'#3a2a5a',b:'#c070ff',c:'#ffe070'},max:1};
 ITEMS[366]={n:'Build copier',kind:'mat',p:'copier',pal:{a:'#1a4a6a',b:'#60e0ff',c:'#ffffff'},max:1};
+ITEMS[376]={n:'Command block',kind:'mat',p:'cmdb',pal:{a:'#d87a30',b:'#5a3018',c:'#fff0c0',d:'#2a2a30'},max:1};
 ITEMS[357]={n:'Bullet',kind:'mat',p:'bullet',pal:{a:'#d8a838',b:'#9a6a18',c:'#fff0b0'},max:16};
 mat(303,'Wither star','star',{a:'#f4f4ff',b:'#9aa0c8',c:'#ffffff'});mat(289,'Netherite scrap','coal',{a:'#5a4440',b:'#2a1e1c',c:'#9a7a70'});mat(290,'Netherite ingot','ingot',{a:'#4a4048',b:'#221c20',c:'#a08c9c'});
 const SHIELD=291,SPEAR=292;
@@ -1103,7 +1104,7 @@ const RC=(out,n,p,k)=>RECIPES.push({out,n,p,k}),RS=(out,n,s)=>RECIPES.push({out,
 RS(7,4,[5]);RS(40,4,[18]);RS(1177,4,[1175]);RS(1180,4,[1178]);
 for(const sid in STAIRV){const st=STAIRV[sid];if(+sid!==st[0])continue;const mat=STAIR_MATS.find(m=>BL[st[0]].n===m[1]+' stairs')[0],mi=mat<100?mat:1000+mat;RC(1000+st[0],4,['P..','PP.','PPP'],{P:mi});}
 for(const sl in SLABOF){const mat=SLABOF[sl];RC(1000+(+sl),6,['PPP'],{P:mat<100?mat:1000+mat});}
-RS(251,2,[250]);RC(271,3,['G.G','.G.'],{G:16});RC(1133,1,['S.S','.S.','S.S'],{S:162});RC(279,6,['III','RRR'],{I:133,R:179});RC(263,3,['PP','PP','PP'],{P:'planks'});RC(270,2,['SS.','SL.','..S'],{S:162,L:136});RC(268,3,['PSP','PSP'],{P:'planks',S:130});RC(269,1,['SPS','SPS'],{S:130,P:'planks'});RC(265,16,['I.I','ISI','I.I'],{I:133,S:130});RC(266,6,['G.G','GSG','GRG'],{G:134,S:130,R:179});RC(264,1,['I.I','III'],{I:133});RC(365,1,['ENE','NWN','ENE'],{E:353,N:290,W:303});RC(366,1,['DED','GWG','DTD'],{D:34,E:354,G:358,W:303,T:304});RC(364,1,['P.P','PPP'],{P:'planks'});RC(267,1,['S','C'],{S:130,C:'stone'});RS(262,2,[172,131]);RC(1114,1,['GSG','SGS','GSG'],{G:262,S:4});RS(261,1,[253,251]);RC(259,1,['..S','.S.','W..'],{S:130,W:'wool'});RC(260,1,['..S','.S.','H..'],{S:130,H:161});
+RS(251,2,[250]);RC(271,3,['G.G','.G.'],{G:16});RC(1133,1,['S.S','.S.','S.S'],{S:162});RC(279,6,['III','RRR'],{I:133,R:179});RC(263,3,['PP','PP','PP'],{P:'planks'});RC(270,2,['SS.','SL.','..S'],{S:162,L:136});RC(268,3,['PSP','PSP'],{P:'planks',S:130});RC(269,1,['SPS','SPS'],{S:130,P:'planks'});RC(265,16,['I.I','ISI','I.I'],{I:133,S:130});RC(266,6,['G.G','GSG','GRG'],{G:134,S:130,R:179});RC(264,1,['I.I','III'],{I:133});RC(365,1,['ENE','NWN','ENE'],{E:353,N:290,W:303});RC(376,1,['NDN','GWT','NDN'],{N:290,D:34,G:358,W:303,T:304});RC(366,1,['DED','GWG','DTD'],{D:34,E:354,G:358,W:303,T:304});RC(364,1,['P.P','PPP'],{P:'planks'});RC(267,1,['S','C'],{S:130,C:'stone'});RS(262,2,[172,131]);RC(1114,1,['GSG','SGS','GSG'],{G:262,S:4});RS(261,1,[253,251]);RC(259,1,['..S','.S.','W..'],{S:130,W:'wool'});RC(260,1,['..S','.S.','H..'],{S:130,H:161});
 RC(130,4,['P','P'],{P:'planks'});
 RC(TABLE,1,['PP','PP'],{P:'planks'});
 RC(BED,1,['WWW','PPP'],{W:'wool',P:'planks'});
@@ -1154,6 +1155,7 @@ function matchRecipe(grid,n){let minx=9,miny=9,maxx=-1,maxy=-1;const items=[];
 
 /* ---------- pixel icons ---------- */
 const PAT={
+cmdb:["bbbbbbbb","baaaaaab","badddcab","baddddab","badcddab","baddddab","baaaaaab","bbbbbbbb"],
 sep:["..bbbb..",".baaaab.","bacaacab","baaccaab","baaccaab","bacaacab",".baaaab.","..bbbb.."],
 copier:["aaaaaaa.","abbbbba.","abcbcba.","abbbbbaa","aaaaaaab",".abbbbba",".abcbcba",".aaaaaaa"],
 boat:["........","........","c......c","ac....ca","abaaaaba",".abbbba.","..aaaa..","........"],
@@ -2562,20 +2564,114 @@ function sepDo(i){const st=inv[i];if(!st)return;const r=recipeFor(st.id);if(!r)r
 /* ---------- BUILD COPIER: copy your whole build (blocks, chests and the animals in it) and paste it into another world ---------- */
 const BP_KEY=SAVE_KEY+'-blueprint',COPIER_KEY=SAVE_KEY+'-copier',COPY_R=48;
 function loadBP(){try{return JSON.parse(localStorage.getItem(BP_KEY)||'null');}catch(e){return null;}}
-function copyMenu(row,msg){const bp=loadBP();
-  $('casNote').textContent=(msg?msg+' · ':'')+'The copier remembers everything you built within '+COPY_R+' blocks of you (all the way up and down), what is in your chests, and the animals inside with their names. Your copier comes with you into every world.';
-  row(366,'Copy my build','Stand in the middle of your base. Copies what you built around you'+(bp?'. This replaces the build already saved':''),'Copy',true,copyBuild);
-  if(bp)row(366,'Paste the saved build here','From '+(bp.world||'a world')+': '+bp.blocks.length.toLocaleString('en-US')+' blocks, '+Object.keys(bp.chests||{}).length+' chests, '+bp.mobs.length+' animals. It is placed around you, the same way it was around you when you copied it','Paste',true,pasteBuild);
+/* ---------- COMMAND BLOCK: a rare block that runs big commands for you ---------- */
+const cmdCd={};let oreRain=0,oreRainT=0;
+const CMDBLK=[
+  ['rain','Rain ores','Diamonds, emeralds, gold, iron, copper and coal fall from the sky around you for 20 seconds',176,40,()=>{oreRain=20;flash('⛈️ It\'s raining ores! Run around and catch them');}],
+  ['house','Build a house','A cosy 7×7 house with a door, windows, a bed, a chest, a crafting table and lights, right in front of you',1007,10,()=>cmdBuild('house')],
+  ['tower','Build a watch tower','A tall stone brick tower with a ladder inside and a lookout on top',1031,10,()=>cmdBuild('tower')],
+  ['farm','Build a farm','A fenced 9×9 farm with water and wheat already planted',161,10,()=>cmdBuild('farm')],
+  ['bridge','Build a bridge','A 30-block bridge with railings straight ahead of you, over water, lava or a drop',1126,10,()=>cmdBuild('bridge')],
+  ['castle','Build a castle wall','A 21×21 stone wall with corner towers and a gate, all around where you stand',1031,30,()=>cmdBuild('castle')],
+  ['power','Super powers','Strength, speed, high jumps, night vision, fire resistance and water breathing for 5 minutes',251,60,()=>{for(const k of['strength','speed','jump','night','fireres','water'])fx[k]=Math.max(fx[k]||0,300);flash('💪 You feel super powerful!');}],
+  ['heal','Heal and feed','Fills up your health and hunger and cures anything bad',1113,15,()=>{P.hp=20;P.food=20;P.sat=Math.max(P.sat||0,10);for(const k in fx)if(POT[k]&&POT[k].bad)delete fx[k];renderStats(true);flash('❤️ Fully healed and fed');}],
+  ['gear','Upgrade my gear','Turns every iron, gold, copper and diamond tool and armour you carry or wear into netherite',285,30,cmdUpgradeGear],
+  ['day','Make it daytime','Jumps the clock to midday',1049,15,()=>{timeOfDay=DAYPART*.5;flash('☀️ Good morning!');}],
+  ['wolves','Summon a wolf pack','3 tame wolves that follow you and fight for you',1036,30,()=>{for(let i=0;i<3;i++){const a=i*2.1,m=spawnMob('wolf',P.x+Math.cos(a)*2,P.y+.2,P.z+Math.sin(a)*2);tameMob(m);m.fromEgg=true;burst(m.x,m.y+.5,m.z,[.9,.9,.9],8);}flash('🐺 Your wolf pack is here!');}]];
+function cmdMenu(row,msg){const now=performance.now()/1000;$('casNote').textContent=(msg?msg+' · ':'')+'Pick a command. Each one needs a short rest before you can use it again.';
+  for(const c of CMDBLK){const left=Math.ceil((cmdCd[c[0]]||0)-now);row(c[3],c[1],c[2]+(left>0?' · ready in '+left+' s':''),left>0?'Wait':'Run',left<=0,()=>{if(((cmdCd[c[0]]||0)-performance.now()/1000)>0)return;cmdCd[c[0]]=performance.now()/1000+c[4];closeCasino();sfx('portal');burst(P.x,P.y+1.2,P.z,[1,.6,.25],20);setTimeout(()=>{try{c[5]();}catch(e){}},150);});}
   row(166,'Close','Back to the game','Close',true,()=>closeCasino());}
-function copyBuild(){const ox=Math.floor(P.x),oy=Math.floor(P.y),oz=Math.floor(P.z),blocks=[],ch={},mb=[];
-  for(const[k,id]of edits){const[x,y,z]=k.split(',').map(Number);if(Math.abs(x-ox)>COPY_R||Math.abs(z-oz)>COPY_R)continue;if(id===FIRE)continue;blocks.push([x-ox,y-oy,z-oz,id]);
-    if(id===CHEST&&chests[k])ch[(x-ox)+','+(y-oy)+','+(z-oz)]=chests[k].map(pack);}
-  for(const m of mobs){if(m.dying||m.puppet||m.T.hostile||m.T.boss||m.T.crystal||m.arena||m.hay||m.battle||m.inBoat&&false)continue;if(Math.abs(m.x-ox)>COPY_R||Math.abs(m.z-oz)>COPY_R)continue;if(isWild(m)&&!m.tagged&&!m.tame)continue;
+function cmdTick(dt){if(oreRain<=0)return;oreRain-=dt;oreRainT-=dt;if(oreRainT>0)return;oreRainT=.12;
+  const pool=[[135,3],[166,3],[134,4],[133,6],[178,6],[131,8],[179,4],[289,.4]],tot=pool.reduce((a,b)=>a+b[1],0);let r=Math.random()*tot,id=131;for(const[i,w]of pool){r-=w;if(r<=0){id=i;break;}}
+  const a=Math.random()*6.283,d=1+Math.random()*9,x=P.x+Math.cos(a)*d,z=P.z+Math.sin(a)*d;dropItem(id,1,x,P.y+14,z,undefined,0,-4,0,.2);burst(x,P.y+14,z,[.85,.85,1],3);
+  if(oreRain<=0)flash('The ore rain has stopped');}
+function cmdUpgradeGear(){let n=0;const up=st=>{if(!st)return st;const d=itemDef(st.id);let to=null;
+    if(d.kind==='armor'&&d.tier!=null&&[1,2,3,TIERS.length-1].includes(d.tier)&&!d.tough)to=280+d.slot;
+    else if(st.id>=120&&st.id<=124&&st.id>=121)to=284;else if(st.id>=140&&st.id<=144&&st.id>=141)to=285;else if(st.id>=145&&st.id<=149&&st.id>=146)to=286;else if(st.id>=150&&st.id<=154&&st.id>=151)to=287;else if(st.id>=155&&st.id<=159&&st.id>=156)to=288;
+    else if(st.id>=367&&st.id<=371)to=[284,285,286,287,288][st.id-367];
+    if(to==null)return st;n++;const nd=itemDef(to);return{id:to,count:1,dur:nd.dur,ench:st.ench};};
+  for(let i=0;i<inv.length;i++)inv[i]=up(inv[i]);for(let i=0;i<armor.length;i++)armor[i]=up(armor[i]);if(offArr)offArr[0]=up(offArr[0]);invChanged();
+  flash(n?'⬆️ '+n+' piece'+(n>1?'s':'')+' of gear turned into netherite!':'You have no iron, gold, copper or diamond gear to upgrade');}
+// builds in front of you: u = steps forward, v = steps to the right, h = height above the ground you stand on
+function cmdBuild(kind){const fx0=-Math.sin(yaw),fz0=-Math.cos(yaw),ax=Math.abs(fx0)>Math.abs(fz0),f=ax?[Math.sign(fx0),0]:[0,Math.sign(fz0)],r=[-f[1],f[0]];
+  const bx=Math.floor(P.x),by=Math.floor(P.y),bz=Math.floor(P.z);let x0=1e9,z0=1e9,x1=-1e9,z1=-1e9;const W=(u,v)=>[bx+f[0]*u+r[0]*v,bz+f[1]*u+r[1]*v];
+  const put=(u,v,h,id)=>{const[x,z]=W(u,v),y=by+h;if(x<1||z<1||x>=WX-1||z>=WZ-1||y<1||y>=WY||get(x,y,z)===BEDROCK)return;setShared(x,y,z,id);x0=Math.min(x0,x);x1=Math.max(x1,x);z0=Math.min(z0,z);z1=Math.max(z1,z);};
+  const ground=(u,v,mat,clear)=>{const[x,z]=W(u,v);for(let k=1;k<=8;k++){const y=by-k;const b=get(x,y,z);if(SOLID[b]&&!BL[b].cross)break;put(u,v,-k,mat);}for(let h=0;h<clear;h++)put(u,v,h,0);};
+  if(kind==='house'){const U=3;for(let u=0;u<7;u++)for(let v=-3;v<=3;v++){ground(U+u,v,3,6);put(U+u,v,-1,7);const e=u===0||u===6||v===-3||v===3;
+      for(let h=0;h<4;h++)if(e)put(U+u,v,h,(u===0||u===6||v===-3||v===3)&&((u===0||u===6)&&(v===-3||v===3))?5:(h===1&&(u===3||v===0)&&!(u===0&&v===0))?16:7);put(U+u,v,4,v===-3||v===3||u===0||u===6?177:7);}
+    for(let u=-1;u<=7;u++)for(let v=-4;v<=4;v++)put(U+u,v,5,(u===-1||u===7||v===-4||v===4)?0:177);
+    put(U,0,0,DOORLC);put(U,0,1,DOORUC);put(U+5,-2,0,BED);put(U+5,2,0,CHEST);const[cx,cz]=W(U+5,2);chests[cx+','+by+','+cz]=new Array(18).fill(null);put(U+4,2,0,30);put(U+1,-2,2,TORCH);put(U+1,2,2,TORCH);put(U+5,0,3,64);}
+  else if(kind==='tower'){const U=3;for(let u=0;u<5;u++)for(let v=-2;v<=2;v++){ground(U+u,v,31,16);const e=u===0||u===4||v===-2||v===2;for(let h=-1;h<14;h++)put(U+u,v,h,h===-1?31:e?((h%4===2&&(u===2||v===0))?16:31):0);}
+    for(let h=0;h<14;h++)put(U+2,1,h,LADDER);put(U,0,0,0);put(U,0,1,0);
+    for(let u=-1;u<=5;u++)for(let v=-3;v<=3;v++){put(U+u,v,14,31);if(u===-1||u===5||v===-3||v===3)put(U+u,v,15,FENCE);}put(U+2,1,14,0);put(U+2,1,15,0);put(U+1,-1,15,TORCH);put(U+3,1,15,TORCH);}
+  else if(kind==='farm'){const U=2;for(let u=0;u<11;u++)for(let v=-5;v<=5;v++){ground(U+u,v,2,3);const e=u===0||u===10||v===-5||v===5;
+      if(e){put(U+u,v,-1,2);put(U+u,v,0,u===0&&v===0?GATEC:FENCE);}else if(u===5&&v===0){put(U+u,v,-1,WATER);}else{put(U+u,v,-1,FARMLAND);put(U+u,v,0,44);}}put(U+5,0,0,0);}
+  else if(kind==='bridge'){for(let u=1;u<=30;u++)for(let v=-1;v<=1;v++){put(u,v,-1,7);for(let h=0;h<3;h++)put(u,v,h,0);if(v!==0)put(u,v,0,FENCE);}
+    for(let u=5;u<=30;u+=5){put(u,-1,1,TORCH);put(u,1,1,TORCH);}}
+  else if(kind==='castle'){for(let u=-10;u<=10;u++)for(let v=-10;v<=10;v++){const e=Math.max(Math.abs(u),Math.abs(v))===10,cor=Math.abs(u)>=8&&Math.abs(v)>=8&&(Math.abs(u)===10||Math.abs(v)===10||(Math.abs(u)>=8&&Math.abs(v)>=8));
+      if(Math.abs(u)>=8&&Math.abs(v)>=8){ground(u,v,31,9);const edge=Math.abs(u)===8||Math.abs(u)===10||Math.abs(v)===8||Math.abs(v)===10;for(let h=-1;h<9;h++)put(u,v,h,edge||h===-1?((h===4&&edge&&(u+v)%2===0)?16:31):0);if(edge&&(u+v)%2===0)put(u,v,9,31);continue;}
+      if(!e)continue;ground(u,v,31,7);for(let h=-1;h<6;h++)put(u,v,h,31);if((u+v)%2===0)put(u,v,6,31);}
+    for(let v=-1;v<=1;v++)for(let h=0;h<3;h++)put(10,v,h,0);put(10,-2,3,TORCH);put(10,2,3,TORCH);}
+  if(x1>=x0)rebuildAround(x0,z0,x1,z1);sfx('place');for(let i=0;i<6;i++){const[x,z]=W(4+Math.random()*6,(Math.random()-.5)*6);burst(x,by+2,z,[1,.85,.5],14);}save();
+  flash('🏗️ Built: '+{house:'a house',tower:'a watch tower',farm:'a farm',bridge:'a bridge',castle:'a castle wall'}[kind]+'!');}
+let copyPending=null;
+function copyMenu(row,msg){const bp=loadBP();
+  if(copyPending){const c=copyPending;
+    $('casNote').textContent=(msg?msg+' · ':'')+'The copier looked at your build. Check the picture: is this all of it?';
+    const box=document.createElement('div');box.style.cssText='padding:8px 4px 10px;text-align:center';const cv=document.createElement('canvas');cv.width=560;cv.height=360;
+    cv.style.cssText='width:100%;max-width:560px;border-radius:10px;background:linear-gradient(#bfe3ff,#eaf6ff);border:2px solid #f2c430';drawBuildPreview(cv,c);
+    const info=document.createElement('div');info.style.cssText='margin-top:8px;font:600 14px/1.45 system-ui,sans-serif;color:inherit';
+    info.textContent=(c.complete?'✅ Complete structure: nothing is cut off. ':'⚠️ This build is very big, so only part of it fits in the copier. ')+c.blocks.length.toLocaleString('en-US')+' blocks · '+c.size.join(' × ')+' blocks across, deep and high · '+Object.keys(c.chests).length+' chests · '+c.mobs.length+' animals'+(c.beyond?' · '+c.beyond.toLocaleString('en-US')+' connected blocks reach past 48 blocks and are included':'')+(c.parts>1?' · '+c.parts+' separate parts':'');
+    box.appendChild(cv);box.appendChild(info);$('casList').appendChild(box);
+    row(366,'Yes, that\'s my build','Save it in the copier'+(bp?'. This replaces the build already saved':''),'Confirm',true,confirmCopy);
+    row(166,'No, cancel','Nothing is saved. Move to the middle of your base and try again','Cancel',true,()=>{copyPending=null;renderCasino('Copy cancelled');});return;}
+  $('casNote').textContent=(msg?msg+' · ':'')+'The copier finds everything you built around you (it follows your build past 48 blocks so nothing is cut off), what is in your chests, and the animals inside with their names. You check a picture of it before it is saved. Your copier comes with you into every world.';
+  row(366,'Copy my build','Stand in the middle of your base. The copier scans it and shows you a picture to confirm','Scan',true,()=>{const c=analyseBuild();if(!c){renderCasino('There is nothing you built here to copy');return;}copyPending=c;renderCasino();});
+  if(bp)row(366,'Paste the saved build here','From '+(bp.world||'a world')+': '+bp.blocks.length.toLocaleString('en-US')+' blocks, '+Object.keys(bp.chests||{}).length+' chests, '+bp.mobs.length+' animals. It is placed around you, the same way it was around you when you copied it','Paste',true,pasteBuild);
+  row(166,'Close','Back to the game','Close',true,()=>{copyPending=null;closeCasino();});}
+// find the whole build: start from what you built near you and follow every connected block, even past the 48-block range
+function analyseBuild(){const ox=Math.floor(P.x),oy=Math.floor(P.y),oz=Math.floor(P.z),CAP=250000;
+  const isB=id=>id&&id!==FIRE&&!ISW[id]&&!ISL[id];const seen=new Set(),q=[];let parts=0,complete=true,beyond=0;
+  for(const[k,id]of edits){if(!isB(id)||seen.has(k))continue;const[x,,z]=k.split(',').map(Number);if(Math.abs(x-ox)>COPY_R||Math.abs(z-oz)>COPY_R)continue;
+    parts++;seen.add(k);q.push(k);
+    while(q.length){const c=q.pop();const[cx,cy,cz]=c.split(',').map(Number);if(Math.abs(cx-ox)>COPY_R||Math.abs(cz-oz)>COPY_R)beyond++;
+      if(seen.size>=CAP){complete=false;q.length=0;break;}
+      for(let dx=-1;dx<=1;dx++)for(let dy=-1;dy<=1;dy++)for(let dz=-1;dz<=1;dz++){if(!dx&&!dy&&!dz)continue;const nk=(cx+dx)+','+(cy+dy)+','+(cz+dz);if(seen.has(nk))continue;const v=edits.get(nk);if(isB(v)){seen.add(nk);q.push(nk);}}}
+    if(!complete)break;}
+  if(!seen.size)return null;
+  let b=[1e9,1e9,1e9,-1e9,-1e9,-1e9];for(const k of seen){const[x,y,z]=k.split(',').map(Number);b=[Math.min(b[0],x),Math.min(b[1],y),Math.min(b[2],z),Math.max(b[3],x),Math.max(b[4],y),Math.max(b[5],z)];}
+  const blocks=[],ch={},mb=[];
+  for(const k of seen){const[x,y,z]=k.split(',').map(Number),id=edits.get(k);blocks.push([x-ox,y-oy,z-oz,id]);if(id===CHEST&&chests[k])ch[(x-ox)+','+(y-oy)+','+(z-oz)]=chests[k].map(pack);}
+  // rooms you dug and water you put inside the build come too
+  for(const[k,id]of edits){if(seen.has(k)||!(id===0||id===WATER))continue;const[x,y,z]=k.split(',').map(Number);if(x<b[0]-1||x>b[3]+1||y<b[1]-1||y>b[4]+1||z<b[2]-1||z>b[5]+1)continue;blocks.push([x-ox,y-oy,z-oz,id]);}
+  for(const m of mobs){if(m.dying||m.puppet||m.T.hostile||m.T.boss||m.T.crystal||m.arena||m.hay||m.battle)continue;if(m.x<b[0]-2||m.x>b[3]+3||m.z<b[2]-2||m.z>b[5]+3||m.y<b[1]-2||m.y>b[4]+3)continue;if(isWild(m)&&!m.tagged&&!m.tame)continue;
     mb.push([m.type,+(m.x-ox).toFixed(2),+(m.y-oy).toFixed(2),+(m.z-oz).toFixed(2),m.tagged?m.nm:0,m.tame?1:0,typeof m.prof==='string'?m.prof:0,m.baby>0?1:0,m.saddle?1:0,m.coat||0]);}
-  if(!blocks.length&&!mb.length){renderCasino('There is nothing you built here to copy');return;}
-  const bp={world:WORLDS[worldType].n+' world',made:Date.now(),blocks:blocks.slice(0,250000),chests:ch,mobs:mb.slice(0,120)};
-  try{localStorage.setItem(BP_KEY,JSON.stringify(bp));}catch(e){renderCasino('This build is too big to save. Try copying from a smaller area');return;}
-  sfx('portal');burst(P.x,P.y+1,P.z,[.4,.9,1],24);renderCasino('Copied '+blocks.length.toLocaleString('en-US')+' blocks, '+Object.keys(ch).length+' chests and '+mb.length+' animals');}
+  return{blocks,chests:ch,mobs:mb.slice(0,120),complete,parts,beyond,size:[b[3]-b[0]+1,b[5]-b[2]+1,b[4]-b[1]+1],box:[b[0]-ox,b[1]-oy,b[2]-oz,b[3]-ox,b[4]-oy,b[5]-oz]};}
+function confirmCopy(){const c=copyPending;if(!c)return;copyPending=null;const bp={world:WORLDS[worldType].n+' world',made:Date.now(),blocks:c.blocks,chests:c.chests,mobs:c.mobs,box:c.box};
+  try{localStorage.setItem(BP_KEY,JSON.stringify(bp));}catch(e){renderCasino('This build is too big to save. Try a smaller build');return;}
+  sfx('portal');burst(P.x,P.y+1,P.z,[.4,.9,1],24);renderCasino('Saved! '+c.blocks.length.toLocaleString('en-US')+' blocks, '+Object.keys(c.chests).length+' chests and '+c.mobs.length+' animals');}
+function copyBuild(){const c=analyseBuild();if(!c)return;copyPending=c;confirmCopy();}
+// a picture of the build from above at an angle, with the edge of the build drawn in bright yellow
+function drawBuildPreview(cv,c){const g=cv.getContext('2d'),W=cv.width,H=cv.height,bx=c.box,solid=new Map();
+  for(const[x,y,z,id]of c.blocks)if(id&&BL[id]&&!ISW[id])solid.set(x+','+y+','+z,id);
+  const sx=bx[3]-bx[0]+1,sy=bx[4]-bx[1]+1,sz=bx[5]-bx[2]+1,a=Math.max(1,Math.min(16,(W-40)/(sx+sz),(H-40)/((sx+sz)/2+sy))),
+    cx=W/2-(sx-sz)*a/2,cy=H/2-((sx+sz)*a/2/2)+sy*a/2,P2=(x,y,z)=>[cx+(x-z)*a,cy+(x+z)*a/2-y*a];
+  const list=[];for(const[k,id]of solid){const[x,y,z]=k.split(',').map(Number);const top=!solid.has(x+','+(y+1)+','+z),fx=!solid.has((x+1)+','+y+','+z),fz=!solid.has(x+','+y+','+(z+1));
+    if(top||fx||fz)list.push([x-bx[0],y-bx[1],z-bx[2],id,top,fx,fz]);}
+  list.sort((p,q)=>(p[0]+p[2])-(q[0]+q[2])||p[1]-q[1]);
+  const col=(t,k)=>{const c0=tileAvg[t]||[.6,.6,.6];return'rgb('+(c0[0]*255*k|0)+','+(c0[1]*255*k|0)+','+(c0[2]*255*k|0)+')';};
+  const face=(pts,fill)=>{g.beginPath();g.moveTo(pts[0][0],pts[0][1]);for(let i=1;i<4;i++)g.lineTo(pts[i][0],pts[i][1]);g.closePath();g.fillStyle=fill;g.fill();if(a>=4){g.strokeStyle='rgba(0,0,0,.28)';g.lineWidth=1;g.stroke();}};
+  for(const[x,y,z,id,top,fx,fz]of list){const t=BL[id].t;
+    if(top)face([P2(x,y+1,z),P2(x+1,y+1,z),P2(x+1,y+1,z+1),P2(x,y+1,z+1)],col(t[1]!=null?t[1]:t[0],1));
+    if(fx)face([P2(x+1,y+1,z),P2(x+1,y+1,z+1),P2(x+1,y,z+1),P2(x+1,y,z)],col(t[0],.72));
+    if(fz)face([P2(x,y+1,z+1),P2(x+1,y+1,z+1),P2(x+1,y,z+1),P2(x,y,z+1)],col(t[0],.86));}
+  // outline of the whole build
+  const C=[[0,0,0],[sx,0,0],[sx,0,sz],[0,0,sz],[0,sy,0],[sx,sy,0],[sx,sy,sz],[0,sy,sz]].map(p=>P2(p[0],p[1],p[2])),E=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  for(const[w,st]of[[5,'rgba(0,0,0,.55)'],[2.5,'#ffd23a']]){g.lineWidth=w;g.strokeStyle=st;g.setLineDash(w>3?[]:[8,5]);g.beginPath();for(const[p,q]of E){g.moveTo(C[p][0],C[p][1]);g.lineTo(C[q][0],C[q][1]);}g.stroke();}g.setLineDash([]);
+  // the animals inside, with their names
+  g.font='bold 12px system-ui,sans-serif';g.textAlign='center';
+  for(const m of c.mobs){const p=P2(m[1]-bx[0],m[2]-bx[1]+1,m[3]-bx[2]);g.fillStyle='#ff5a8a';g.beginPath();g.arc(p[0],p[1],Math.max(3,a*.35),0,7);g.fill();g.strokeStyle='#fff';g.lineWidth=1.5;g.stroke();
+    if(m[4]){g.fillStyle='rgba(0,0,0,.6)';const w=g.measureText(m[4]).width+8;g.fillRect(p[0]-w/2,p[1]-22,w,16);g.fillStyle='#fff';g.fillText(m[4],p[0],p[1]-10);}}}
 function pasteBuild(){const bp=loadBP();if(!bp)return;const ox=Math.floor(P.x),oy=Math.floor(P.y),oz=Math.floor(P.z);let n=0,x0=1e9,z0=1e9,x1=-1e9,z1=-1e9;
   for(const[dx,dy,dz,id]of bp.blocks){const x=ox+dx,y=oy+dy,z=oz+dz;if(x<1||z<1||x>=WX-1||z>=WZ-1||y<1||y>=WY)continue;if(get(x,y,z)===BEDROCK)continue;if(id&&!BL[id])continue;setShared(x,y,z,id);n++;
     x0=Math.min(x0,x);x1=Math.max(x1,x);z0=Math.min(z0,z);z1=Math.max(z1,z);}
@@ -5308,7 +5404,7 @@ function beltGrab(){let best=null,bt=5.2;if(target)bt=Math.min(bt,Math.hypot(tar
   if(left>=n){flash('Your inventory is full');return true;}
   swing();sfx('pop');flash('+ '+(n-left)+' '+itemDef(best.id).n);
   if(left>0){best.n=left;return true;}const i=drops.indexOf(best);if(best.net&&MP.conns.length)mpSend({t:'take',k:best.net});removeDrop(i);return true;}
-function useAction(){if(ui!=='play'||P.dead||P.spec)return;if(hayUse())return;const s=inv[sel];if(s&&s.id===365){openCasino('sep');return;}if(s&&s.id===366){try{localStorage.setItem(COPIER_KEY,'1');}catch(e){}openCasino('copy');return;}if(s&&s.id===364&&!mobTarget){placeBoat();return;}
+function useAction(){if(ui!=='play'||P.dead||P.spec)return;if(hayUse())return;const s=inv[sel];if(s&&s.id===365){openCasino('sep');return;}if(s&&s.id===376){openCasino('cmd');return;}if(s&&s.id===366){try{localStorage.setItem(COPIER_KEY,'1');}catch(e){}openCasino('copy');return;}if(s&&s.id===364&&!mobTarget){placeBoat();return;}
   if(pvpTarget&&!mobTarget){if(s){mpGive(pvpTarget,keys.ShiftLeft||keys.ShiftRight);return;}const o=MP.others.get(pvpTarget);flash('Hold something to give it to '+((o&&o.n)||'your friend')+'. Shift + right-click gives the whole stack');return;}
   if(mobTarget&&interactMob(mobTarget))return;
   if(beltGrab())return;
@@ -5736,7 +5832,7 @@ let craftN=2;const craftGrid=new Array(9).fill(null);
 function returnGrid(){for(let i=0;i<9;i++){if(craftGrid[i]){give(craftGrid[i]);craftGrid[i]=null;}}}
 const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,1173,1174,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,53,BED,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,1135,1136,1145,1137,1138,1139,1140,1141,1142,1143,41,1104,1113,1114,1133,1134,1175,1176,1177,1178,1179,1180,1181,1182,1183,1188,1193,1198,1203,1208,1213,1184,1189,1194,1199,1204,1209,1214,11,10],
   combat:[367,368,369,370,371,372,373,374,375,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,176,195,120,121,122,123,124,170,171,...Array.from({length:16},(_,i)=>200+i),284,285,286,287,288,280,281,282,283,291,298,299,292,300,301,302,305,306,304,354,355,356,357,359,360,363,361,362],
-  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,270,271,272,273,274,275,276,279,164,165,264,364,365,366,265,266,267,259,260,1110,256,257,258,289,290,303,337,338,339,341,342,343,344,345,346,347,348,349,350,340,1155,1157,1159,1160,1161,351,1166,1167,1169,1170,1171,352,353,1162,1163,1164,1146,1147,1149,1150,1151,1152,1153,1154,...Array.from({length:30},(_,i)=>307+i)]};
+  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,270,271,272,273,274,275,276,279,164,165,264,364,365,366,376,265,266,267,259,260,1110,256,257,258,289,290,303,337,338,339,341,342,343,344,345,346,347,348,349,350,340,1155,1157,1159,1160,1161,351,1166,1167,1169,1170,1171,352,353,1162,1163,1164,1146,1147,1149,1150,1151,1152,1153,1154,...Array.from({length:30},(_,i)=>307+i)]};
 let catTab='blocks';
 function haveCount(k){let c=0;for(const s of inv)if(s&&ing(k,s.id))c+=s.count;for(const s of craftGrid)if(s&&ing(k,s.id))c+=s.count;return c;}
 function needs(r){const m=new Map();rList(r).forEach(k=>m.set(k,(m.get(k)||0)+1));return m;}
@@ -6005,7 +6101,7 @@ const REELS=['🍒','🍋','🔔','⭐','💎','7️⃣'],REEL_PAY=[4,5,8,10,20,
 const BLOCK_PACK=[[9,20],[7,16],[16,10],[24,8],[35,6],[38,6],[33,2],[34,1],[1159,4],[64,6],[1170,4],[1153,3],[1154,3]],ITEM_PACK=[[133,16],[134,12],[105,12],[113,4],[135,6],[166,8],[289,3],[304,1],[171,10],[351,8],[345,5],[307,4],[309,4],[311,4]];
 function rollPack(list){let tot=0;for(const t of list)tot+=t[1];let r=Math.random()*tot;for(const t of list){r-=t[1];if(r<=0)return t[0];}return list[0][0];}
 function renderCasino(msg){const L=$('casList');L.innerHTML='';const em=countOf(166),cr=mode==='creative',pay=n=>cr||em>=n;
-  $('casTitle').textContent=casTab==='sep'?'Ultimate craft separator':casTab==='copy'?'Build copier':casTab==='battle'?'Big battle sign-up':casTab==='hay'?'Haystack upgrades':casTab==='arcade'?'Arcade':casTab==='packs'?'Pack machine':'Casino';
+  $('casTitle').textContent=casTab==='cmd'?'Command block':casTab==='sep'?'Ultimate craft separator':casTab==='copy'?'Build copier':casTab==='battle'?'Big battle sign-up':casTab==='hay'?'Haystack upgrades':casTab==='arcade'?'Arcade':casTab==='packs'?'Pack machine':'Casino';
   $('casNote').textContent=(msg?msg+' · ':'')+'You have '+em+' emerald'+(em===1?'':'s')+'.';
   const row=(icon,title,sub,label,ok,fn)=>{const r=document.createElement('div');r.className='brow';r.innerHTML='<div class="titem"><img alt="" src="'+iconOf(icon)+'"><span></span></div>';
     const sp=r.querySelector('span');sp.textContent=title;const sm=document.createElement('small');sm.textContent=sub;sp.appendChild(sm);
@@ -6014,6 +6110,7 @@ function renderCasino(msg){const L=$('casList');L.innerHTML='';const em=countOf(
   if(casTab==='hay'){hayShop(row,msg);return;}
   if(casTab==='battle'){battleMenu(row,msg);return;}
   if(casTab==='sep'){sepMenu(row,msg);return;}
+  if(casTab==='cmd'){cmdMenu(row,msg);return;}
   if(casTab==='copy'){copyMenu(row,msg);return;}
   if(casTab==='games'){
     row(1162,'Slot machine','Three of a kind pays up to 50 times your bet. Two the same gives your bet back',[1,5,20].map(n=>['Bet '+n,()=>{if(!cr)takeN(166,n);
@@ -6829,7 +6926,7 @@ function frame(now){voidBottom=worldType!=='classic'||dim===2;if(started)voidCle
     autosave+=dt;if(autosave>6){autosave=0;save();}}
   else if(!started)yaw+=dt*.05;
   if(ui==='play'||ui==='inv'||!started||ui==='menu')updateMobs(sim?dt:0);
-  updateBubbles(dt);idleChat(dt);keyLook(dt);dinerTick(dt);fishingTick(dt);netTick(dt);arcadeTick(dt);gunTick(dt);if(ui==='play'||ui==='inv')platesTick(dt);factoryTick(dt);arenaTick(dt);fireDeptTick(dt);ridesTick(dt);mpTick(dt);weatherTick(dt);portalGuide();if(ui==='play')raidTick(dt);
+  updateBubbles(dt);idleChat(dt);keyLook(dt);dinerTick(dt);fishingTick(dt);netTick(dt);arcadeTick(dt);gunTick(dt);cmdTick(dt);if(ui==='play'||ui==='inv')platesTick(dt);factoryTick(dt);arenaTick(dt);fireDeptTick(dt);ridesTick(dt);mpTick(dt);weatherTick(dt);portalGuide();if(ui==='play')raidTick(dt);
   updateParts(dt);updateDrops(sim?dt:0);if(sim){updateArrows(dt);updateAnvils(dt);}oreVision(dt);
   if(P.riding&&P.riding.T.boat){const h=P.riding,o=BOAT_SEAT[h.puppet?1:(h.pass&&h.pass[1]==='me'?1:0)];P.x=h.x-Math.sin(h.yaw)*o;P.y=h.y+.12;P.z=h.z-Math.cos(h.yaw)*o;P.vx=P.vz=P.vy=0;P.peak=P.y;}
   else if(P.riding&&P.riding.T.vehicle){const h=P.riding;P.x=h.x-Math.sin(h.yaw)*1.4;P.y=h.y+.45;P.z=h.z-Math.cos(h.yaw)*1.4;P.vx=P.vz=P.vy=0;P.peak=P.y;}
