@@ -2675,7 +2675,7 @@ function mapTarget(s){const m=s&&s.text&&/^TMAP:(-?\d+),(-?\d+),(-?\d+)/.exec(s.
 function openTreasureMap(s){const t=mapTarget(s);if(!t){flash('This map is too faded to read');return;}if(dim!==0){flash('The map only works in the Overworld');return;}mapOpen=t;openCasino('map');}
 function dirWords(dx,dz){const a=Math.atan2(dx,-dz)*180/Math.PI,i=Math.round(((a+360)%360)/45)%8;return['north','north-east','east','south-east','south','south-west','west','north-west'][i];}
 function mapMenu(row,msg){const t=mapOpen;if(!t){closeCasino();return;}const dx=t.x+.5-P.x,dz=t.z+.5-P.z,d=Math.hypot(dx,dz);
-  $('casNote').textContent=d<3?'⛏️ X marks the spot! You are standing on it. Dig down through the sand':'The X is about '+Math.round(d)+' blocks '+dirWords(dx,dz)+' of you, buried in the sand by the sea. Hold the map to see the way while you walk.';
+  $('casNote').textContent=d<3?'⛏️ X marks the spot! You are standing on it. Dig straight down, deep down, about '+Math.max(1,Math.round(P.y-t.y))+' blocks':'The X is about '+Math.round(d)+' blocks '+dirWords(dx,dz)+' of you, buried deep under the sand by the sea (about 12 blocks down). Hold the map to see the way while you walk.';
   const box=document.createElement('div');box.style.cssText='padding:6px 4px 10px;text-align:center';const cv=document.createElement('canvas');cv.width=cv.height=360;
   cv.style.cssText='width:100%;max-width:360px;border-radius:6px;border:6px solid #8a6a3a;box-shadow:0 4px 14px rgba(0,0,0,.35)';drawTreasureMap(cv,t);box.appendChild(cv);$('casList').appendChild(box);
   row(166,'Close','Back to the game','Close',true,()=>{mapOpen=null;closeCasino();});}
@@ -3096,7 +3096,7 @@ function generateVoid(){world.fill(0);CHEST_T.clear();villages.length=0;HM.fill(
   edits.forEach((id,k)=>{const p=k.split(',').map(Number);if(p[0]>=0&&p[0]<WX&&p[1]>=0&&p[1]<WY&&p[2]>=0&&p[2]<WZ)world[idx(p[0],p[1],p[2])]=id;});
   scanCrops();computeAllLight();}
 let bigHoles=[];
-const SHIP_MAP=new Map(),BURIED=[];
+const SHIP_MAP=new Map(),BURIED=[],TREASURE_DEPTH=12;
 function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.length=0;STRONG=dim===0?null:STRONG;if(dim===2){generateEnd();return;}if(dim===1){generateNether();return;}
   if(worldType!=='classic'){generateVoid();return;}
   world.fill(0);CHEST_T.clear();const s=seed;
@@ -3229,8 +3229,8 @@ function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.le
     for(let i=0;i<9&&deep;i++)for(let w=0;w<3;w++){const h=HM[(x0+i)+(z0+w)*WX];if(h>SEA-4)deep=false;fl=Math.min(fl,h);}
     if(deep&&free(x0+4,z0+1,8)){shipwreck(x0,z0,fl,R2);claim(x0+4,z0+1,8);made++;
       // buried treasure: a chest two blocks under the sand on a beach, next to the sea
-      const spot=findBeach(x0+4,z0+1,R2);if(spot){const{x,z,h}=spot;S(x,h-2,z,CHEST);CHEST_T.set(x+','+(h-2)+','+z,'buried');S(x,h-1,z,4);S(x,h,z,4);BURIED.push({x,y:h-2,z});
-        SHIP_MAP.set((x0+7)+','+(fl+2)+','+(z0+1),{x,y:h-2,z});}}}}
+      const spot=findBeach(x0+4,z0+1,R2);if(spot){const{x,z,h}=spot,cy=Math.max(4,h-TREASURE_DEPTH);for(let y=cy+1;y<=h;y++)S(x,y,z,y>h-4?4:y>h-7?17:3);S(x,cy,z,CHEST);CHEST_T.set(x+','+cy+','+z,'buried');BURIED.push({x,y:cy,z});
+        SHIP_MAP.set((x0+7)+','+(fl+2)+','+(z0+1),{x,y:cy,z});}}}}
   for(let k=0;k<Math.round(5*AREA);k++){const x0=8+(R2()*(WX-26)|0),z0=8+(R2()*(WZ-26)|0),y0=5+(R2()*10|0);
     if(HM[(x0+4)+(z0+4)*WX]>y0+12)dungeon(x0,y0,z0);}
   for(let k=0;k<Math.round(3*AREA);k++)mineshaft(12+(R2()*(WX-24)|0),11+(R2()*10|0),12+(R2()*(WZ-24)|0),R2);
@@ -5765,7 +5765,7 @@ function rocketTick(dt){for(let i=rockets.length-1;i>=0;i--){const r=rockets[i],
     r.g.lookAt(p.x+r.v.x,p.y+r.v.y,p.z+r.v.z);if(Math.random()<.8)burst(p.x-r.v.x*.01,p.y,p.z-r.v.z*.01,[1,.6,.2],1);
     if(boom){scene.remove(r.g);rockets.splice(i,1);explode(p.x-r.v.x*.012,p.y-r.v.y*.012,p.z-r.v.z*.012,4.2,'rpg');if(MP.conns.length)mpSend({t:'fxb',x:+p.x.toFixed(1),y:+p.y.toFixed(1),z:+p.z.toFixed(1),d:dim});}}}
 function gunTick(dt){homingTick(dt);rocketTick(dt);const s=inv[sel],d=s&&itemDef(s.id),am=$('ammo');
-  if(s&&s.id===378){const t=mapTarget(s);if(t&&dim===0){const dx=t.x+.5-P.x,dz=t.z+.5-P.z,dd=Math.hypot(dx,dz);am.hidden=false;am.textContent=dd<2.5?'🗺️ X marks the spot! Dig down':'🗺️ Treasure: '+Math.round(dd)+' blocks '+dirWords(dx,dz);}return;}
+  if(s&&s.id===378){const t=mapTarget(s);if(t&&dim===0){const dx=t.x+.5-P.x,dz=t.z+.5-P.z,dd=Math.hypot(dx,dz);am.hidden=false;am.textContent=dd<2.5?'🗺️ X marks the spot! Dig down '+Math.max(1,Math.round(P.y-t.y))+' blocks':'🗺️ Treasure: '+Math.round(dd)+' blocks '+dirWords(dx,dz);}return;}
   if(!d||d.kind!=='gun'){am.hidden=true;spin=Math.max(0,spin-dt*2);locks=[];showLocks();return;}
   const g=d.gun||'gun';am.hidden=false;const b=countOf(g==='rpg'?362:357);
   am.textContent=mode==='creative'?d.n+' · ∞':g==='mg'||g==='mini'?d.n+' · '+(clipLeft[s.id]||0)+' in belt · '+b+' bullet'+(b===1?'':'s'):d.n+' · '+b+(g==='rpg'?' rocket':' bullet')+(b===1?'':'s');
