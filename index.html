@@ -2114,7 +2114,7 @@ function teamPower(list){return list.reduce((s,[t,n])=>{const T=MT[t],d=Array.is
 const arenaStats={};let fightForm=null;const fIdx=i=>((i%FIGHTS.length)+FIGHTS.length)%FIGHTS.length;
 function arenaHealth(){const h={A:0,B:0},mx={A:0,B:0};for(const m of fight.mobs){mx[m.team]+=m.maxHp;if(!m.dying&&mobs.includes(m))h[m.team]+=Math.max(0,m.hp);}return{A:mx.A?h.A/mx.A:0,B:mx.B?h.B/mx.B:0};}
 function rollForm(i){const F=FIGHTS[fIdx(i)],pA=teamPower(F[1]),pB=teamPower(F[2]),st=arenaStats[F[0]]||{A:0,B:0},r=()=>.78+Math.random()*.5,bal=Math.pow(pB/pA,.42);
-  const d=Math.max(-3,Math.min(3,st.A-st.B)),fav=arenaRun.side,fA=fav==='A'?1.55:.62,fB=fav==='B'?1.55:.62;fightForm={i:fIdx(i),fav,kA:bal*r()*fA*Math.pow(.7,d),kB:r()/bal*fB*Math.pow(.7,-d)};return fightForm;}
+  const r2=()=>.9+Math.random()*.2;fightForm={i:fIdx(i),fav:null,kA:bal*r2(),kB:r2()/bal};return fightForm;}
 const arenaRun={side:Math.random()<.5?'A':'B',left:2+Math.floor(Math.random()*3)};
 function arenaRunNext(){if(--arenaRun.left<=0){arenaRun.side=arenaRun.side==='A'?'B':'A';arenaRun.left=2+Math.floor(Math.random()*3);}}
 function formFor(i){return fightForm&&fightForm.i===fIdx(i)?fightForm:rollForm(i);}
@@ -2499,7 +2499,7 @@ function arenaSay(t){say('Arena: '+t,'npc');flash(t);}
 function startFight(i){if(fight||!arenaV||battle)return false;const F=FIGHTS[fIdx(i)],A=arenaV,fm=formFor(i);fightForm=null;fight={F,t:0,end:0,mobs:[],bet:arenaBet,fm};arenaBet=null;
   const side=(list,team,sx)=>{let k=0;const n=list.reduce((a,b)=>a+b[1],0);for(const[t,c]of list)for(let j=0;j<c;j++){const x=A.x+sx*7.5+(Math.random()-.5)*1.5,z=A.z+(k++-(n-1)/2)*1.3;
       const m=spawnMob(t,x,A.y,z,t==='villager'?'smith':undefined);m.arena=true;m.team=team;m.keep=true;m.fromEgg=true;const kk=team==='A'?fm.kA:fm.kB;m.maxHp=m.hp=Math.max(2,Math.round(m.hp*kk));m.dmgMul=kk;m.home={x:A.x,z:A.z};m.homeR=8;m.yaw=m.yawT=sx<0?-Math.PI/2:Math.PI/2;fight.mobs.push(m);}};
-  side(F[1],'A',-1);side(F[2],'B',1);arenaSay(F[0]+'! Ready... FIGHT!');sfx('pop');return true;}
+  side(F[1],'A',-1);side(F[2],'B',1);fight.ready=3;arenaSay(F[0]+'! Get ready…');sfx('pop');return true;}
 /* ---------- THE BIG BATTLE: teams of contestants fight in the pit. Sign up in the waiting room, alone or as a team with friends.
    The last team standing wins, and every player on it gets 20,000 emeralds in the bank ---------- */
 const BATTLE_PRIZE=20000;
@@ -2740,7 +2740,12 @@ function battleMenu(row,msg){const b=battle,mc=myTeam();
     const who=players.length?'Players: '+players.join(', '):npc?'Contestants: '+npc:'Empty: contestants will join if no player picks it';
     row(c==='red'?1035:c==='blue'?1036:c==='green'?1001:1037,'Team '+o.n+(mc===c?' · your team':''),who,mc===c?'Joined':'Join Team '+o.n,mc!==c,()=>{battleSign(c);renderCasino();});}
   row(166,'Close','Wait in the waiting room until the battle starts','Close',true,()=>closeCasino());}
+function arenaKeepIn(){const A=arenaV;if(!A)return;const fighters=[];if(fight)fighters.push(...fight.mobs);if(battle&&battle.state==='fight')for(const c in battle.npc)fighters.push(...battle.npc[c].mobs);
+  for(const m of fighters){if(!mobs.includes(m)||m.dying)continue;const d=Math.hypot(m.x-A.x,m.z-A.z);
+    if(d>11.5||m.y<A.y-1.5||m.y>A.y+6){const k=d>11.5?10/d:1;m.x=A.x+(m.x-A.x)*k;m.z=A.z+(m.z-A.z)*k;m.y=A.y+.2;m.vx=m.vz=m.kx=m.kz=0;m.vy=0;burst(m.x,m.y+1,m.z,[.8,.8,.8],6);}}}
 function arenaTick(dt){if(!arenaV||dim!==0)return;battleTick(dt);const d=Math.hypot(P.x-arenaV.x,P.z-arenaV.z);
+  if(fight&&fight.ready>0){fight.ready-=dt;if(fight.ready<=0)arenaSay('FIGHT!');}
+  arenaKeepIn();
   if(fight){fight.t+=dt;const alive=t=>fight.mobs.filter(m=>m.team===t&&mobs.includes(m)&&!m.dying).length,a=alive('A'),b=alive('B');
     if(!fight.end&&fight.fm&&fight.fm.fav&&a&&b){fight.rb=(fight.rb||0)-dt;if(fight.rb<=0&&fight.t>6){fight.rb=1;const hf=arenaHealth(),fv=fight.fm.fav,ot=fv==='A'?'B':'A';
         if(hf[fv]<hf[ot]-.12){for(const m of fight.mobs){if(m.dying||!mobs.includes(m))continue;if(m.team===fv){m.hp=Math.min(m.maxHp,m.hp+m.maxHp*.12);m.dmgMul=Math.min(4,(m.dmgMul||1)*1.1);}else m.dmgMul=Math.max(.25,(m.dmgMul||1)*.93);}}}}
@@ -2978,7 +2983,7 @@ let oneCount=0;
 const isOnePos=(x,y,z)=>worldType==='one'&&dim===0&&x===ONE.x&&y===ONE.y&&z===ONE.z;
 // each phase: when it starts (blocks broken), what the block can become, and which mobs can appear on top
 const ONE_PHASES=[
-  {at:0,n:'Plains',loot:'one0',b:[[1,28],[2,18],[5,22],[6,8],[4,5],[53,2],[7,3]],m:['pig','cow','sheep','chicken']},
+  {at:0,n:'Plains',loot:'one0',b:[[1,28],[2,18],[5,22],[6,8],[4,5],[53,2],[7,3]],m:['pig','cow','sheep','chicken','horse']},
   {at:60,n:'Underground',loot:'one1',b:[[3,30],[9,10],[20,12],[21,8],[55,6],[26,6],[2,5],[5,4],[28,2]],m:['zombie','spider','sheep']},
   {at:160,n:'Snowy forest',loot:'one2',b:[[12,16],[13,8],[18,20],[19,8],[14,4],[3,10],[21,8],[24,3],[20,6]],m:['wolf','sheep','cow','skeleton']},
   {at:260,n:'Desert',loot:'one3',b:[[4,26],[17,18],[15,5],[22,8],[56,6],[57,6],[41,4],[3,8],[26,4]],m:['husk','chicken','horse','fusebug']},
@@ -4553,7 +4558,9 @@ function captureBandit(m,src){const pr=villages.find(v=>v.prison);if(!pr)return 
   m.hp=0;m.dying=.02;m.mdl.g.visible=false;burst(m.x,m.y+1,m.z,[.8,.8,.9],10);capturedBandits++;if(capturedBandits<=40)spawnPrisoner(pr,capturedBandits-1);
   if(Math.hypot(src.x-P.x,src.z-P.z)<32)mobSay(src,pick1(['Bandit captured! Off to the prison with you!','Got one! Taking this bandit to prison.','You\'re under arrest, bandit!']));
   return true;}
-function hurtMob(m,dmg,src){if(m.puppet){if(src==='player'){mpSend({t:'mh',nid:m.nid,dmg});m.hurt=.3;sfx('hit');}return;}
+function hurtMob(m,dmg,src){if(m.waiting||(fight&&fight.ready>0&&m.arena&&!m.bteam))return;
+  if(m.arena&&!m.bteam&&!(src&&src.T)){if(src==='player'&&Math.random()<.5)flash('No cheating! Arena fights have to be fair');return;}
+  if(m.puppet){if(src==='player'){mpSend({t:'mh',nid:m.nid,dmg});m.hurt=.3;sfx('hit');}return;}
 if(m.type==='octopus'&&!m.dying){burst(m.x,m.y+.5,m.z,[.05,.05,.08],22);if(Math.hypot(P.x-m.x,P.y+1-m.y,P.z-m.z)<4){fx.blind=Math.max(fx.blind||0,2.5);}}
 if(m.dying)return;m.hp-=dmg;m.hurt=.35;sfx('hit');
   if(src){const sx=src==='player'?P.x:src.x,sz=src==='player'?P.z:src.z,big=src!=='player'&&src.T.golem;
@@ -4599,7 +4606,7 @@ function updateMobs(dt){
     if(sim&&(Tp.stare||Tp.goldy||Tp.fly||Tp.blindHunter))specialTick(m,dt,dist);if(m.dying)continue;
     // pick a target
     let tgt=null,td=1e9;
-    if(m.arena){if(!m.waiting){for(const h of mobs){if(h===m||!h.arena||h.waiting||h.team===m.team||h.dying)continue;const d=Math.hypot(h.x-m.x,h.z-m.z);if(d<td&&Math.abs(h.y-m.y)<5){tgt=h;td=d;}}
+    if(m.arena){if(!m.waiting&&!(fight&&fight.ready>0&&fight.mobs.includes(m))){for(const h of mobs){if(h===m||!h.arena||h.waiting||h.team===m.team||h.dying)continue;const d=Math.hypot(h.x-m.x,h.z-m.z);if(d<td&&Math.abs(h.y-m.y)<5){tgt=h;td=d;}}
       if(m.bteam&&battle&&battle.in&&myTeam()!==m.team&&mode==='survival'&&!P.dead&&dist<td&&Math.abs(P.y-m.y)<5){tgt=PL;td=dist;}}}
     else if(Tp.hostile&&!m.jailed){if(hostileOK&&dist<(m.anger>0?Math.max(40,Tp.far||0):(Tp.far||18))&&Math.abs(P.y-m.y)<(m.anger>0?Math.max(14,Tp.far?30:0):(Tp.far?30:8))&&wantsPlayer(m)){tgt=PL;td=dist;}
       if(!Tp.stare&&!Tp.goldy)for(const v of mobs){if(!(v.T.villager||v.T.soldier)||v.dying||v.hide||v.jailed||v.arena)continue;const d=Math.hypot(v.x-m.x,v.z-m.z);if(d<14&&d<td&&Math.abs(v.y-m.y)<6){tgt=v;td=d;}}}
