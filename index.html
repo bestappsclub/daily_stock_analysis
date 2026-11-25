@@ -4299,10 +4299,12 @@ function spawnMob(type,x,y,z,opt){const Tp=MT[type],mdl=Tp.build(opt);scene.add(
   m.yawT=m.yaw;mobs.push(m);return m;}
 function removeMob(m){if(m.rope){scene.remove(m.rope);m.rope.geometry.dispose();m.rope=null;}if(m.beam){scene.remove(m.beam);m.beam.geometry.dispose();m.beam=null;}scene.remove(m.mdl.g);m.mdl.mats.forEach(x=>x.dispose());(m.mdl.extra||[]).forEach(x=>x.dispose());}
 function clearMobs(){mobs.forEach(removeMob);mobs.length=0;}
-function spawnBuses(){if(!busRoute||busRoute.pts.length<4)return;const pts=busRoute.pts,n=pts.length>60?3:2;
+// ten buses, spread out evenly along the bus route so there's one in every part of the world
+const BUS_COUNT=10;
+function spawnBuses(){if(!busRoute||busRoute.pts.length<4)return;const pts=busRoute.pts,n=Math.min(BUS_COUNT,Math.max(1,Math.floor(pts.length/3)));
   for(let k=0;k<n;k++){const i=Math.floor(k*pts.length/n),p=pts[i],T=topAt(Math.floor(p.x),Math.floor(p.z));const b=spawnMob('bus',p.x,T.y+1,p.z);b.route={pts,i:(i+1)%pts.length};
     const dr=spawnMob('villager',p.x,T.y+1,p.z,'driver');dr.onTruck=b;dr.truckOff=[-.6,-3.2,.5];
-    for(let q=0;q<3;q++){const ps=spawnMob('villager',p.x,T.y+1,p.z,PROFS[Math.random()*PROFS.length|0]);ps.onTruck=b;ps.truckOff=[q%2?.6:-.6,-.5+q*1.4,.5];}}}
+    for(let q=0,np=Math.random()*3|0;q<np;q++){const ps=spawnMob('villager',p.x,T.y+1,p.z,PROFS[Math.random()*PROFS.length|0]);ps.onTruck=b;ps.truckOff=[q%2?.6:-.6,-.5+q*1.4,.5];}}}
 function populateVillages(){spawnBuses();for(const v of villages){
   const n=v.base||v.prison||v.enemy?0:v.homes.length+(v.city||v.mine||v.factory||v.attraction||v.tower||v.downtown||v.castle?0:1);
   for(let i=0;i<n;i++){const h=v.homes[i%v.homes.length];const j=h.post?0:1;
