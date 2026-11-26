@@ -533,7 +533,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   </div>
 </div>
 
-<img id="cursor" alt="" hidden><span id="cursorCnt" hidden></span>
+<img id="cursor" alt="" hidden><span id="cursorCnt" hidden></span><span id="throwHint" hidden style="position:fixed;z-index:60;pointer-events:none;transform:translate(14px,-30px);background:rgba(200,60,40,.92);color:#fff;font:700 12px system-ui,sans-serif;padding:3px 8px;border-radius:6px;white-space:nowrap">Click to throw it out</span>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -5985,7 +5985,7 @@ function renderInv(){
   setArmorLook(previewModel,armor);renderCursor();}
 function renderCursor(){const c=$('cursor'),n=$('cursorCnt');if(cursor){c.src=iconOf(cursor.id);c.hidden=false;n.textContent=cursor.count>1?cursor.count:'';n.hidden=false;}else{c.hidden=true;n.hidden=true;}}
 let mouseX=0,mouseY=0;
-addEventListener('pointermove',e=>{mouseX=e.clientX;mouseY=e.clientY;if(cursor){$('cursor').style.left=mouseX+'px';$('cursor').style.top=mouseY+'px';$('cursorCnt').style.left=(mouseX+6)+'px';$('cursorCnt').style.top=(mouseY+8)+'px';}});
+addEventListener('pointermove',e=>{mouseX=e.clientX;mouseY=e.clientY;throwHintAt(e);if(cursor){$('cursor').style.left=mouseX+'px';$('cursor').style.top=mouseY+'px';$('cursorCnt').style.left=(mouseX+6)+'px';$('cursorCnt').style.top=(mouseY+8)+'px';}});
 function insertInto(arr,from,to,s){const m=maxOf(s.id);
   for(let i=from;i<to&&s.count>0;i++){const t=arr[i];if(t&&t.id===s.id&&t.count<m){const k=Math.min(s.count,m-t.count);t.count+=k;s.count-=k;}}
   for(let i=from;i<to&&s.count>0;i++){if(!arr[i]){arr[i]=Object.assign({},s);s.count=0;}}return s.count===0;}
@@ -6029,6 +6029,14 @@ function slotClick(ref,right,shift){const[k,is]=ref.split(':');const i=+is;
   else if(s.id===cursor.id&&s.count<maxOf(s.id)){const mv=Math.min(right?1:cursor.count,maxOf(s.id)-s.count);s.count+=mv;cursor.count-=mv;if(!cursor.count)cursor=null;}
   else{arr[i]=cursor;cursor=s;}
   invChanged();positionCursor();}
+/* ---------- pick an item up in your inventory, slide it off the panel, and click again to throw it out ---------- */
+function outsideInvPanel(x,y){const p=document.querySelector('#inv .panel');if(!p||ui!=='inv')return false;const r=p.getBoundingClientRect();return x<r.left||x>r.right||y<r.top||y>r.bottom;}
+function throwHintAt(e){const h=$('throwHint');if(!h)return;const on=!!cursor&&ui==='inv'&&outsideInvPanel(e.clientX,e.clientY);h.hidden=!on;if(on){h.style.left=e.clientX+'px';h.style.top=e.clientY+'px';h.textContent=cursor.count>1?'Click to throw them out (right-click: just one)':'Click to throw it out';}}
+function throwCursor(one){if(!cursor)return;if(cursor.text!=null){flash('Put written books away instead of throwing them');return;}
+  const n=one?1:cursor.count,c=cursor;const dx0=eye.x+fwd.x*.6,dy0=eye.y-.3,dz0=eye.z+fwd.z*.6;dropItem(c.id,n,dx0,dy0,dz0,c.dur,fwd.x*5,fwd.y*5+2,fwd.z*5,1.5,c.ench);
+  c.count-=n;if(c.count<=0)cursor=null;sfx('pop');renderCursor();positionCursor();invChanged();$('throwHint').hidden=!cursor;}
+$('inv').addEventListener('pointerdown',e=>{if(!cursor||!outsideInvPanel(e.clientX,e.clientY))return;e.preventDefault();e.stopImmediatePropagation();throwCursor(e.button===2);},true);
+$('inv').addEventListener('contextmenu',e=>{if(cursor&&outsideInvPanel(e.clientX,e.clientY))e.preventDefault();});
 function positionCursor(){$('cursor').style.left=mouseX+'px';$('cursor').style.top=mouseY+'px';$('cursorCnt').style.left=(mouseX+6)+'px';$('cursorCnt').style.top=(mouseY+8)+'px';}
 $('inv').addEventListener('click',e=>{const el=e.target.closest('.islot');if(!el)return;mouseX=e.clientX||mouseX;mouseY=e.clientY||mouseY;slotClick(el.dataset.ref,false,e.shiftKey);});
 $('inv').addEventListener('contextmenu',e=>{const el=e.target.closest('.islot');e.preventDefault();if(!el)return;mouseX=e.clientX;mouseY=e.clientY;slotClick(el.dataset.ref,true,false);});
