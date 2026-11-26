@@ -5345,7 +5345,7 @@ function sleepIn(t){if(dim===1){setBlock(t.x,t.y,t.z,0);explode(t.x+.5,t.y+.5,t.
   bedPos={x:t.x,y:t.y,z:t.z};save();
   if(!night){flash('Spawn point set. You can only sleep at night');return;}
   if(mode==='survival'&&mobs.some(m=>m.T.hostile&&!m.dying&&Math.hypot(m.x-P.x,m.z-P.z)<8)){flash('You can’t sleep now, monsters are nearby');return;}
-  timeOfDay=.03;dayNum++;P.hp=Math.min(20,P.hp+4);sfx('pop');flash('Good morning! Spawn point set');
+  timeOfDay=.03;dayNum++;try{loanDaily();}catch(e){}P.hp=Math.min(20,P.hp+4);sfx('pop');flash('Good morning! Spawn point set');
   const v=$('vig');v.style.transition='none';v.style.background='#000';v.style.opacity='1';
   setTimeout(()=>{v.style.transition='opacity .9s';v.style.opacity='0';setTimeout(()=>{v.style.background='';v.style.transition='';},950);},350);}
 function bedSpawn(){if(bedPos&&BEDS.has(get(bedPos.x,bedPos.y,bedPos.z))){for(const[dx,dz]of[[0,1],[1,0],[0,-1],[-1,0],[0,0]]){const x=bedPos.x+dx,z=bedPos.z+dz,y=bedPos.y+(dx||dz?0:1);
@@ -6207,7 +6207,33 @@ const BANK_ITEMS=[166,134,135];
 function bankInterest(){const days=dayNum-(bankAcc.day||dayNum);let paid=0;
   for(let d=0;d<Math.min(days,365);d++){const b=bankAcc[166];if(b>0){const i=Math.max(1,Math.floor(b*.05));bankAcc[166]+=i;paid+=i;}}
   bankAcc.day=dayNum;return paid;}
-function renderBank(paid){const L=$('bankList');L.innerHTML='';
+/* ---------- LOANS: borrow emeralds, pay back a bit more within 5 days. Pay on time and the bank trusts you with bigger loans ---------- */
+const LOAN_SIZES=[25,100,250,500,1000],LOAN_FEE=.2,LOAN_DAYS=5;
+function loanLimit(){return LOAN_SIZES[Math.min(LOAN_SIZES.length-1,bankAcc.credit||0)];}
+function takeLoan(n){if(bankAcc.loan){return'Pay back your loan first';}if((bankAcc.noLoanUntil||0)>dayNum)return'The bank won\'t lend to you until day '+bankAcc.noLoanUntil;
+  if(n>loanLimit())return'You can borrow up to '+loanLimit()+' emeralds for now';const owe=Math.ceil(n*(1+LOAN_FEE));bankAcc.loan={took:n,owe,due:dayNum+LOAN_DAYS,late:0};
+  const left=addItem(166,n);if(left)bankAcc[166]=(bankAcc[166]||0)+left;invChanged();save();return'You borrowed '+n+' emeralds'+(left?' ('+left+' went into your account)':'')+'. Pay back '+owe+' by day '+(dayNum+LOAN_DAYS);}
+function payLoan(max){const L=bankAcc.loan;if(!L)return'';let want=Math.min(max,L.owe),paid=0;const c=Math.min(countOf(166),want);if(c){takeN(166,c);paid+=c;want-=c;}
+  const b=Math.min(bankAcc[166]||0,want);if(b){bankAcc[166]-=b;paid+=b;want-=b;}if(!paid)return'You have no emeralds to pay with';L.owe-=paid;invChanged();
+  if(L.owe<=0){const onTime=!L.late;bankAcc.loan=null;if(onTime)bankAcc.credit=(bankAcc.credit||0)+1;save();return'Loan paid off!'+(onTime?' The bank trusts you more: you can now borrow up to '+loanLimit()+' emeralds':'');}
+  save();return'You paid '+paid+'. You still owe '+L.owe;}
+// every morning: late loans grow by 10%; after 3 late days the bank takes what you have, and if that's not enough you go to jail
+function loanDaily(){const L=bankAcc.loan;if(!L||dayNum<=L.due)return;L.late=dayNum-L.due;L.owe=Math.ceil(L.owe*1.1);
+  if(L.late<3){flash('🏦 Your bank loan is late! You now owe '+L.owe+' emeralds. Pay it back at the bank');say('🏦 Loan late by '+L.late+' day'+(L.late>1?'s':'')+'. You owe '+L.owe+' emeralds. After 3 days the bank will take your things.','sys');return;}
+  let owe=L.owe;const take=(id,val)=>{for(const where of['bank','inv']){let have=where==='bank'?(bankAcc[id]||0):countOf(id);while(have>0&&owe>0){if(where==='bank')bankAcc[id]--;else takeN(id,1);have--;owe-=val;}}};
+  take(166,1);take(135,5);take(134,2);invChanged();bankAcc.loan=null;bankAcc.credit=0;
+  if(owe>0){bankAcc.noLoanUntil=dayNum+3;say('🏦 The bank took everything it could and it still wasn\'t enough.','sys');if(typeof jailPlayer==='function'&&worldType==='classic'&&dim===0&&mode==='survival')jailPlayer('not paying back a bank loan');else flash('🏦 The bank took your emeralds, diamonds and gold to pay your loan');}
+  else{bankAcc.noLoanUntil=dayNum+2;flash('🏦 You didn\'t pay your loan, so the bank took emeralds, diamonds and gold from you');}save();}
+let loanMsg='';
+function renderLoan(L){const box=document.createElement('div');box.className='brow';box.style.cssText='flex-wrap:wrap;gap:8px;border:2px solid #f2c430;border-radius:10px;padding:10px;margin-bottom:10px';
+  const ln=bankAcc.loan,lim=loanLimit();const info=document.createElement('div');info.style.cssText='flex:1 1 100%;font:600 14px/1.45 system-ui,sans-serif';
+  info.innerHTML='<b>🏦 Loans</b><br>'+(ln?'You owe <b>'+ln.owe+'</b> emeralds, due on day '+ln.due+(dayNum>ln.due?' — <b style="color:#ff6a50">LATE by '+(dayNum-ln.due)+' day'+(dayNum-ln.due>1?'s':'')+'</b>':' ('+Math.max(0,ln.due-dayNum)+' day'+(ln.due-dayNum===1?'':'s')+' left)')+'. Late loans grow by 10% a day, and after 3 late days the bank takes your emeralds, diamonds and gold (or sends you to jail).'
+    :(bankAcc.noLoanUntil||0)>dayNum?'The bank won\'t lend to you until day '+bankAcc.noLoanUntil+'.':'Borrow emeralds now and pay back 20% more within '+LOAN_DAYS+' days. Pay back on time and you can borrow more next time. You can borrow up to <b>'+lim+'</b>.')+(loanMsg?'<br><i>'+loanMsg+'</i>':'');
+  box.appendChild(info);const b=(label,ok,fn,primary)=>{const e=document.createElement('button');e.type='button';e.className='btn '+(primary?'primary':'ghost');e.textContent=label;e.disabled=!ok;e.addEventListener('click',()=>{loanMsg=fn()||'';sfx('pop');renderBank(0);});box.appendChild(e);};
+  if(ln){b('Pay back 10',true,()=>payLoan(10));b('Pay back all ('+ln.owe+')',true,()=>payLoan(1e9),true);}
+  else if(!((bankAcc.noLoanUntil||0)>dayNum))for(const n of LOAN_SIZES)if(n<=lim)b('Borrow '+n,true,()=>takeLoan(n),n===lim);
+  L.appendChild(box);}
+function renderBank(paid){const L=$('bankList');L.innerHTML='';renderLoan(L);
   $('bankNote').textContent=(paid?'Interest paid since your last visit: '+paid+' emerald'+(paid===1?'':'s')+'. ':'')+
     'Anything in the bank is safe even if you die. Emeralds earn 5% interest every morning (at least 1 a day). Every bank counter in this world opens the same account.';
   for(const id of BANK_ITEMS){const d=itemDef(id),have=countOf(id),inB=bankAcc[id]||0,row=document.createElement('div');row.className='brow';
@@ -7099,7 +7125,7 @@ function frame(now){voidBottom=worldType!=='classic'||dim===2;if(started)voidCle
   const dt=Math.min(.05,(now-last)/1000);last=now;
   const sim=(ui==='play'||ui==='inv')&&!P.dead;
   if(sim){
-    if(nightsOn){timeOfDay=(timeOfDay+dt/DAY)%1;if(timeOfDay<dt/DAY)dayNum++;}else timeOfDay=DAYPART*.5;
+    if(nightsOn){timeOfDay=(timeOfDay+dt/DAY)%1;if(timeOfDay<dt/DAY){dayNum++;try{loanDaily();}catch(e){}}}else timeOfDay=DAYPART*.5;
     playerPhysics(dt);portalCheck(dt);atkCd-=dt;survival(dt);spawner(dt);growCrops(dt);fireTick(dt);waterTick(dt);evapTick(dt);lavaTick(dt);if(ui==='play'||ui==='inv')tntTick(dt);
     autosave+=dt;if(autosave>6){autosave=0;save();}}
   else if(!started)yaw+=dt*.05;
