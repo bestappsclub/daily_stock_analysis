@@ -3855,7 +3855,8 @@ function growCane(x,y,z){if(get(x,y+1,z))return;let b=y;while(get(x,b-1,z)===48)
 function lightAtB(x,y,z){const l=litAt(x,y,z);return Math.max(l>>4,l&15);}
 // a sapling turns into a full tree when there is room above it
 function growTree(x,y,z,id){for(let k=1;k<=(id===74||id===181?7:5);k++){const b=get(x,y+k,z);if(b&&!BL[b].cross&&b!==6&&b!==19&&b!==176&&b!==179)return false;}
-  const R=3,H=12,before=[];
+  // record every block the new tree changes (cherry canopies reach up to 6 blocks out), so the whole tree is saved
+  const R=7,H=14,before=[];
   for(let dx=-R;dx<=R;dx++)for(let dy=0;dy<=H;dy++)for(let dz=-R;dz<=R;dz++)before.push(get(x+dx,y+dy,z+dz));
   for(let k=1;k<=6;k++){const b=get(x,y+k,z);if(b&&BL[b].cross)world[idx(x,y+k,z)]=0;}
   world[idx(x,y,z)]=0;(id===74?spruce:id===181?birch:id===182?cherry:oak)(x,y-1,z);
