@@ -546,7 +546,7 @@ if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">Th
    Constants & helpers
    ========================================================= */
 const CS=16,NC=32,WX=CS*NC,WZ=CS*NC,WY=96,SEA=22,DAY=900,DAYPART=.68;
-const T=16,NT=187;
+const T=16,NT=227;
 const WATER=11,CHEST=25,FURNACE=29,BEDROCK=10,TABLE=30,FARMLAND=42,WHEAT0=43,WHEAT1=44,TORCH=49,BED=54,FIRE=61,LAVA=62,PORTAL=63,GLOW=64,OBSIDIAN=50,NETHERRACK=51;
 const DIRS6=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
 const SAVE_KEY='blockland-world-v3',CHAR_KEY='blockland-character',LAST_KEY='blockland-last';
@@ -755,6 +755,11 @@ paint(173,(x,y)=>{const c=Math.abs(x-7.5)<2.5-((15-y)*.05)&&y>2||Math.abs(x-4)<1
 paint(174,(x,y)=>(x===0||y===0||x===15||y===15)?[150,210,240]:R()<.06?[255,255,255]:[190,230,250]);
 paint(175,(x,y)=>(x+y)%7===0||(x*3+y)%11===0?[236,244,255]:jit([168,200,240],10));
 paint(176,(x,y)=>(x===y||x+y===15)?[200,236,255]:jit([90,150,236],12));
+const COLS=[['white','White',[240,240,238],24,379],['orange','Orange',[236,128,40],218,380],['magenta','Magenta',[196,72,190],219,381],['lightblue','Light blue',[110,170,226],220,382],['yellow','Yellow',[232,200,60],37,168],['lime','Lime',[130,206,52],221,383],['pink','Pink',[240,150,180],222,384],['gray','Gray',[76,76,80],223,385],['lightgray','Light gray',[160,160,156],224,386],['cyan','Cyan',[30,150,156],225,387],['purple','Purple',[124,52,174],226,388],['blue','Blue',[52,72,170],36,389],['brown','Brown',[116,76,44],227,390],['green','Green',[80,140,50],38,169],['red','Red',[180,50,46],35,167],['black','Black',[34,34,38],39,391]];
+{let t=187;for(const c of COLS){if(c[3]<100)continue;const cc=c[2];paint(t++,(x,y)=>jit(((x+y)%4===0)?[cc[0]*.85,cc[1]*.85,cc[2]*.85]:cc,12));}
+ for(const c of COLS){if(c[0]==='red')continue;const cc=c[2],dk=[cc[0]*.75,cc[1]*.75,cc[2]*.75];
+   paint(t++,(x,y)=>{if(x===0||x===15)return jit(dk,8);if(y<5)return(y===0||y===4)?jit([200,200,196],6):jit([240,238,232],8);return(y===5)?jit(dk,6):jit(cc,14);});
+   paint(t++,(x,y)=>{if(y>11)return(x<3||x>12)?jit([110,80,44],8):null;if(y>8)return jit([150,110,64],10);if(y<3)return jit(cc,14);return jit(dk.map(v=>v*1.15),10);});}}
 // birch and cherry wood
 {const bd=[];for(let i=0;i<7;i++)bd.push([R()*16|0,R()*16|0,2+(R()*4|0)]);
  paint(177,(x,y)=>{for(const d of bd)if(y===d[1]&&x>=d[0]&&x<d[0]+d[2])return jit([40,36,34],10);if((x*7+y*3)%23===0)return jit([180,176,166],8);return jit([232,230,222],10);});}
@@ -836,7 +841,7 @@ B(45,'Tall grass',[54,54,54],0,{cross:1,drop:-3});B(46,'Poppy',[55,55,55],0,{cro
 B(48,'Sugar cane',[57,57,57],0,{cross:1});B(49,'Torch',[58,58,58],0,{cross:1,glow:1});
 B(50,'Obsidian',[59,59,59],33,{tool:'pick',lvl:3});B(51,'Netherrack',[60,60,60],.4,{tool:'pick',lvl:0});
 B(52,'Emerald ore',[61,61,61],3,{tool:'pick',lvl:2,drop:166});B(53,'Hay bale',[62,63,63],.5);
-B(54,'Bed',[65,64,8],.3,{tool:'axe',cut:1});
+B(54,'Red bed',[65,64,8],.3,{tool:'axe',cut:1});
 B(55,'Copper ore',[66,66,66],3,{tool:'pick',lvl:1,drop:177,dropN:[2,5]});
 B(56,'Redstone ore',[67,67,67],3,{tool:'pick',lvl:2,drop:179,dropN:[4,5]});
 B(57,'Lapis ore',[68,68,68],3,{tool:'pick',lvl:1,drop:180,dropN:[4,8]});
@@ -891,6 +896,9 @@ B(175,'Birch log',[177,178,178],2,{tool:'axe'});B(176,'Birch leaves',[179,179,17
 B(178,'Cherry log',[181,182,182],2,{tool:'axe'});B(179,'Cherry leaves',[183,183,183],.2,{cut:1,drop:-1});B(180,'Cherry planks',[184,184,184],2,{tool:'axe'});
 B(181,'Birch sapling',[185,185,185],0,{cross:1});B(182,'Cherry sapling',[186,186,186],0,{cross:1});
 // stairs and slabs: one slab and four stairs (one for each way they face) per material
+{let t=187;for(const c of COLS){if(c[3]<100)continue;B(c[3],c[1]+' wool',[t,t,t],.8);t++;}}
+const BED_OF={red:BED},BEDS=new Set([BED]);
+{let t=197,id=228;for(const c of COLS){if(c[0]==='red')continue;B(id,c[1]+' bed',[t+1,t,8],.3,{tool:'axe',cut:1});BED_OF[c[0]]=id;BEDS.add(id);t+=2;id++;}}
 const SHAPEBOX={},STAIRV={},SLABOF={},STAIR_MATS=[[7,'Oak'],[40,'Spruce'],[177,'Birch'],[180,'Cherry'],[9,'Cobblestone'],[3,'Stone'],[31,'Stone brick']];
 {let id=183;for(const[mat,nm]of STAIR_MATS){const mb=BL[mat],o={tool:mb.tool,lvl:mb.lvl,cut:1};const slab=id++;
    B(slab,nm+' slab',mb.t.slice(),mb.h,Object.assign({},o,{shape:'slab'}));SHAPEBOX[slab]=[[0,0,0,1,.5,1]];SLABOF[slab]=mat;
@@ -898,7 +906,7 @@ const SHAPEBOX={},STAIRV={},SLABOF={},STAIR_MATS=[[7,'Oak'],[40,'Spruce'],[177,'
    for(let d=0;d<4;d++){const sid=id++;st.push(sid);B(sid,nm+' stairs',mb.t.slice(),mb.h,Object.assign({},o,{shape:'stairs',dir:d,drop:d?1000+st[0]:undefined}));SHAPEBOX[sid]=[[0,0,0,1,.5,1],hi[d]];}
    for(const sid of st)STAIRV[sid]=st;}}
 const CONVDIR={129:[1,0],130:[-1,0],131:[0,1],132:[0,-1]};
-const NB=218,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
+const NB=243,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
 const SOLID=new Uint8Array(256),OPAQ=new Uint8Array(256);
 for(let i=1;i<NB;i++){const b=BL[i];SOLID[i]=(b.liquid||b.cross||b.pass)?0:1;OPAQ[i]=(b.liquid||b.cut||b.cross)?0:1;}
 const PLANT_ON={160:[1,2,3,4,9,12,28,32,149,161,178,7,40],142:[138,51,137,149,1,2,3,9,12],143:[138,51,137,149,1,2,3,9,12],87:[4,26,2,3,9,87],88:[4,26,2,3,9],78:[FARMLAND],80:[FARMLAND],73:[1,2,12,42],74:[1,2,12,42],181:[1,2,12,42],182:[1,2,12,42],43:[FARMLAND],44:[FARMLAND],45:[1,2,12],46:[1,2,12],47:[1,2,12],48:[1,2,4,12,48]};
@@ -1065,6 +1073,8 @@ ITEMS[365]={n:'Ultimate craft separator',kind:'mat',p:'sep',pal:{a:'#3a2a5a',b:'
 ITEMS[366]={n:'Build copier',kind:'mat',p:'copier',pal:{a:'#1a4a6a',b:'#60e0ff',c:'#ffffff'},max:1};
 ITEMS[376]={n:'Command block',kind:'mat',p:'cmdb',pal:{a:'#d87a30',b:'#5a3018',c:'#fff0c0',d:'#2a2a30'},max:1};
 ITEMS[378]={n:'Treasure map',kind:'mat',p:'tmap',pal:{a:'#e8d6a8',b:'#8a6a3a',c:'#d0302a'},max:1};
+for(const c of COLS){if(ITEMS[c[4]])continue;const cc=c[2],hx=v=>'#'+v.map(n=>Math.max(0,Math.min(255,n|0)).toString(16).padStart(2,'0')).join('');
+  ITEMS[c[4]]={n:c[1]+' dye',kind:'mat',p:'dust',pal:{a:hx(cc),b:hx(cc.map(v=>v*.6)),c:hx(cc.map(v=>v+50))},max:64};}
 ITEMS[357]={n:'Bullet',kind:'mat',p:'bullet',pal:{a:'#d8a838',b:'#9a6a18',c:'#fff0b0'},max:16};
 mat(303,'Wither star','star',{a:'#f4f4ff',b:'#9aa0c8',c:'#ffffff'});mat(289,'Netherite scrap','coal',{a:'#5a4440',b:'#2a1e1c',c:'#9a7a70'});mat(290,'Netherite ingot','ingot',{a:'#4a4048',b:'#221c20',c:'#a08c9c'});
 const SHIELD=291,SPEAR=292;
@@ -1080,7 +1090,7 @@ const maxOf=id=>itemDef(id).max;
 function mk(id,n){const d=itemDef(id);return d.dur?{id,count:1,dur:d.dur}:{id,count:n};}
 
 /* ---------- crafting recipes ---------- */
-const GRP={log:[5,18,1139,1175,1178],planks:[7,40,1177,1180],stone:[9,28],wool:[24,35,36,37,38,39]};
+const GRP={log:[5,18,1139,1175,1178],planks:[7,40,1177,1180],stone:[9,28],wool:[24,35,36,37,38,39,1218,1219,1220,1221,1222,1223,1224,1225,1226,1227]};
 const GRPNAME={log:'log',planks:'planks',stone:'cobblestone',wool:'wool'};
 const ing=(k,id)=>typeof k==='string'?GRP[k].includes(id):k===id;
 const ingName=k=>typeof k==='string'?GRPNAME[k]:itemDef(k).n.toLowerCase();
@@ -1108,7 +1118,11 @@ for(const sl in SLABOF){const mat=SLABOF[sl];RC(1000+(+sl),6,['PPP'],{P:mat<100?
 RS(251,2,[250]);RC(271,3,['G.G','.G.'],{G:16});RC(1133,1,['S.S','.S.','S.S'],{S:162});RC(279,6,['III','RRR'],{I:133,R:179});RC(263,3,['PP','PP','PP'],{P:'planks'});RC(270,2,['SS.','SL.','..S'],{S:162,L:136});RC(268,3,['PSP','PSP'],{P:'planks',S:130});RC(269,1,['SPS','SPS'],{S:130,P:'planks'});RC(265,16,['I.I','ISI','I.I'],{I:133,S:130});RC(266,6,['G.G','GSG','GRG'],{G:134,S:130,R:179});RC(264,1,['I.I','III'],{I:133});RC(365,1,['ENE','NWN','ENE'],{E:353,N:290,W:303});RC(376,1,['NDN','GWT','NDN'],{N:290,D:34,G:358,W:303,T:304});RC(366,1,['DED','GWG','DTD'],{D:34,E:354,G:358,W:303,T:304});RC(364,1,['P.P','PPP'],{P:'planks'});RC(267,1,['S','C'],{S:130,C:'stone'});RS(262,2,[172,131]);RC(1114,1,['GSG','SGS','GSG'],{G:262,S:4});RS(261,1,[253,251]);RC(259,1,['..S','.S.','W..'],{S:130,W:'wool'});RC(260,1,['..S','.S.','H..'],{S:130,H:161});
 RC(130,4,['P','P'],{P:'planks'});
 RC(TABLE,1,['PP','PP'],{P:'planks'});
-RC(BED,1,['WWW','PPP'],{W:'wool',P:'planks'});
+{const D=k=>COLS.find(c=>c[0]===k)[4],W=k=>{const w=COLS.find(c=>c[0]===k)[3];return w<100?w:1000+w;};
+  RS(D('white'),2,[174]);RS(D('black'),2,[348]);RS(D('black'),1,[131]);RS(D('blue'),2,[180]);
+  const mix=[['orange','red','yellow'],['lime','green','white'],['pink','red','white'],['gray','black','white'],['lightgray','gray','white'],['lightblue','blue','white'],['cyan','blue','green'],['purple','red','blue'],['magenta','purple','pink'],['brown','red','green']];
+  for(const[o,a,b]of mix)RS(D(o),2,[D(a),D(b)]);
+  for(const c of COLS){if(c[0]!=='white')RS(W(c[0]),1,[24,c[4]]);const bid=BED_OF[c[0]];RC(bid<100?bid:1000+bid,1,['WWW','PPP'],{W:W(c[0]),P:'planks'});}}
 RC(CHEST,1,['PPP','P.P','PPP'],{P:'planks'});
 RC(FURNACE,1,['CCC','C.C','CCC'],{C:'stone'});
 ['planks','stone',134,133,135].forEach((m,i)=>{
@@ -3722,6 +3736,10 @@ function penWay(m){const now=performance.now();if(m.wayT&&now-m.wayT<500&&m.way&
       const dd=Math.hypot(nx+.5-P.x,nz+.5-P.z);if(dd<bd-.01){bd=dd;best=k;}}}
   if(!best)return null;const path=[];for(let k=best;k;k=par.get(k))path.push(k);path.reverse();const w=path[Math.min(1,path.length-1)].split(',').map(Number);
   m.way={x:w[0]+.5,z:w[1]+.5};return m.way;}
+const woolOf=m=>{const c=COLS[m.coat|0]||COLS[0];return c[3]<100?c[3]:1000+c[3];};
+function sheepColour(m){const c=COLS[m.coat|0]||COLS[0],md=m.mdl;if(!md||!md.wool||md.wcol===m.coat)return;md.wcol=m.coat;const h='#'+c[2].map(v=>Math.min(255,v+8).toString(16).padStart(2,'0')).join('');setCol(md.wool.material,h);}
+function dyeSheep(m,id){const k=COLS.findIndex(c=>c[4]===id);if(k<0)return false;if((m.coat|0)===k){flash('This sheep is already '+COLS[k][1].toLowerCase());return true;}
+  m.coat=k;sheepColour(m);useOne();swing();sfx('pop');burst(m.x,m.y+1,m.z,COLS[k][2].map(v=>v/255),12);flash('You dyed the sheep '+COLS[k][1].toLowerCase()+'. Shear it, or kill it, to get '+COLS[k][1].toLowerCase()+' wool');return true;}
 function canLeash(m){const T=m.T;return !T.hostile&&!T.villager&&!T.vehicle&&!T.cart&&!T.fish&&!T.golem&&!T.soldier&&!T.boss&&!T.crystal&&!m.dying;}
 function leashAnchor(m){if(m.leash==='player'){if(P.dead)return null;return{x:P.x,y:P.y+1.05,z:P.z,post:false};}
   const p=m.leash;if(!p||get(p.x,p.y,p.z)!==FENCE)return null;return{x:p.x+.5,y:p.y+.85,z:p.z+.5,post:true};}
@@ -4338,6 +4356,7 @@ function spawnMob(type,x,y,z,opt){const Tp=MT[type],mdl=Tp.build(opt);scene.add(
     mdl,think:0,walk:false,flee:0,atk:0,hurt:0,phase:0,burnT:Math.random(),dying:0,inWater:false,anger:0,swing:0,prof:opt,
     maxHp:Tp.hp,love:0,breedCd:0,baby:0,heartT:0,tame:false,sit:false,saddle:false,sheared:false,regrow:0,temper:0,coat:mdl.coat};
   if(Tp.vehicle){m.tame=true;m.saddle=true;m.keep=true;}
+  if(m.type==='sheep'&&m.coat==null){const r=Math.random();m.coat=r<.8?0:r<.85?7:r<.9?8:r<.95?15:r<.99?12:6;}
   m.yawT=m.yaw;mobs.push(m);return m;}
 function removeMob(m){if(m.rope){scene.remove(m.rope);m.rope.geometry.dispose();m.rope=null;}if(m.beam){scene.remove(m.beam);m.beam.geometry.dispose();m.beam=null;}scene.remove(m.mdl.g);m.mdl.mats.forEach(x=>x.dispose());(m.mdl.extra||[]).forEach(x=>x.dispose());}
 function clearMobs(){mobs.forEach(removeMob);mobs.length=0;}
@@ -4504,8 +4523,9 @@ function interactMob(m){const s=inv[sel],id=s&&s.id,T=m.T;if(T.boat&&id!==270&&!
     if(id===175&&m.tame&&!m.saddle&&!(m.baby>0)){m.saddle=true;useOne();sfx('place');flash('Saddled! Use the horse to ride it');return true;}
     if(id&&FOOD_FOR.horse.includes(id)){if(m.tame)return feed(m);m.temper+=10;useOne();swing();flash('The horse liked that');return true;}
     if(!(m.baby>0)&&(!s||itemDef(id).kind!=='block')){mount(m);return true;}return false;}
+  if(m.type==='sheep'&&id&&COLS.some(c=>c[4]===id)&&!(m.baby>0))return dyeSheep(m,id);
   if(m.type==='sheep'&&id===176&&!m.sheared&&!(m.baby>0)){m.sheared=true;m.regrow=60+Math.random()*90;if(m.mdl.wool)m.mdl.wool.visible=false;
-    dropItem(24,1+(Math.random()*3|0),m.x,m.y+1,m.z);wear(1);sfx('place');swing();return true;}
+    dropItem(woolOf(m),1+(Math.random()*3|0),m.x,m.y+1,m.z);wear(1);sfx('place');swing();return true;}
   if(isPet(m)&&!s){m.sit=!m.sit;m.cmd=null;flash(m.sit?'Your '+m.type+' is staying here':'Your '+m.type+' will follow you');mobSay(m,petSay(m,m.sit?'stay':'follow'));return true;}
   if(FOOD_FOR[m.type]&&id&&FOOD_FOR[m.type].includes(id)){
     if(!m.tame&&!(m.baby>0)&&['pig','cow','sheep','chicken'].includes(m.type)){useOne();swing();
@@ -4602,7 +4622,7 @@ if(m.dying)return;m.hp-=dmg;m.hurt=.35;sfx('hit');
   if(m.hp<=0){m.dying=.6;burst(m.x,m.y+m.h/2,m.z,[.9,.9,.9],10);if(P.riding===m)dismount();if(m.T.boss){m.dying=2.5;dragonDefeated(m);}if(m.T.bigBoss)witherDefeated(m);if(m.T.crystal)crystalBoom(m);
     if(src==='player'&&mode==='survival'&&!(m.baby>0)){
       if(m.type==='drowned'&&Math.random()<.3)dropItem(306,1,m.x,m.y+.6,m.z);if(m.type==='bandit'&&Math.random()<.25)dropItem(305,1,m.x,m.y+.6,m.z);if(m.type==='bandit'&&Math.random()<.04)dropItem(357,1,m.x,m.y+.6,m.z);
-      for(const[id,a,b]of m.T.drops){if(id===24&&m.sheared)continue;const k=a+Math.floor(Math.random()*(b-a+1));if(k>0)dropItem(id,k,m.x,m.y+.6,m.z);}
+      for(let[id,a,b]of m.T.drops){if(id===24){if(m.sheared)continue;if(m.type==='sheep')id=woolOf(m);}const k=a+Math.floor(Math.random()*(b-a+1));if(k>0)dropItem(id,k,m.x,m.y+.6,m.z);}
       if(m.saddle)dropItem(175,1,m.x,m.y+.6,m.z);
       if(m.T.rare&&Math.random()<m.T.rare)dropItem([133,103,103][Math.random()*3|0],1,m.x,m.y+.6,m.z);}}}
 function updateMobs(dt){
@@ -4629,7 +4649,7 @@ function updateMobs(dt){
     let move=0,spd=Tp.spd;
     if(sim){m.atk-=dt;m.hurt-=dt;m.flee-=dt;m.think-=dt;m.anger-=dt;m.swing-=dt;m.love-=dt;m.breedCd-=dt;m.heartT-=dt;
       if(m.baby>0){m.baby-=dt;if(m.baby<=0)growUp(m);}
-      if(m.sheared){m.regrow-=dt;if(m.regrow<=0){m.sheared=false;if(m.mdl.wool)m.mdl.wool.visible=true;}}
+      if(m.type==='sheep')sheepColour(m);if(m.sheared){m.regrow-=dt;if(m.regrow<=0){m.sheared=false;if(m.mdl.wool)m.mdl.wool.visible=true;}}
       if(m.love>0&&m.heartT<=0){m.heartT=.8;burst(m.x,m.y+m.h,m.z,[1,.3,.35],2);}
       if(m.fusing>0){m.fusing-=dt;if(m.fusing<=0){m.fusing=0;m.hp=0;m.dying=.05;m.mdl.g.visible=false;(m.arena&&fight?fight.lastBoom=m.team:0),explode(m.x,m.y+.5,m.z,(Tp.boom||3)*(m.boomMul||1),m);}}}
     const ridden=P.riding===m;
@@ -5328,7 +5348,7 @@ function sleepIn(t){if(dim===1){setBlock(t.x,t.y,t.z,0);explode(t.x+.5,t.y+.5,t.
   timeOfDay=.03;dayNum++;P.hp=Math.min(20,P.hp+4);sfx('pop');flash('Good morning! Spawn point set');
   const v=$('vig');v.style.transition='none';v.style.background='#000';v.style.opacity='1';
   setTimeout(()=>{v.style.transition='opacity .9s';v.style.opacity='0';setTimeout(()=>{v.style.background='';v.style.transition='';},950);},350);}
-function bedSpawn(){if(bedPos&&get(bedPos.x,bedPos.y,bedPos.z)===BED){for(const[dx,dz]of[[0,1],[1,0],[0,-1],[-1,0],[0,0]]){const x=bedPos.x+dx,z=bedPos.z+dz,y=bedPos.y+(dx||dz?0:1);
+function bedSpawn(){if(bedPos&&BEDS.has(get(bedPos.x,bedPos.y,bedPos.z))){for(const[dx,dz]of[[0,1],[1,0],[0,-1],[-1,0],[0,0]]){const x=bedPos.x+dx,z=bedPos.z+dz,y=bedPos.y+(dx||dz?0:1);
     if(!boxHits(x+.5,y,z+.5,.3,1.8))return{x:x+.5,y,z:z+.5};}}
   if(bedPos){bedPos=null;flash('Your bed was missing, so you woke up at the world spawn');}return customSpawn||spawnPt;}
 let customSpawn=null;
@@ -5536,7 +5556,7 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;if(hayUse())return;co
     if(b===RIDEB){let best=null,bd=1e9;for(const r of rides){const d=Math.hypot(r.btn[0]-target.x,r.btn[1]-target.y,r.btn[2]-target.z);if(d<bd){bd=d;best=r;}}if(best&&bd<3){boardRide(best);swing();}return;}
     if(b===ARENAC&&arenaV&&arenaV.room&&target.x===arenaV.room.x&&target.y===arenaV.room.y&&target.z===arenaV.room.z){battleOpen();swing();return;}
     if(b===ARENAC){if(fight){flash(fight.clean?'Wait for the cleaner to finish cleaning the arena':'A fight is already on: '+fight.F[0]);return;}startFight(arenaIdx++);swing();return;}
-    if(b===BED){sleepIn(target);return;}
+    if(BEDS.has(b)){sleepIn(target);return;}
     if(b===27&&(!s||s.id===164||s.id===165||s.id===277||s.id===278)){setBlock(target.x,target.y,target.z,SHELF0);const l=addItem(165,1);if(l)dropItem(165,l,P.x,P.y+1,P.z);sfx('pop');swing();flash('You took a book off the shelf');return;}
     if(b===SHELF0){if(s&&s.id===165){setBlock(target.x,target.y,target.z,27);useOne();sfx('place');swing();flash('You put the book back on the shelf');return;}if(!s){flash('This shelf is empty. Hold a book to put it back');return;}}
     if(b===LEVER||b===LEVERON){setBlock(target.x,target.y,target.z,b===LEVER?LEVERON:LEVER);sfx('place');swing();flash(b===LEVER?'Lever ON':'Lever off');return;}
@@ -5948,7 +5968,7 @@ const craftGridEl=$('craftGrid');for(let i=0;i<9;i++)mkSlot(craftGridEl,'craft:'
 const outSlot=mkSlot($('outHost'),'out:0');
 let craftN=2;const craftGrid=new Array(9).fill(null);
 function returnGrid(){for(let i=0;i<9;i++){if(craftGrid[i]){give(craftGrid[i]);craftGrid[i]=null;}}}
-const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,1173,1174,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,53,BED,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,1135,1136,1145,1137,1138,1139,1140,1141,1142,1143,41,1104,1113,1114,1133,1134,1175,1176,1177,1178,1179,1180,1181,1182,1183,1188,1193,1198,1203,1208,1213,1184,1189,1194,1199,1204,1209,1214,11,10],
+const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,1173,1174,16,5,7,18,40,6,19,73,74,15,45,46,47,48,44,24,35,36,37,38,39,1218,1219,1220,1221,1222,1223,1224,1225,1226,1227,53,BED,1228,1229,1230,1231,1232,1233,1234,1235,1236,1237,1238,1239,1240,1241,1242,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,1135,1136,1145,1137,1138,1139,1140,1141,1142,1143,41,1104,1113,1114,1133,1134,1175,1176,1177,1178,1179,1180,1181,1182,1183,1188,1193,1198,1203,1208,1213,1184,1189,1194,1199,1204,1209,1214,11,10],
   combat:[367,368,369,370,371,372,373,374,375,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,176,195,120,121,122,123,124,170,171,...Array.from({length:16},(_,i)=>200+i),284,285,286,287,288,280,281,282,283,291,298,299,292,300,301,302,305,306,304,354,355,356,357,359,360,363,361,362],
   food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,270,271,272,273,274,275,276,279,164,165,264,364,365,366,376,265,266,267,259,260,1110,256,257,258,289,290,303,337,338,339,341,342,343,344,345,346,347,348,349,350,340,1155,1157,1159,1160,1161,351,1166,1167,1169,1170,1171,352,353,1162,1163,1164,1146,1147,1149,1150,1151,1152,1153,1154,...Array.from({length:30},(_,i)=>307+i)]};
 let catTab='blocks';
