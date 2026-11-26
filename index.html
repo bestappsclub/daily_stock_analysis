@@ -312,6 +312,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <button class="tbtn" id="tChat" type="button">Chat</button>
   <button class="tbtn" id="tInv" type="button">Bag</button>
   <button class="tbtn" id="tCmd" type="button">Cmd</button>
+  <button class="tbtn" id="tTurn" type="button">Turn</button>
   <button class="tbtn" id="tAdmin" type="button">Admin</button>
   <button class="tbtn" id="tPause" type="button">Menu</button>
 </div>
@@ -360,6 +361,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
       <dt><kbd>E</kbd></dt><dd>Inventory, crafting and armour</dd>
       <dt><kbd>Q</kbd></dt><dd>Drop the item you’re holding</dd>
       <dt><kbd>G</kbd></dt><dd>Turn the Spectator ore x-ray on or off</dd>
+      <dt><kbd>R</kbd></dt><dd>Turn the block you are looking at (stairs, conveyor belts, dispensers, furnaces, chests…)</dd>
       <dt><kbd>X</kbd></dt><dd>Swap the item in your hand with your off hand (put a shield there)</dd>
       <dt><kbd>Middle click</kbd></dt><dd>Copy the block you’re looking at (Creative)</dd>
       <dt><kbd>1–9</kbd><kbd>Wheel</kbd></dt><dd>Choose hotbar slot</dd>
@@ -3307,6 +3309,9 @@ const FACES=[
   {d:[0,0,1], a1:0,a2:1,s:.66,n:[0,0,1], c:[[0,0,1,0,0],[1,0,1,1,0],[0,1,1,0,1],[1,1,1,1,1]]}
 ];
 const AOL=[.5,.68,.84,1];
+// which side the front picture (furnace door, chest latch...) faces, per placed block
+const FACING=new Map(),FACE_CYC=[1,5,0,4];
+function faceOf(x,y,z){const v=FACING.get(dim+':'+x+','+y+','+z);return v==null?5:v;}
 function occ(x,y,z){return OPAQ[get(x,y,z)];}
 function vao(x,y,z,d,a1,a2,c){const n=[x+d[0],y+d[1],z+d[2]],o1=c[a1]?1:-1,o2=c[a2]?1:-1;
   const p=n.slice();p[a1]+=o1;const s1=occ(p[0],p[1],p[2]);const q=n.slice();q[a2]+=o2;const s2=occ(q[0],q[1],q[2]);
@@ -3398,7 +3403,7 @@ function buildChunk(cx,cz){
       continue;}
     for(let f=0;f<6;f++){const F=FACES[f],d=F.d,nb=get(x+d[0],y+d[1],z+d[2]);
       if(OPAQ[nb])continue;if(nb===id&&id===16)continue;
-      const tile=f===3?b.t[1]:f===2?b.t[2]:(f===5&&b.f)?b.f:b.t[0];
+      const tile=f===3?b.t[1]:f===2?b.t[2]:(b.f&&f===faceOf(x,y,z))?b.f:b.t[0];
       const base=A.p.length/3,ao=[],lp=litAt(x+d[0],y+d[1],z+d[2]),ls=(lp>>4)/15,lb=(lp&15)/15;
       for(const c of F.c){A.p.push(x+c[0],y+c[1],z+c[2]);A.n.push(F.n[0],F.n[1],F.n[2]);
         A.u.push((tile+(c[3]?.999:.001))/NT,c[4]?.999:.001);
@@ -3863,7 +3868,7 @@ function growTree(x,y,z,id){for(let k=1;k<=(id===74||id===181?7:5);k++){const b=
   let i=0;for(let dx=-R;dx<=R;dx++)for(let dy=0;dy<=H;dy++)for(let dz=-R;dz<=R;dz++){const xx=x+dx,yy=y+dy,zz=z+dz,nb=get(xx,yy,zz);
     if(nb!==before[i]&&yy<WY)setShared(xx,yy,zz,nb);i++;}
   rebuildAround(x-R,z-R,x+R,z+R);return true;}
-function setBlock(x,y,z,id){const _old=world[idx(x,y,z)];world[idx(x,y,z)]=id;const key=x+','+y+','+z;if(mpUser&&!MP.applying&&dim===0&&MP.conns.length)mpSend({t:'b',x,y,z,id});edits.set(key,id);if(id===LAVA)lavaSpots.add(key);else lavaSpots.delete(key);if(GROWS(id))crops.add(key);else crops.delete(key);if(id===FIRE)fires.set(key,fireLife(x,y,z));else fires.delete(key);wqNear(x,y,z);lqNear(x,y,z);
+function setBlock(x,y,z,id){const _old=world[idx(x,y,z)];world[idx(x,y,z)]=id;const key=x+','+y+','+z;{const fk=dim+':'+key;if(BL[id]&&BL[id].f){if(!MP.applying&&!(BL[_old]&&BL[_old].f)){const dx=P.x-(x+.5),dz=P.z-(z+.5);FACING.set(fk,Math.abs(dx)>Math.abs(dz)?(dx>0?1:0):(dz>0?5:4));}}else FACING.delete(fk);}if(mpUser&&!MP.applying&&dim===0&&MP.conns.length)mpSend({t:'b',x,y,z,id});edits.set(key,id);if(id===LAVA)lavaSpots.add(key);else lavaSpots.delete(key);if(GROWS(id))crops.add(key);else crops.delete(key);if(id===FIRE)fires.set(key,fireLife(x,y,z));else fires.delete(key);wqNear(x,y,z);lqNear(x,y,z);
   const set=new Set();for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){const xx=x+dx,zz=z+dz;if(xx<0||zz<0||xx>=WX||zz>=WZ)continue;set.add(((xx/CS)|0)+((zz/CS)|0)*NC);}
   relight(x,z,set);
   set.forEach(k=>{dirty.delete(k);buildChunk(k%NC,(k/NC)|0);});save();rsMaybe(x,y,z,_old,id);if(id===FIRE)firePortal(x,y,z);
@@ -5660,6 +5665,18 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;if(hayUse())return;co
     if(pid===CHEST)chests[x+','+y+','+z]=new Array(18).fill(null);
     let pid2=pid;if(STAIRV[pid]){const fx=-Math.sin(yaw),fz=-Math.cos(yaw);pid2=STAIRV[pid][Math.abs(fx)>Math.abs(fz)?(fx>0?0:1):(fz>0?2:3)];}if(CONVDIR[pid]){const fx=-Math.sin(yaw),fz=-Math.cos(yaw);pid2=Math.abs(fx)>Math.abs(fz)?(fx>0?129:130):(fz>0?131:132);}
     setBlock(x,y,z,pid2);sfx('place');swing();useOne();}}
+// R: turn the block you are looking at so it faces a different way
+const CONV_CYC=[129,131,130,132],DISP_CYC=[[1,0],[0,1],[-1,0],[0,-1]];
+function rotateBlock(){const t=target;if(!t){flash('Look at a block you placed, then press R to turn it');return;}
+  if(P.spec){flash('Spectators can’t change blocks');return;}
+  const id=get(t.x,t.y,t.z),key=t.x+','+t.y+','+t.z;let nid=null,msg='';
+  if(STAIRV[id]){const st=STAIRV[id],i=st.indexOf(id),order=[0,2,1,3];nid=st[order[(order.indexOf(i)+1)%4]];}
+  else if(CONV_CYC.includes(id))nid=CONV_CYC[(CONV_CYC.indexOf(id)+1)%4];
+  if(nid!=null){setBlock(t.x,t.y,t.z,nid);msg='Turned '+BL[nid].n.toLowerCase();}
+  else if(id===DISP||id===DISPON){const d=dispDir.get(key)||[1,0];const i=DISP_CYC.findIndex(q=>q[0]===d[0]&&q[1]===d[1]);dispDir.set(key,DISP_CYC[(i+1)%4]);msg='Dispenser now shoots '+['east','south','west','north'][(i+1)%4];}
+  else if(BL[id]&&BL[id].f){const fk=dim+':'+key,i=FACE_CYC.indexOf(faceOf(t.x,t.y,t.z));FACING.set(fk,FACE_CYC[(i+1)%4]);rebuildAround(t.x-1,t.z-1,t.x+1,t.z+1);save();msg='Turned '+BL[id].n.toLowerCase();}
+  else{flash('That block looks the same every way. You can turn stairs, conveyor belts, dispensers, furnaces, chests and other blocks with a front');return;}
+  sfx('place');swing();flash(msg);}
 // spear: a short burst of speed that hurts whatever you run into
 const tridentMat=lam('#3ab0a0');
 function throwTrident(){const st=inv[sel];if(!st)return;inv[sel]=null;if(mode!=='creative'&&st.dur!=null)st.dur-=1;
@@ -5880,7 +5897,7 @@ let saveT;
 const pack=s=>s?(s.text!=null?[s.id,s.count,s.dur!=null?s.dur:-1,s.ench||0,{t:s.text,ti:s.title||''}]:s.ench?[s.id,s.count,s.dur!=null?s.dur:-1,s.ench]:s.dur!=null?[s.id,s.count,s.dur]:[s.id,s.count]):0,unpack=a=>{if(!a)return null;const o={id:a[0],count:a[1]};if(a.length>2&&a[2]>=0)o.dur=a[2];if(a[3])o.ench=a[3];if(a[4]&&typeof a[4]==='object'){o.text=String(a[4].t||'').slice(0,2000);o.title=String(a[4].ti||'').slice(0,40);}return o;};
 function save(){if(MP.guest)return;clearTimeout(saveT);saveT=setTimeout(saveNow,500);}
 function saveNow(){if(MP.guest)return;try{stashDim();const ser=m=>{const e=[];m.forEach((id,k)=>{const p=k.split(',').map(Number);e.push([p[0],p[1],p[2],id]);});return e;},serC=c=>{const o={};for(const k in c)o[k]=c[k].map(pack);return o;};
-  localStorage.setItem(saveKey(worldType),JSON.stringify({v:3,type:worldType,one:oneCount,seed,dim,edits:ser(arcSaveEdits(0)),chests:serC(chestsByDim[0]),edits1:ser(arcSaveEdits(1)),chests1:serC(chestsByDim[1]),edits2:ser(arcSaveEdits(2)),chests2:serC(chestsByDim[2]||{}),inv:inv.map(pack),armor:armor.map(pack),off:pack(offArr[0]),dispDir:[...dispDir],hp:P.hp,food:P.food,mode,t:timeOfDay,day:dayNum,
+  localStorage.setItem(saveKey(worldType),JSON.stringify({v:3,fac:[...FACING],type:worldType,one:oneCount,seed,dim,edits:ser(arcSaveEdits(0)),chests:serC(chestsByDim[0]),edits1:ser(arcSaveEdits(1)),chests1:serC(chestsByDim[1]),edits2:ser(arcSaveEdits(2)),chests2:serC(chestsByDim[2]||{}),inv:inv.map(pack),armor:armor.map(pack),off:pack(offArr[0]),dispDir:[...dispDir],hp:P.hp,food:P.food,mode,t:timeOfDay,day:dayNum,
     p:(arc?[+arc.ret.x.toFixed(2),+arc.ret.y.toFixed(2),+arc.ret.z.toFixed(2)]:[+P.x.toFixed(2),+P.y.toFixed(2),+P.z.toFixed(2)]).concat([+yaw.toFixed(3),+pitch.toFixed(3)]),fly:P.fly,spec:!!P.spec,speed:P.speed||1,home:customSpawn?[customSpawn.x,customSpawn.y,customSpawn.z]:null,dead:P.dead,bed:bedPos?[bedPos.x,bedPos.y,bedPos.z]:null,nights:nightsOn,peace:peaceful?1:0,hay:hayS,dragon:dragonDead?1:0,nportal:nPortal?[nPortal.x,nPortal.y,nPortal.z]:null,bank:bankAcc,job,captured:capturedBandits,
     pets:petsData(),animals:animalsData(),extra:extrasAll(),drops:dropsAll(),fx,weather:[weather.target,Math.round(weather.t)],arena:{st:arenaStats,run:[arenaRun.side,arenaRun.left]},bet:arenaBet||(fight&&!fight.end&&fight.bet)||null}));if(carryBack&&saveKey(worldType)===carryBack){localStorage.removeItem(CARRY_KEY);carryBack=false;}}catch(e){}}
 let pendingPets=[],pendingAnimals=null,pendingExtra={},pendingDrops={},pendingRefund=0;
@@ -5915,7 +5932,7 @@ function applyCarry(){try{const c=JSON.parse(localStorage.getItem(CARRY_KEY)||'n
   for(let i=0;i<36;i++)inv[i]=c.inv[i]?unpack(c.inv[i]):null;for(let i=0;i<4;i++)armor[i]=c.armor&&c.armor[i]?unpack(c.armor[i]):null;offArr[0]=c.off?unpack(c.off):null;
   carryBack=c.key;setTimeout(()=>{try{flash('You brought home everything from your friend’s world!');}catch(e){}},1500);return true;}catch(e){return false;}}
 let carryBack=false;
-function load(){try{const s=JSON.parse(localStorage.getItem(saveKey(worldType)));if(!s||!s.seed)return null;
+function load(){try{const s=JSON.parse(localStorage.getItem(saveKey(worldType)));if(!s||!s.seed)return null;FACING.clear();(s.fac||[]).forEach(a=>FACING.set(a[0],a[1]));
   seed=s.seed;oneCount=s.one||0;const toMap=a=>{const m=new Map();(a||[]).forEach(e=>m.set(e[0]+','+e[1]+','+e[2],e[3]));return m;},toC=o=>{const c={};for(const k in(o||{}))c[k]=o[k].map(unpack);return c;};
   editsByDim[0]=toMap(s.edits);editsByDim[1]=toMap(s.edits1);editsByDim[2]=toMap(s.edits2);chestsByDim[0]=toC(s.chests);chestsByDim[1]=toC(s.chests1);chestsByDim[2]=toC(s.chests2);useDim(s.dim===1||s.dim===2?s.dim:0);
   (s.inv||[]).forEach((a,i)=>{if(i<36)inv[i]=unpack(a);});(s.armor||[]).forEach((a,i)=>{if(i<4)armor[i]=unpack(a);});offArr[0]=s.off?unpack(s.off):null;applyCarry();dispDir.clear();if(Array.isArray(s.dispDir))for(const[k,v]of s.dispDir)dispDir.set(k,v);
@@ -6592,6 +6609,7 @@ addEventListener('keydown',e=>{
     if(e.code==='KeyE'){if(P.spec)flash('Spectators can’t use the inventory. Type /gamemode creative to build');else openInv(null);}
     if(e.code==='KeyQ')dropHeld(e.ctrlKey);
     if(e.code==='KeyX')swapHands();
+    if(e.code==='KeyR'&&!e.repeat)rotateBlock();
     if(e.code==='KeyG'&&!e.repeat)toggleXray();
     if(e.code==='KeyP'){openAdmin();return;}
     if(e.code==='KeyV'||e.code==='F5')setView(view?0:1);
@@ -6624,7 +6642,7 @@ cmdIn.addEventListener('keydown',e=>{e.stopPropagation();
   else if(e.key==='ArrowUp'){e.preventDefault();if(histI>0){histI--;cmdIn.value=hist[histI];}}
   else if(e.key==='ArrowDown'){e.preventDefault();if(histI<hist.length){histI++;cmdIn.value=hist[histI]||'';}}
   else if(e.key==='Tab'){e.preventDefault();const v=cmdIn.value.replace(/^\//,'');if(!v.includes(' ')){const m=Object.keys(CMDS).find(k=>k.startsWith(v.toLowerCase()));if(m)cmdIn.value='/'+m+' ';}}});
-$('tCmd').addEventListener('click',()=>openCmd('/'));
+$('tCmd').addEventListener('click',()=>openCmd('/'));$('tTurn').addEventListener('click',()=>rotateBlock());
 const norm=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
 function allIds(){const ids=[];for(let i=1;i<NB;i++)if(BL[i])ids.push(blockItem(i));for(const k in ITEMS)ids.push(+k);return ids;}
 function findItem(q){if(/^\d+$/.test(q)){const id=+q;return(id<NB&&BL[id])||ITEMS[id]?id:null;}
@@ -7031,7 +7049,7 @@ function populateOverworld(){const saved=Array.isArray(pendingAnimals);if(worldT
   if(worldType==='chunk'){if(!saved)for(const[t,dx,dz]of[['cow',6,8],['chicken',9,7],['sheep',5,6]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0)spawnMob(t,x,y,z);}
     for(const[pf,dx,dz]of[['farmer',8,4],['librarian',7,9],['smith',9,12]]){const x=CH0.x+dx+.5,z=CH0.z+dz+.5,y=surfaceY(Math.floor(x),Math.floor(z));if(y>0){const v=spawnMob('villager',x,y,z,pf);v.home={x,z};v.homeR=4;}}}
   spawnPets();}
-function freshState(){pendingAnimals=null;pendingExtra={};pendingDrops={};pendingRefund=0;editsByDim[2]=new Map();chestsByDim[2]={};for(const k in arenaStats)delete arenaStats[k];seed=(Math.random()*2147483646|0)+1;editsByDim[0]=new Map();editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);pendingPets=[];
+function freshState(){FACING.clear();pendingAnimals=null;pendingExtra={};pendingDrops={};pendingRefund=0;editsByDim[2]=new Map();chestsByDim[2]={};for(const k in arenaStats)delete arenaStats[k];seed=(Math.random()*2147483646|0)+1;editsByDim[0]=new Map();editsByDim[1]=new Map();chestsByDim[0]={};chestsByDim[1]={};useDim(0);pendingPets=[];
   P.burn=0;bedPos=null;customSpawn=null;timeOfDay=.06;dayNum=1;bankAcc={166:0,134:0,135:0,day:1};job=null;capturedBandits=0;dragonDead=false;nPortal=null;nPortalScan=false;raid=null;raidT=300;P.hp=20;P.food=20;P.air=10;P.dead=false;P.fly=mode==='creative'&&P.fly;oneCount=0;}
 function newWorld(){if(P.riding)dismount();wq.clear();freshState();
   generate();worldReady=false;queueAll();placePlayer(null);clearMobs();clearDrops();populateOverworld();invChanged();saveNow();updateSeedLine();renderWorlds();}
