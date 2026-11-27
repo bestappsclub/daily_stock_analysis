@@ -313,6 +313,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
   <button class="tbtn" id="tInv" type="button">Bag</button>
   <button class="tbtn" id="tCmd" type="button">Cmd</button>
   <button class="tbtn" id="tTurn" type="button">Turn</button>
+  <button class="tbtn" id="tCrouch" type="button">Crouch</button>
   <button class="tbtn" id="tAdmin" type="button">Admin</button>
   <button class="tbtn" id="tPause" type="button">Menu</button>
 </div>
@@ -361,6 +362,7 @@ input[type=text]:focus{outline:none;border-color:var(--accent)}
       <dt><kbd>E</kbd></dt><dd>Inventory, crafting and armour</dd>
       <dt><kbd>Q</kbd></dt><dd>Drop the item you’re holding</dd>
       <dt><kbd>G</kbd></dt><dd>Turn the Spectator ore x-ray on or off</dd>
+      <dt><kbd>C</kbd> (hold)</dt><dd>Crouch: walk slowly, stay safe on magma blocks and don’t fall off edges</dd>
       <dt><kbd>R</kbd></dt><dd>Turn the block you are looking at (stairs, conveyor belts, dispensers, furnaces, chests…)</dd>
       <dt><kbd>X</kbd></dt><dd>Swap the item in your hand with your off hand (put a shield there)</dd>
       <dt><kbd>Middle click</kbd></dt><dd>Copy the block you’re looking at (Creative)</dd>
@@ -548,7 +550,7 @@ if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">Th
    Constants & helpers
    ========================================================= */
 const CS=16,NC=32,WX=CS*NC,WZ=CS*NC,WY=96,SEA=22,DAY=900,DAYPART=.68;
-const T=16,NT=227;
+const T=16,NT=228;
 const WATER=11,CHEST=25,FURNACE=29,BEDROCK=10,TABLE=30,FARMLAND=42,WHEAT0=43,WHEAT1=44,TORCH=49,BED=54,FIRE=61,LAVA=62,PORTAL=63,GLOW=64,OBSIDIAN=50,NETHERRACK=51;
 const DIRS6=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
 const SAVE_KEY='blockland-world-v3',CHAR_KEY='blockland-character',LAST_KEY='blockland-last';
@@ -814,6 +816,8 @@ machineFace(98,(x,y)=>x===7||x===8?(y<6?jit([200,200,210],6):jit([240,180,200],1
 paint(93,(x,y)=>{if(x===2||x===3||x===12||x===13)return jit(x===3||x===13?[120,84,44]:[150,108,60],10);if(y%5===2||y%5===3)return x>3&&x<12?jit(y%5===2?[170,124,72]:[124,88,48],10):null;return null;});
 paint(92,(x,y)=>{for(const[cx,h]of[[4,6],[8,8],[11,5]]){if(y>=16-h&&Math.abs(x-cx)<=1){if(y<=16-h+1)return jit([230,240,120],10);return jit([90,150,60],12);}}return null;});
 paint(88,(x,y)=>(x===0||y===0||x===15||y===15)?[200,232,255,170]:(x===y||x===y+1)&&x>3&&x<12?[255,255,255,90]:null);
+{const cr=(x,y)=>{const a=Math.sin(x*1.3+y*.4)+Math.sin(y*1.1-x*.7)*1.2+Math.sin((x+y)*.9);return Math.abs(a)<.35;};
+  paint(227,(x,y)=>cr(x,y)?(R()<.4?jit([255,190,60],20):jit([248,120,24],20)):jit([96,30,16],18));}
 const tex=new THREE.CanvasTexture(atlas);
 tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;tex.generateMipmaps=false;
 // average colour per tile for particles
@@ -908,7 +912,8 @@ const SHAPEBOX={},STAIRV={},SLABOF={},STAIR_MATS=[[7,'Oak'],[40,'Spruce'],[177,'
    for(let d=0;d<4;d++){const sid=id++;st.push(sid);B(sid,nm+' stairs',mb.t.slice(),mb.h,Object.assign({},o,{shape:'stairs',dir:d,drop:d?1000+st[0]:undefined}));SHAPEBOX[sid]=[[0,0,0,1,.5,1],hi[d]];}
    for(const sid of st)STAIRV[sid]=st;}}
 const CONVDIR={129:[1,0],130:[-1,0],131:[0,1],132:[0,-1]};
-const NB=243,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
+const MAGMA=243;B(243,'Magma block',[227,227,227],.5,{tool:'pick',lvl:0});
+const NB=244,RIDEB=103,BARS=102,TABLE2=99,CHAIR=100,TV=101,ASPHALT=95,ROADLINE=96,ARENAC=97,ZEBRA=98,LADDER=89,SEAWEED=87,PICKLE=88,BANKC=76,ENCHT=77,HEDGE=82,CLOUD=83,SKYGLASS=84,ATM=85,ANCIENT=86;
 const SOLID=new Uint8Array(256),OPAQ=new Uint8Array(256);
 for(let i=1;i<NB;i++){const b=BL[i];SOLID[i]=(b.liquid||b.cross||b.pass)?0:1;OPAQ[i]=(b.liquid||b.cut||b.cross)?0:1;}
 const PLANT_ON={160:[1,2,3,4,9,12,28,32,149,161,178,7,40],142:[138,51,137,149,1,2,3,9,12],143:[138,51,137,149,1,2,3,9,12],87:[4,26,2,3,9,87],88:[4,26,2,3,9],78:[FARMLAND],80:[FARMLAND],73:[1,2,12,42],74:[1,2,12,42],181:[1,2,12,42],182:[1,2,12,42],43:[FARMLAND],44:[FARMLAND],45:[1,2,12],46:[1,2,12],47:[1,2,12],48:[1,2,4,12,48]};
@@ -2996,6 +3001,10 @@ function generateNether(){if(worldType==='chunk'){generateNetherChunk();return;}
   // netherite ore: small clumps hidden in the netherrack, mostly low down
   {const RO=mulberry(s+4242);for(let k=0;k<2200;k++){const x=1+(RO()*(WX-3)|0),z=1+(RO()*(WZ-3)|0),y=8+(RO()*(k%3?20:44)|0),n=1+(RO()*3|0);
     for(let j=0;j<n;j++){const ax=x+(j&1),az=z+(j>>1);if(world[idx(ax,y,az)]===NETHERRACK)world[idx(ax,y,az)]=NETHORE;}}}
+  // magma blocks: crusts around the lava sea and small patches on the floors
+  for(let z=1;z<WZ-1;z++)for(let x=1;x<WX-1;x++)for(let y=8;y<58;y++){if(world[idx(x,y,z)]!==NETHERRACK)continue;
+    const up=world[idx(x,y+1,z)],nearLava=up===LAVA||world[idx(x+1,y,z)]===LAVA||world[idx(x-1,y,z)]===LAVA||world[idx(x,y,z+1)]===LAVA||world[idx(x,y,z-1)]===LAVA;
+    if((nearLava&&hash3(x,y,z,s+61)<.45)||(up===0&&vnoise3(x/6,y/6,z/6,s+62)>.8))world[idx(x,y,z)]=MAGMA;}
   // biomes: soul sand valleys and crimson forests where voidwalkers roam
   {const RB=mulberry(s+515);
     const tree=(x,y,z)=>{const h=4+(RB()*4|0);for(let k=0;k<h+3;k++)if(get(x,y+k,z)!==0)return;for(let k=0;k<h;k++)S(x,y+k,z,NSTEM);const top=y+h-1;
@@ -3030,7 +3039,7 @@ const ONE_PHASES=[
   {at:160,n:'Snowy forest',loot:'one2',b:[[12,16],[13,8],[18,20],[19,8],[14,4],[3,10],[21,8],[24,3],[20,6]],m:['wolf','sheep','cow','skeleton']},
   {at:260,n:'Desert',loot:'one3',b:[[4,26],[17,18],[15,5],[22,8],[56,6],[57,6],[41,4],[3,8],[26,4]],m:['husk','chicken','horse','fusebug']},
   {at:360,n:'Deep caves',loot:'one4',b:[[3,24],[9,8],[23,6],[52,4],[22,8],[56,8],[57,8],[21,10],[28,6],[27,3]],m:['skeleton','spider','fusebug','zombie']},
-  {at:480,n:'Nether',loot:'one5',b:[[51,30],[64,8],[22,8],[26,4],[41,6]],m:['skeleton','fusebug','zombie']}];
+  {at:480,n:'Nether',loot:'one5',b:[[51,30],[243,6],[64,8],[22,8],[26,4],[41,6]],m:['skeleton','fusebug','zombie']}];
 ONE_PHASES.push({at:600,n:'Everything',loot:'one4',b:[].concat(...ONE_PHASES.map(p=>p.b)),m:[].concat(...ONE_PHASES.map(p=>p.m))});
 function onePhase(n){let p=ONE_PHASES[0];for(const ph of ONE_PHASES)if(n>=ph.at)p=ph;return p;}
 function pickW(list){let t=0;for(const e of list)t+=e[1];let r=Math.random()*t;for(const e of list){r-=e[1];if(r<0)return e[0];}return list[0][0];}
@@ -3310,7 +3319,7 @@ const FACES=[
 ];
 const AOL=[.5,.68,.84,1];
 // which side the front picture (furnace door, chest latch...) faces, per placed block
-const FACING=new Map(),FACE_CYC=[1,5,0,4];
+let crouchOn=false;const FACING=new Map(),FACE_CYC=[1,5,0,4];
 function faceOf(x,y,z){const v=FACING.get(dim+':'+x+','+y+','+z);return v==null?5:v;}
 function occ(x,y,z){return OPAQ[get(x,y,z)];}
 function vao(x,y,z,d,a1,a2,c){const n=[x+d[0],y+d[1],z+d[2]],o1=c[a1]?1:-1,o2=c[a2]?1:-1;
@@ -3323,7 +3332,7 @@ const COST=new Uint8Array(256);COST[11]=2;COST[6]=1;COST[19]=1;
 const EMIT=new Uint8Array(256);EMIT[88]=10;EMIT[49]=14;EMIT[61]=15;EMIT[62]=15;EMIT[63]=11;EMIT[64]=15;
 const ISL=new Uint8Array(256);for(const i of[62,105,106,107,108,109]){ISL[i]=1;EMIT[i]=i===62?15:13;}
 const lLevel=b=>b===62||b===109?0:(b>=105&&b<=108?b-104:99),lTop=b=>b===62?.88:b===109?1:Math.max(.12,(5-(b-104))/5*.88);
-EMIT[112]=12;EMIT[141]=15;EMIT[171]=7;EMIT[167]=4;EMIT[162]=8;EMIT[163]=8;EMIT[164]=9;
+EMIT[112]=12;EMIT[243]=3;EMIT[141]=15;EMIT[171]=7;EMIT[167]=4;EMIT[162]=8;EMIT[163]=8;EMIT[164]=9;
 const FALLW=72,ISW=new Uint8Array(256);ISW[WATER]=1;for(let i=65;i<=72;i++){ISW[i]=1;COST[i]=2;}
 const wLevel=b=>b===WATER||b===FALLW?0:(b>=65&&b<=71?b-64:99);
 const wTop=b=>b===WATER?.88:b===FALLW?1:Math.max(.12,(8-(b-64))/8*.88);
@@ -5364,6 +5373,8 @@ function touching(){let hit=0;const x0=Math.floor(P.x-P.w+.02),x1=Math.floor(P.x
     if(ISL[b]){const top=by+(ISL[get(bx,by+1,bz)]?1:lTop(b));if(P.y<top-.02)return LAVA;}
     else if(b===FIRE&&P.y<by+.9)hit=FIRE;}
   return hit;}
+function standingOn(id){const y=Math.floor(P.y-.06);for(const dx of[-P.w+.02,P.w-.02])for(const dz of[-P.w+.02,P.w-.02])if(get(Math.floor(P.x+dx),y,Math.floor(P.z+dz))===id)return true;return false;}
+function groundUnder(x,z){const y=Math.floor(P.y-.06);for(const dx of[-P.w,P.w])for(const dz of[-P.w,P.w])if(SOLID[get(Math.floor(x+dx),y,Math.floor(z+dz))])return true;return false;}
 function survival(dt){
   if(mode==='creative'){P.hp=20;P.food=20;P.air=10;P.burn=0;$('fireov').style.display='none';if(Object.keys(fx).length){fx={};$('sickov').style.opacity='0';}return;}
   effTick(dt);
@@ -5378,6 +5389,11 @@ function survival(dt){
     if(P.inWater||P.spec)P.burn=0;
     if(P.burn>0){P.burn-=dt;P.burnT=(P.burnT||0)-dt;if(P.burnT<=0){P.burnT=1;damagePlayer(1,'Burned to death');}}
     $('fireov').style.display=P.burn>0?'block':'none';}
+  // magma: burns your feet unless you crouch (hold C) or have fire resistance
+  {P.magT=(P.magT||0)-dt;if(!P.spec&&!P.fly&&P.ground&&!fx.fireres&&standingOn(MAGMA)){
+    if(P.crouch){if(!P.magSafeTold){P.magSafeTold=true;flash('Crouching keeps your feet safe on magma');}}
+    else if(P.magT<=0){P.magT=.5;damagePlayer(1,'Discovered the floor was magma');sfx('hiss');burst(P.x,P.y+.1,P.z,[1,.5,.1],4);
+      if(!P.magTold){P.magTold=true;flash('Ouch, magma! Hold C (or tap Crouch) to walk on it safely');}}}}
   if(P.y<-6)damagePlayer(4,'Fell out of the world');
   // cactus touch
   for(let by=Math.floor(P.y);by<=Math.floor(P.y+P.h);by++)for(let bz=Math.floor(P.z-P.w-.05);bz<=Math.floor(P.z+P.w+.05);bz++)
@@ -5412,10 +5428,11 @@ function playerPhysics(dt){if(worldType==='one'){if(P.fly){P.fly=false;updateTou
         if(P.ground||P.hitH||P.inWater){const hard=P.ground&&preVy<-15,crash=(P.hitH&&pre>13)||hard,rk=P.rocketOn;P.glide=false;P.rocketOn=false;
           if(crash&&mode==='survival'){damagePlayer(Math.max(1,Math.round(((hard?-preVy:pre)-12)*.6)),'Crashed while flying');sfx('hit');flash('Crash!');}else{sfx('step');if(rk)flash('You landed');}}
         return;}}}
-  const sprint=!P.fly&&shift&&f>0&&(P.food>6||mode==='creative');
+  P.crouch=!P.fly&&!P.spec&&!P.inWater&&!!(ctrl&&(keys.KeyC||crouchOn));P.crouchY=(P.crouchY||0)+((P.crouch?.32:0)-(P.crouchY||0))*Math.min(1,dt*12);
+  const sprint=!P.fly&&!P.crouch&&shift&&f>0&&(P.food>6||mode==='creative');
   if(DD&&P.ground&&!P.spec&&mode==='survival'&&Math.abs(P.vx)+Math.abs(P.vz)>1)makeNoise(P.x,P.y,P.z,sprint?dt*2.4:dt*.12);
   const trid=P.inWater&&!P.fly&&inv[sel]&&itemDef(inv[sel].id).kind==='trident';
-  let sp=(P.fly?(keys.ControlLeft?20:11):sprint?5.8:4.3)*(P.speed||1)*(fx.poison?.7:1)*(fx.speed?1.45:1)*(fx.slow?.55:1);if((P.inWater||P.inLava)&&!P.fly)sp*=P.inLava?.35:trid?2.4:.55;
+  let sp=(P.fly?(keys.ControlLeft?20:11):sprint?5.8:4.3)*(P.speed||1)*(fx.poison?.7:1)*(fx.speed?1.45:1)*(fx.slow?.55:1)*(P.crouch?.32:1);if((P.inWater||P.inLava)&&!P.fly)sp*=P.inLava?.35:trid?2.4:.55;
   const ice=P.ground&&!P.fly?get(Math.floor(P.x),Math.floor(P.y-.08),Math.floor(P.z)):0,slip=ice===14||ice===173?.12:ice===174?.06:1;if(slip<1)sp*=ice===174?1.6:1.3;
   const k=Math.min(1,dt*(P.ground||P.fly?14*slip:5));
   P.vx+=(mx*sp-P.vx)*k;P.vz+=(mz*sp-P.vz)*k;if(trid&&f>0){P.vy+=(fwd.y*sp*.8-P.vy)*Math.min(1,dt*6);if(Math.random()<.3)burst(P.x,P.y+.8,P.z,[.6,.9,1],1);}
@@ -5430,6 +5447,7 @@ function playerPhysics(dt){if(worldType==='one'){if(P.fly){P.fly=false;updateTou
   else if(space&&P.hitH&&!P.ground&&P.vy<2&&ISW[get(Math.floor(P.x),Math.floor(P.y-.2),Math.floor(P.z))]){P.vy=8.6;}
   else{P.climbing=false;P.vy=Math.max(P.vy-27*dt,fx.slowfall?-2.6:-45);if(fx.slowfall)P.peak=P.y;if(space&&P.ground){P.vy=(fx.jump?11.6:8.6)*(P.under===HONEY?.55:1);P.exh+=.05;if(DD&&mode==='survival')makeNoise(P.x,P.y,P.z,.7);}}
   const ox=P.x,oz=P.z,wasWater=P.inWater;
+  if(P.crouch&&P.ground&&!P.onLadder){if(!groundUnder(P.x+P.vx*dt*1.5,P.z))P.vx=0;if(!groundUnder(P.x,P.z+P.vz*dt*1.5))P.vz=0;if(!groundUnder(P.x+P.vx*dt*1.5,P.z+P.vz*dt*1.5)){P.vx=0;P.vz=0;}P.kx=P.kz=0;}
   moveEntity(P,dt);
   if(P.fly&&P.ground&&mode==='creative'&&!space)P.fly=false;
   P.headWater=!!ISW[get(Math.floor(P.x),Math.floor(P.y+EYE),Math.floor(P.z))];
@@ -5466,7 +5484,7 @@ function rayBox(o,d,mn,mx){let t0=0,t1=1e9;for(const a of['x','y','z']){const iv
 let target=null,mobTarget=null,pvpTarget=null;
 function pick(){
   fwd.x=-Math.sin(yaw)*Math.cos(pitch);fwd.y=Math.sin(pitch);fwd.z=-Math.cos(yaw)*Math.cos(pitch);
-  eye.x=P.x;eye.y=P.y+EYE;eye.z=P.z;
+  eye.x=P.x;eye.y=P.y+EYE-(P.crouchY||0);eye.z=P.z;
   target=rayBlock(eye,fwd,5.5);mobTarget=null;let best=Math.min(3.6,target?target.t:9);
   for(const m of mobs){if(m.dying||m.hide||m===P.riding)continue;const t=rayBox(eye,fwd,{x:m.x-m.w,y:m.y,z:m.z-m.w},{x:m.x+m.w,y:m.y+m.h,z:m.z+m.w});
     if(t>=0&&t<best){best=t;mobTarget=m;}}
@@ -6642,7 +6660,7 @@ cmdIn.addEventListener('keydown',e=>{e.stopPropagation();
   else if(e.key==='ArrowUp'){e.preventDefault();if(histI>0){histI--;cmdIn.value=hist[histI];}}
   else if(e.key==='ArrowDown'){e.preventDefault();if(histI<hist.length){histI++;cmdIn.value=hist[histI]||'';}}
   else if(e.key==='Tab'){e.preventDefault();const v=cmdIn.value.replace(/^\//,'');if(!v.includes(' ')){const m=Object.keys(CMDS).find(k=>k.startsWith(v.toLowerCase()));if(m)cmdIn.value='/'+m+' ';}}});
-$('tCmd').addEventListener('click',()=>openCmd('/'));$('tTurn').addEventListener('click',()=>rotateBlock());
+$('tCmd').addEventListener('click',()=>openCmd('/'));$('tTurn').addEventListener('click',()=>rotateBlock());$('tCrouch').addEventListener('click',()=>{crouchOn=!crouchOn;$('tCrouch').classList.toggle('on',crouchOn);flash(crouchOn?'Crouching: slow, safe on magma and you won’t walk off edges':'Standing up');});
 const norm=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'');
 function allIds(){const ids=[];for(let i=1;i<NB;i++)if(BL[i])ids.push(blockItem(i));for(const k in ITEMS)ids.push(+k);return ids;}
 function findItem(q){if(/^\d+$/.test(q)){const id=+q;return(id<NB&&BL[id])||ITEMS[id]?id:null;}
@@ -7157,7 +7175,7 @@ function frame(now){voidBottom=worldType!=='classic'||dim===2;if(started)voidCle
   if(ctrl==='touch')touchTick();
   if(ui==='play')dragTick();
   // camera
-  const ex=P.x,ey=P.y+EYE,ez=P.z;
+  const ex=P.x,ey=P.y+EYE-(P.crouchY||0),ez=P.z;
   if(view===1){const bx=Math.sin(yaw)*Math.cos(pitch),by=-Math.sin(pitch),bz=Math.cos(yaw)*Math.cos(pitch);let d=0;
     for(;d<4;d+=.2){if(OPAQ[get(Math.floor(ex+bx*(d+.3)),Math.floor(ey+by*(d+.3)),Math.floor(ez+bz*(d+.3)))])break;}
     camera.position.set(ex+bx*d,ey+by*d,ez+bz*d);}
