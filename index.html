@@ -550,7 +550,7 @@ if(!window.THREE){document.body.insertAdjacentHTML('beforeend','<div id="err">Th
    Constants & helpers
    ========================================================= */
 const CS=16,NC=32,WX=CS*NC,WZ=CS*NC,WY=96,SEA=22,DAY=900,DAYPART=.68;
-const T=16,NT=247;
+const T=16,NT=248;
 const WATER=11,CHEST=25,FURNACE=29,BEDROCK=10,TABLE=30,FARMLAND=42,WHEAT0=43,WHEAT1=44,TORCH=49,BED=54,FIRE=61,LAVA=62,PORTAL=63,GLOW=64,OBSIDIAN=50,NETHERRACK=51;
 const DIRS6=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
 const SAVE_KEY='blockland-world-v3',CHAR_KEY='blockland-character',LAST_KEY='blockland-last';
@@ -839,6 +839,7 @@ paint(243,(x,y)=>{if(x>=6&&x<=9){if(y%5===0)return jit([96,140,40],8);return jit
 paint(244,(x,y)=>{const r=R();return r<.18?jit([150,90,30],16):r<.3?jit([110,78,40],12):jit([96,64,30],16);});
 paint(245,(x,y)=>y<3||(y===3&&R()<.5)?jit([110,72,34],14):jit([134,96,66],14));
 paint(246,(x,y)=>{if(x>=7&&x<=8&&y>=8)return jit([104,80,38],8);const d=Math.hypot(x-7.5,y-5);return d<4.8&&R()>.2?jit([52,140,34],30):null;});
+paint(247,(x,y)=>((x+y*3)%11<2)?jit([96,112,70],10):jit([58,78,48],14)); // swamp water
 const tex=new THREE.CanvasTexture(atlas);
 tex.magFilter=THREE.NearestFilter;tex.minFilter=THREE.NearestFilter;tex.generateMipmaps=false;
 // average colour per tile for particles
@@ -991,7 +992,7 @@ const EGGS=[['pig','Pig','#f0a5a2','#d9787a','A'],['cow','Cow','#5c3d2a','#d8d2c
   ['wolf','Wolf','#d4cfc6','#b8916a','A'],['horse','Horse','#a0662e','#3a2414','A'],['villager','Villager','#6a4a32','#b88a5a','V'],['golem','Iron golem','#c8c4ba','#8a9a6a','V'],['soldier','Villager soldier','#8a8a94','#b8302a','V'],
   ['zombie','Zombie','#2e8a8c','#5e9a50','M'],['husk','Husk','#8a7a56','#d2bc84','M'],['skeleton','Skeleton','#c8c6bc','#5a5a56','M'],['spider','Spider','#2c2622','#b8201a','M'],['fusebug','Fusebug','#2b2f3a','#ff8a2a','M']];
 const EGG_ID={};
-const EXTRA_EGGS=[['panda','Panda','#f2f2ee','#1c1c1c',392,'A'],['cat','Cat','#e8963a','#3a2a1a',377,'A'],['archer','Villager archer','#3a7a3a','#8a8a94',218,'V'],['firetruck','Fire truck','#c81e1e','#f4f4f2',244,'V'],['ambulance','Ambulance','#f4f4f2','#d42020',245,'V'],['bandit','Bandit','#2a2230','#8a1a1a',219,'M'],['mutantzombie','Mutant zombie','#1e5a5c','#ff2020',246,'M'],['mutantskeleton','Mutant skeleton','#c8c6bc','#2a2a2a',247,'M'],['mutantspider','Giant spider','#3a1a18','#ff3020',248,'M'],['mutantfusebug','Giant fusebug','#2b2f3a','#ffd040',249,'M'],['cod','Cod','#a8946e','#e4d8bc',240,'F'],['salmon','Salmon','#c85a50','#4a6a5a',241,'F'],['pufferfish','Pufferfish','#e8c030','#3a8ab8',242,'F'],['goldfish','Goldfish','#f08a20','#ffffff',243,'F'],['flare','Flare','#f2b030','#fff0a0',255,'M'],['charred','Charred skeleton','#2a2a2e','#6a6a70',256,'M'],['hogfolk','Hogfolk','#e8a0a0','#f2c440',257,'M'],['voidwalker','Voidwalker','#141418','#b06cff',258,'M'],
+const EXTRA_EGGS=[['dolphin','Dolphin','#7a8a9c','#c8d0d8',396,'A'],['turtle','Turtle','#4a8a3a','#e8e0b0',397,'A'],['watcher','Warden','#0e3a44','#2ad8e0',398,'M'],['wither','Wither Lord','#1a1a1e','#5a5a60',399,'M'],['witch','Witch','#3e2050','#5a9a3a',400,'M'],['panda','Panda','#f2f2ee','#1c1c1c',392,'A'],['cat','Cat','#e8963a','#3a2a1a',377,'A'],['archer','Villager archer','#3a7a3a','#8a8a94',218,'V'],['firetruck','Fire truck','#c81e1e','#f4f4f2',244,'V'],['ambulance','Ambulance','#f4f4f2','#d42020',245,'V'],['bandit','Bandit','#2a2230','#8a1a1a',219,'M'],['mutantzombie','Mutant zombie','#1e5a5c','#ff2020',246,'M'],['mutantskeleton','Mutant skeleton','#c8c6bc','#2a2a2a',247,'M'],['mutantspider','Giant spider','#3a1a18','#ff3020',248,'M'],['mutantfusebug','Giant fusebug','#2b2f3a','#ffd040',249,'M'],['cod','Cod','#a8946e','#e4d8bc',240,'F'],['salmon','Salmon','#c85a50','#4a6a5a',241,'F'],['pufferfish','Pufferfish','#e8c030','#3a8ab8',242,'F'],['goldfish','Goldfish','#f08a20','#ffffff',243,'F'],['flare','Flare','#f2b030','#fff0a0',255,'M'],['charred','Charred skeleton','#2a2a2e','#6a6a70',256,'M'],['hogfolk','Hogfolk','#e8a0a0','#f2c440',257,'M'],['voidwalker','Voidwalker','#141418','#b06cff',258,'M'],
   ['whaleshark','Whale shark','#2e4a6a','#f2f2f2',293,'F'],['nurseshark','Nurse shark','#a8885a','#e8d8b0',294,'F'],['greatwhite','Great white shark','#6a7480','#f4f4f4',295,'S'],
   ['bullshark','Bull shark','#5a6066','#d8d8d0',296,'S'],['tigershark','Tiger shark','#6a6a58','#2a2a24',297,'S']];
 EGGS.forEach(([t,n,a,b],i)=>{const id=181+i;EGG_ID[t]=id;ITEMS[id]={n:n+' spawn egg',kind:'egg',mob:t,p:'egg',pal:{a,b,c:'#ffffff'},max:64};});
@@ -1074,10 +1075,12 @@ const POT={night:{n:'Night vision',c:'#2a3ab0',ing:64,t:120},invis:{n:'Invisibil
   speed:{n:'Speed',c:'#7ac8f0',ing:232,t:90},jump:{n:'Leaping',c:'#40e070',ing:163,t:90},fireres:{n:'Fire resistance',c:'#f09030',ing:250,t:120},
   water:{n:'Water breathing',c:'#3060c0',ing:223,t:120},fatigue:{n:'Mining fatigue',c:'#6a6a3a',ing:173,t:45,bad:1},slow:{n:'Slowness',c:'#5a6a80',ing:162,t:45,bad:1},
   weak:{n:'Weakness',c:'#4a4a50',ing:112,t:45,bad:1},slowfall:{n:'Slow falling',c:'#f0ecd8',ing:164,t:90},heal:{n:'Healing',c:'#f04060',ing:134,inst:1},
-  harm:{n:'Harming',c:'#5a1428',ing:179,inst:1,bad:1},blind:{n:'Blindness',c:'#1e1e1e',ing:131,t:30,bad:1},doom:{n:'Instant death',c:'#000000',ing:252,inst:1,bad:1}};
+  harm:{n:'Harming',c:'#5a1428',ing:179,inst:1,bad:1},blind:{n:'Blindness',c:'#1e1e1e',ing:131,t:30,bad:1},doom:{n:'Instant death',c:'#000000',ing:252,inst:1,bad:1},
+  swim:{n:'Swift swimming',c:'#30c8d8',ing:114,t:120,pid:394,sid:395}};
+const PID=i=>POT[POT_KEYS[i]].pid||307+i,SID=i=>POT[POT_KEYS[i]].sid||322+i;
 const POT_KEYS=Object.keys(POT);
-POT_KEYS.forEach((k,i)=>{const c=POT[k].c;ITEMS[307+i]={n:'Potion of '+POT[k].n.toLowerCase(),kind:'potion',pot:k,p:'potion',pal:{a:c,b:'#dfe8f0',c:'#8a6034'},max:1};
-  ITEMS[322+i]={n:'Splash potion of '+POT[k].n.toLowerCase(),kind:'splash',pot:k,p:'splash',pal:{a:c,b:'#dfe8f0',c:'#8a6034'},max:1};});
+POT_KEYS.forEach((k,i)=>{const c=POT[k].c;ITEMS[PID(i)]={n:'Potion of '+POT[k].n.toLowerCase(),kind:'potion',pot:k,p:'potion',pal:{a:c,b:'#dfe8f0',c:'#8a6034'},max:1};
+  ITEMS[SID(i)]={n:'Splash potion of '+POT[k].n.toLowerCase(),kind:'splash',pot:k,p:'splash',pal:{a:c,b:'#dfe8f0',c:'#8a6034'},max:1};});
 food(337,'Golden carrot','carrot',{a:'#f2c440',b:'#b88a10',c:'#fff0a0',d:'#3fae3a'},6,4);
 food(338,'Golden potato','potato',{a:'#f2c440',b:'#b88a10',c:'#fff0a0'},6,4);
 food(339,'Golden melon slice','slice',{a:'#f2c440',b:'#c09020',c:'#fff3b0'},4,6);
@@ -1090,6 +1093,7 @@ ITEMS[345]={n:'Name tag',kind:'nametag',p:'tag',pal:{a:'#d8c8a0',b:'#6a5a40',c:'
 food(346,'Raw octopus','octo',{a:'#d87a9a',b:'#a04a6a',c:'#ffd0e0'},2);food(347,'Cooked octopus','octo',{a:'#b86040',b:'#7a3a20',c:'#f0b080'},6,2);
 mat(348,'Ink sac','dust',{a:'#1a1a22',b:'#000000',c:'#4a4a5a'});
 ITEMS[349]={n:'Fishing net',kind:'net',p:'net',pal:{a:'#d8d0b8',b:'#7a6a4a'},dur:40,max:1};
+ITEMS[393]={n:'Turtle shell',kind:'armor',slot:0,tier:TIERS.length-1,def:2,turtle:1,p:'helmet',pal:{a:'#4a9a3a',b:'#2a5a24',c:'#a8e070'},dur:275,max:1};
 ITEMS[350]={n:'Carved pumpkin',kind:'armor',slot:0,tier:5,def:0,p:'pumpkin',pal:{a:'#e88c20',b:'#a05a10',c:'#ffd040'},max:1};
 ITEMS[351]={n:'Snowball',kind:'snowball',p:'snowball',pal:{a:'#f4f8fc',b:'#c8d4e0',c:'#ffffff'},max:16};
 mat(352,'Amethyst shard','shard',{a:'#b88af0',b:'#7a4ac0',c:'#f0e0ff'});mat(353,'Echo shard','shard',{a:'#2ac8c8',b:'#0e3a40',c:'#c8ffff'});
@@ -1340,7 +1344,7 @@ const idx=(x,y,z)=>(y*WZ+z)*WX+x;
 let voidBottom=false;
 function get(x,y,z){if(y<0)return voidBottom?0:BEDROCK;if(x<0||z<0||x>=WX||z>=WZ||y>=WY)return 0;return world[idx(x,y,z)];}
 const HM=new Int16Array(WX*WZ),BIO=new Uint8Array(WX*WZ); // 0 plains 1 forest 2 desert 3 snow 4 mountains
-const BIONAME=['Plains','Forest','Desert','Snowy taiga','Mountains','Jungle','Bamboo forest'];
+const BIONAME=['Plains','Forest','Desert','Snowy taiga','Mountains','Jungle','Bamboo forest','Swamp'];
 let seed=1;
 let edits=new Map();
 let chests={};
@@ -1372,6 +1376,8 @@ function jungleTree(x,h,z,big){const hr=hash2(x,z,seed+19);const th=big?Math.min
   // vines hanging from the edge of the leaves
   const RR=R0+1;for(let dx=-RR;dx<=RR;dx++)for(let dz=-RR;dz<=RR;dz++){if(hash3(x+dx,top,z+dz,seed+31)>.35)continue;
     for(let y=top+2;y>=top-2;y--){if(get(x+dx,y,z+dz)===JLEAF&&!get(x+dx,y-1,z+dz)){hangVine(x+dx,y-1,z+dz,2+(hash3(x+dx,y,z+dz,seed+33)*(big?9:4)|0));break;}}}}
+function swampOak(x,h,z){oak(x,h,z);for(let dx=-3;dx<=3;dx++)for(let dz=-3;dz<=3;dz++){if(hash3(x+dx,h,z+dz,seed+57)>.4)continue;
+  for(let y=h+9;y>h+1;y--)if(get(x+dx,y,z+dz)===6&&!get(x+dx,y-1,z+dz)){hangVine(x+dx,y-1,z+dz,1+(hash3(x+dx,y,z+dz,seed+59)*4|0));break;}}}
 function jungleBush(x,h,z){S(x,h+1,z,JLOG);leafBall(x,h+1,z,2,JLEAF);leafBall(x,h+2,z,1,JLEAF);}
 function bambooStalk(x,h,z){const n=4+(hash2(x,z,seed+37)*9|0);for(let i=1;i<=n;i++){if(get(x,h+i,z))break;S(x,h+i,z,BAMBOO);}}
 function birch(x,h,z){const th=5+((hash2(x,z,seed+9)*3)|0);for(let i=1;i<=th;i++)S(x,h+i,z,175);const top=h+th;
@@ -3036,6 +3042,21 @@ function shipwreck(x0,z0,fl,rng){const y=fl+1;addPlace('Shipwreck',x0+4,y+5,z0+1
   const mh=3+(rng()*3|0);for(let k=1;k<=mh;k++)S(x0+4,y+k,z0+1,18);
   if(rng()<.7){S(x0+4,y+mh-1,z0+2,24);S(x0+4,y+mh-2,z0+2,24);S(x0+4,y+mh-1,z0,24);}
   chestAt(x0+7,y+1,z0+1,'ship');if(rng()<.5)chestAt(x0+1,y+1,z0+1,'ship');}
+// witch hut: a spruce hut on stilts over the swamp, with a brewing stand inside
+const witchHuts=[];
+function witchHut(x0,z0){const gy=SEA,fl=gy+3;
+  for(let x=x0-1;x<=x0+5;x++)for(let z=z0-1;z<=z0+7;z++)for(let y=fl;y<=fl+6;y++)S(x,y,z,0);
+  for(const[sx,sz]of[[x0,z0],[x0+4,z0],[x0,z0+6],[x0+4,z0+6]]){let y=fl-1;while(y>1&&(!SOLID[get(sx,y,sz)]||ISW[get(sx,y,sz)])){S(sx,y,sz,18);y--;if(y<gy-4)break;}}
+  for(let x=x0;x<=x0+4;x++)for(let z=z0;z<=z0+6;z++)S(x,fl,z,40);
+  for(let y=fl+1;y<=fl+3;y++)for(let x=x0;x<=x0+4;x++)for(let z=z0+2;z<=z0+6;z++){const edge=x===x0||x===x0+4||z===z0+2||z===z0+6;if(!edge)continue;
+    const corner=(x===x0||x===x0+4)&&(z===z0+2||z===z0+6);S(x,y,z,corner?18:40);}
+  S(x0+2,fl+1,z0+2,0);S(x0+2,fl+2,z0+2,0);S(x0,fl+2,z0+4,16);S(x0+4,fl+2,z0+4,16);
+  for(let x=x0-1;x<=x0+5;x++)for(let z=z0-1;z<=z0+7;z++)S(x,fl+4,z,40);
+  for(let x=x0+1;x<=x0+3;x++)for(let z=z0;z<=z0+6;z++)S(x,fl+5,z,40);
+  S(x0,fl+1,z0,18);S(x0+4,fl+1,z0,18);
+  S(x0+1,fl+1,z0+5,BREWER);S(x0+3,fl+1,z0+5,30);chestAt(x0+3,fl+1,z0+3,'witch');S(x0+1,fl+1,z0+3,49);
+  for(let y=gy;y<fl;y++)S(x0+2,y,z0-1,LADDER);
+  addPlace('Witch hut',x0+2,fl+4,z0+4);witchHuts.push({x:x0+2,y:fl+1,z:z0+4,next:0});}
 function campsite(x0,z0,fy,rng){addPlace('Campsite',x0+2,fy+5,z0+2);foundation(x0,z0,7,5,fy,2);clearBox(x0-1,z0-1,8,6,fy,4);
   const wc=[24,35,36,37,38][rng()*5|0];
   for(let x=0;x<3;x++){S(x0+x,fy+1,z0+1,wc);S(x0+x,fy+1,z0+3,wc);S(x0+x,fy+2,z0+2,wc);}
@@ -3198,13 +3219,14 @@ function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.le
   for(let z=0;z<WZ;z++)for(let x=0;x<WX;x++){
     const base=fbm(x/70,z/70,s),tmp=fbm(x/150,z/150,s+300),mst=fbm(x/120,z/120,s+600);
     let mt=Math.max(0,fbm(x/80,z/80,s+900)-.56);
-    let bio=(tmp>.58&&mst<.52)?2:tmp<.41?3:(tmp>.5&&mst>.55)?5:mst>.56?1:0;
+    let bio=(tmp>.58&&mst<.52)?2:tmp<.41?3:(mst>.62&&tmp<=.5)?7:(tmp>.5&&mst>.55)?5:mst>.56?1:0;
     if(bio===5&&vnoise(x/34,z/34,s+919)>.6)bio=6;
     let h=bio===2?19+base*12:13+base*24;if(bio===2)mt*=.3;
     h+=mt*mt*420;h=clamp(Math.floor(h),6,56);
-    if(h>=44&&bio!==2&&bio!==5&&bio!==6)bio=4;
+    if(bio===7){const hm=vnoise(x/7,z/7,s+951);h=SEA+(hm>.6?1:hm>.42?0:-1);}
+    if(h>=44&&bio!==2&&bio!==5&&bio!==6&&bio!==7)bio=4;
     HM[x+z*WX]=h;BIO[x+z*WX]=bio;
-    const beach=h<=SEA+1,gravelFloor=hash2(x,z,s+5)<.5;
+    const beach=h<=SEA+1&&bio!==7,gravelFloor=hash2(x,z,s+5)<.5;
     for(let y=0;y<=h;y++){
       let id;
       if(y===0||(y<3&&hash3(x,y,z,s)<.5))id=BEDROCK;
@@ -3213,6 +3235,7 @@ function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.le
       else{if(h<SEA)id=gravelFloor?26:4;else if(bio===2)id=4;else if(beach)id=bio===3?26:4;
         else if(bio===4)id=h>=50?13:3;else if(bio===3)id=12;else if(bio===6)id=PODZOL;else id=1;}
       world[idx(x,y,z)]=id;}
+    if(bio===7&&h<SEA)world[idx(x,h,z)]=2;
     for(let y=h+1;y<=SEA;y++)world[idx(x,y,z)]=(bio===3&&y===SEA)?14:WATER;
   }
   // ore veins: clumps that only replace stone, each ore at its own depth
@@ -3229,6 +3252,7 @@ function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.le
   // plants
   for(let z=3;z<WZ-3;z++)for(let x=3;x<WX-3;x++){const h=HM[x+z*WX],bio=BIO[x+z*WX],top=world[idx(x,h,z)],r=hash2(x,z,s+7);
     if(h+11>=WY)continue;
+    if(bio===7){if(top!==1||world[idx(x,h+1,z)])continue;if(r<.022)swampOak(x,h,z);else if(r<.2)S(x,h+1,z,45);else if(r<.215)S(x,h+1,z,244);continue;}
     if(bio===5||bio===6){if((top!==1&&top!==PODZOL)||world[idx(x,h+1,z)]||h+32>=WY)continue;
       if(bio===6){if(r<.16)bambooStalk(x,h,z);else if(r<.168)jungleTree(x,h,z,false);continue;}
       const big=hash2(x,z,s+43);if(r<.014&&big<.45&&x<WX-4&&z<WZ-4)jungleTree(x,h,z,true);else if(r<.03)jungleTree(x,h,z,false);else if(r<.07)jungleBush(x,h,z);
@@ -3260,7 +3284,7 @@ function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.le
       for(let dy=-r;dy<=r;dy++)for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){const x=cx+dx,y=cy+dy,z=cz+dz;if(world[idx(x,y,z)]!==0||Math.hypot(dx,dy*1.15,dz)>r-2.4)continue;
         if(world[idx(x,y-1,z)]===AMETHYST&&RA()<.3)world[idx(x,y,z)]=AMCLUSTER;}
       if(made===0)addPlace('Amethyst cave',cx,cy-r+3,cz);made++;}}
-  // the deep dark: a huge sculk cavern where the Deep Watcher sleeps
+  // the deep dark: a huge sculk cavern where the Warden sleeps
   DD=null;{const RD=mulberry(s+4545);for(let t=0;t<80&&!DD;t++){const cx=60+(RD()*(WX-120)|0),cz=60+(RD()*(WZ-120)|0);if(Math.hypot(cx-WX/2,cz-WZ/2)<70)continue;const cy=11,rx=24,ry=6,rz=24;
       if(HM[cx+cz*WX]<cy+ry+8)continue;
       for(let dy=-ry-1;dy<=ry+1;dy++)for(let dz=-rz-1;dz<=rz+1;dz++)for(let dx=-rx-1;dx<=rx+1;dx++){const d=(dx*dx)/(rx*rx)+(dy*dy)/(ry*ry)+(dz*dz)/(rz*rz),x=cx+dx,y=cy+dy,z=cz+dz;
@@ -3326,6 +3350,8 @@ function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.le
       else if(r<.93){fy=flat(x0,z0,7,7);if(fy>0){cottage(x0,z0,fy,7,5,8,'house');ok=true;}}
       else{fy=flat(x0,z0,7,5);if(fy>0){campsite(x0,z0,fy,R2);ok=true;}}}
     if(ok)claim(x0+6,z0+6,10);}
+  witchHuts.length=0;{let made=0;for(let t=0;t<Math.round(600*AREA)&&made<Math.min(4,Math.max(1,Math.round(AREA)));t++){const x0=8+(R2()*(WX-20)|0),z0=8+(R2()*(WZ-20)|0);
+    if(witchHuts.some(h=>Math.hypot(h.x-x0,h.z-z0)<70))continue;if(BIO[(x0+2)+(z0+3)*WX]!==7||BIO[x0+z0*WX]!==7||BIO[(x0+4)+(z0+6)*WX]!==7||!free(x0+2,z0+3,9))continue;witchHut(x0,z0);claim(x0+2,z0+3,9);made++;}}
   {let made=0;for(let t=0;t<Math.round(60*AREA)&&made<Math.round(4*AREA);t++){const x0=4+(R2()*(WX-16)|0),z0=4+(R2()*(WZ-8)|0);let deep=true,fl=99;
     for(let i=0;i<9&&deep;i++)for(let w=0;w<3;w++){const h=HM[(x0+i)+(z0+w)*WX];if(h>SEA-4)deep=false;fl=Math.min(fl,h);}
     if(deep&&free(x0+4,z0+1,8)){shipwreck(x0,z0,fl,R2);claim(x0+4,z0+1,8);made++;
@@ -3469,13 +3495,13 @@ function buildChunk(cx,cz){
             A.u.push((b.t[0]+(c[3]?.999:.001))/NT,c[4]?.999:.001);A.c.push(.6+F.s*.4,0,1);}
           A.i.push(base,base+1,base+2,base+2,base+1,base+3);}
         continue;}
-      const isWt=ISW[id],top=isWt?(ISW[get(x,y+1,z)]?1:wTop(id)):1;
+      const isWt=ISW[id],top=isWt?(ISW[get(x,y+1,z)]?1:wTop(id)):1,wtile=(dim===0&&BIO[x+z*WX]===7)?247:b.t[0];
       for(let f=0;f<6;f++){const F=FACES[f],d=F.d,nx=x+d[0],ny=y+d[1],nz=z+d[2],nb=get(nx,ny,nz);if(OPAQ[nb])continue;let bot=0;
         if(isWt){if(ISW[nb]){if(f===2||f===3)continue;const nt=ISW[get(nx,ny+1,nz)]?1:wTop(nb);if(nt>=top)continue;bot=nt;}}
         else if(nb===id)continue;
         const base=Wt.p.length/3,lp=litAt(nx,ny,nz),ls=(lp>>4)/15,lb=b.portal?1:(lp&15)/15;
         for(const c of F.c){Wt.p.push(x+c[0],y+(c[1]?top:bot),z+c[2]);Wt.n.push(F.n[0],F.n[1],F.n[2]);
-          Wt.u.push((b.t[0]+(c[3]?.999:.001))/NT,c[4]?.999:.001);Wt.c.push(F.s,ls,lb);}
+          Wt.u.push((wtile+(c[3]?.999:.001))/NT,c[4]?.999:.001);Wt.c.push(F.s,ls,lb);}
         Wt.i.push(base,base+1,base+2,base+2,base+1,base+3);}
       continue;}
     if(b.shape){shapeMesh(A,x,y,z,id,b);continue;}
@@ -4130,7 +4156,7 @@ const MT={
   bullshark:{n:'Bull shark',fish:1,shark:1,bite:6,w:.6,h:.62,hp:32,spd:2.8,drops:[[114,1,3]],build:()=>sharkModel('bull')},
   tigershark:{n:'Tiger shark',fish:1,shark:1,bite:6,w:.7,h:.72,hp:40,spd:2.6,drops:[[114,2,4]],build:()=>sharkModel('tiger')},
   soldier:{n:'Villager soldier',soldier:1,friendly:1,w:.3,h:1.9,hp:30,spd:2.4,dmg:[4,7],reach:1.7,drops:[],build:soldierModel},
-  watcher:{n:'Deep Watcher',hostile:1,blindHunter:1,far:26,fireproof:1,w:.6,h:2.9,hp:500,spd:2.9,dmg:[22,30],reach:2.3,drops:[[353,1,2]],build:watcherModel},
+  watcher:{n:'Warden',hostile:1,blindHunter:1,far:26,fireproof:1,w:.6,h:2.9,hp:500,spd:2.9,dmg:[22,30],reach:2.3,drops:[[353,1,2]],build:watcherModel},
   snowgolem:{n:'Snow golem',golem:1,ranged:1,snowShot:1,range:12,w:.35,h:1.9,hp:8,spd:1.6,dmg:0,reach:1,drops:[[351,0,15]],build:snowGolemModel},
   skelhorse:{n:'Skeletal horseman',hostile:1,ranged:1,w:.6,h:2.7,hp:40,spd:3.6,dmg:5,reach:1.6,drops:[[173,1,4],[171,2,5],[136,0,2]],build:skelHorseModel},
   golem:{n:'Iron golem',golem:1,w:.7,h:2.65,hp:100,spd:1.5,dmg:[7,15],reach:2.4,drops:[[133,3,5]],build:golemModel},
@@ -4138,6 +4164,10 @@ const MT={
   panda:{n:'Panda',w:.6,h:1.25,hp:20,spd:1.1,drops:[[1258,1,3]],build:()=>quadruped({bw:.86,bh:.72,bl:1.2,lh:.42,lw:.3,hs:.55,body:'#f2f2ee',leg:'#1c1c1c',head:'#f2f2ee',
     extra:(m)=>{const k=m.M('#1c1c1c');part(m.g,.88,.3,.4,k,0,.42+.5,-.18);part(m.head,.16,.14,.03,k,-.15,.06,-.5);part(m.head,.16,.14,.03,k,.15,.06,-.5);
       part(m.head,.12,.1,.05,k,0,-.12,-.5);part(m.head,.14,.14,.08,k,-.24,.3,-.15);part(m.head,.14,.14,.08,k,.24,.3,-.15);}})},
+  dolphin:{n:'Dolphin',fish:1,w:.45,h:.55,hp:10,spd:3.6,drops:[[114,0,2]],build:dolphinModel},
+  turtle:{n:'Turtle',w:.45,h:.42,hp:30,spd:.8,drops:[[393,1,1],[48,0,1]],build:()=>quadruped({bw:.74,bh:.2,bl:.82,lh:.12,lw:.18,hs:.26,body:'#4a8a3a',leg:'#78b860',head:'#78b860',
+    extra:(m)=>{const sh=m.M('#3a6a2a'),sp=m.M('#6a5a2a');part(m.g,.84,.16,.9,sh,0,.12+.2+.08,0);part(m.g,.5,.08,.56,sp,0,.12+.2+.18,0);}})},
+  witch:{n:'Witch',hostile:1,ranged:1,fireball:1,potionShot:1,range:12,w:.3,h:2.1,hp:26,spd:1.9,dmg:2,reach:1.4,drops:[[179,0,3],[272,0,2],[163,0,1],[114,0,2]],build:witchModel},
   cat:{n:'Cat',cat:1,w:.24,h:.55,hp:10,spd:2.7,drops:[[162,0,1]],build:catModel},
   wolf:{n:'Wolf',wolf:1,w:.32,h:.85,hp:8,spd:2.3,dmg:4,reach:1.5,drops:[],build:wolfModel},
   car:{n:'Car',vehicle:1,vmax:16,w:.9,h:1.8,hp:200,spd:0,drops:[],build:()=>vehicleModel('car')},
@@ -4361,6 +4391,17 @@ function banditModel(){const m=biped({skin:'#7a5a44',shirt:'#141418',pants:'#101
     banditTagTex=new THREE.CanvasTexture(c);}
   const tag=new THREE.Sprite(new THREE.SpriteMaterial({map:banditTagTex,transparent:true,depthWrite:false}));tag.scale.set(.9,.225,1);tag.position.set(0,2.35,0);m.g.add(tag);
   m.g.scale.setScalar(1.06);return m;}
+function dolphinModel(){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;};const g=new THREE.Group();
+  const bd=M('#7a8a9c'),bl=M('#c8d0d8'),dk=M('#5a6a7a'),ey=M('#101010');
+  part(g,.42,.36,1.0,bd,0,.3,0);part(g,.34,.12,.8,bl,0,.16,0);part(g,.2,.14,.3,bd,0,.24,-.62);part(g,.06,.22,.24,dk,0,.56,.02);
+  part(g,.5,.05,.2,dk,0,.24,.1);part(g,.05,.05,.05,ey,-.2,.36,-.36);part(g,.05,.05,.05,ey,.2,.36,-.36);
+  const tail=pivot(g,0,.3,.5);part(tail,.22,.2,.36,bd,0,0,.16);part(tail,.6,.05,.2,dk,0,0,.36);
+  return{g,mats,tail,fish:true};}
+function witchModel(){const m=biped({skin:'#9ab47a',shirt:'#3e2050',pants:'#3e2050',shoes:'#20142a',hair:'#1a1a1a',style:'Long',eye:'#2a5a20'});
+  const M=c=>{const x=lam(c);m.mats.push(x);return x;};const robe=M('#3e2050'),hat=M('#22162c'),band=M('#4a8a3a');
+  part(m.root,.56,.5,.32,robe,0,.55,0);part(m.head,.1,.16,.1,m.skin,0,.12,-.3);part(m.head,.04,.04,.04,M('#3a6a2a'),.04,.06,-.36);
+  part(m.head,.72,.06,.72,hat,0,.52,0);part(m.head,.44,.04,.44,band,0,.57,0);part(m.head,.44,.2,.44,hat,0,.66,0);part(m.head,.28,.18,.28,hat,.03,.84,.04);part(m.head,.14,.14,.14,hat,.08,.98,.1);
+  return m;}
 function fishModel(k){const mats=[],M=c=>{const m=lam(c);mats.push(m);return m;};const g=new THREE.Group();const R=a=>a[Math.random()*a.length|0];
   // every fish gets a random colour scheme and a random pattern
   const PALS={cod:[['#a8946e','#e4d8bc','#7a6a4a','#5a4a30'],['#8a8a7a','#e0e0d0','#5a5a4a','#3a3a30'],['#b8a070','#f0e4c4','#8a6a3a','#6a4a20'],['#7a8a6a','#d8e0c8','#4a5a3a','#2a3a20']],
@@ -4491,6 +4532,7 @@ const isWet=b=>ISW[b]||(BL[b]&&BL[b].aqua);
 function spawnFish(){const cl=worldType==='classic',yT=cl?SEA:Math.min(WY-2,Math.floor(P.y)+8),yB=cl?SEA-10:Math.max(1,yT-34);for(let t=0;t<(cl?6:14);t++){const a=Math.random()*6.283,r=(cl?8:2)+Math.random()*(cl?26:20),x=Math.floor(P.x+Math.cos(a)*r),z=Math.floor(P.z+Math.sin(a)*r);
   if(x<2||z<2||x>=WX-2||z>=WZ-2)continue;for(let y=yT;y>yB;y--){if(get(x,y,z)===WATER&&(cl?isWet(get(x,y+1,z))&&isWet(get(x,y-1,z)):(isWet(get(x,y+1,z))||isWet(get(x,y-1,z))))){
     if(cl&&Math.random()<.07){spawnMob('octopus',x+.5,y+.2,z+.5);return;}
+    if(cl&&Math.random()<.09&&y<SEA-2){for(let i=0;i<2+(Math.random()*2|0);i++)spawnMob('dolphin',x+.5+(Math.random()-.5)*2,y+.2,z+.5+(Math.random()-.5)*2);return;}
     const r2=Math.random(),k=r2<.4?'cod':r2<.7?'salmon':r2<.85?'pufferfish':'goldfish';const n=k==='cod'||k==='salmon'?2+(Math.random()*3|0):1;
     for(let i=0;i<n;i++)spawnMob(k,x+.5+(Math.random()-.5),y+.2,z+.5+(Math.random()-.5));return;}}}}
 function fishTick(m,dt,sim){if(!(m.think>-1e9))m.think=0;if(!(m.hurt>-1e9))m.hurt=0;const md=m.mdl,ok=(x,y,z)=>isWet(get(Math.floor(x),Math.floor(y),Math.floor(z)));
@@ -4514,7 +4556,9 @@ function spawnAnimals(n,near){let made=0;
     if(near){const a=Math.random()*6.283,r=26+Math.random()*30;x=Math.floor(P.x+Math.cos(a)*r);z=Math.floor(P.z+Math.sin(a)*r);}
     else{x=4+(Math.random()*(WX-8)|0);z=4+(Math.random()*(WZ-8)|0);}
     if(x<2||z<2||x>=WX-2||z>=WZ-2)continue;const bio=BIO[x+z*WX];if(bio===2)continue;
-    const y=surfaceY(x,z);if(y<0)continue;const top=get(x,y-1,z);if(top!==1&&top!==12&&top!==PODZOL)continue;
+    const y=surfaceY(x,z);if(y<0)continue;const top=get(x,y-1,z);
+    if(top===4&&y<=SEA+3&&bio!==2){if(Math.random()<.7||mobs.filter(m=>m.type==='turtle').length>24)continue;const k=2+(Math.random()*3|0);for(let i=0;i<k;i++){const xx=x+Math.random()*3-1.5,zz=z+Math.random()*3-1.5,yy=surfaceY(Math.floor(xx),Math.floor(zz));if(yy>0){spawnMob('turtle',xx,yy,zz);made++;}}continue;}
+    if(top!==1&&top!==12&&top!==PODZOL)continue;
     const pool=bio===6?['panda','panda','panda','chicken']:bio===5?['chicken','pig','panda','parrot0'].filter(t=>MT[t]):bio===3||bio===4?['sheep','sheep','cow','wolf']:bio===1?['pig','cow','sheep','chicken','wolf']:['pig','cow','sheep','chicken','horse','horse'];const t=pool[Math.random()*pool.length|0];
     if(t==='horse'){if(horseCount()>=HORSE_MAX||mobs.some(h=>h.type==='horse'&&Math.hypot(h.x-x,h.z-z)<60))continue;const yy=surfaceY(x,z);if(yy>0){spawnMob('horse',x+.5,yy,z+.5);made++;}continue;}
     const k=2+(Math.random()*3|0);for(let i=0;i<k;i++){const xx=x+Math.random()*4-2,zz=z+Math.random()*4-2;const yy=surfaceY(Math.floor(xx),Math.floor(zz));
@@ -4647,8 +4691,10 @@ function rideTick(dt){const h=P.riding;if(!h)return;if(h.dying||!mobs.includes(h
 /* arrows */
 const arrows=[];const arrowMat=lam('#8a6a42');
 const fireMat=new THREE.MeshBasicMaterial({color:0xff8a20}),pearlMat=new THREE.MeshBasicMaterial({color:0x3fd8c0}),fireGeo=sbox(.32,.32,.32),pearlGeo=sbox(.2,.2,.2);
-const skullMat=new THREE.MeshBasicMaterial({color:0x1a1a1e});
+const skullMat=new THREE.MeshBasicMaterial({color:0x1a1a1e}),potMat=new THREE.MeshBasicMaterial({color:0x8a3ad8});
 function shootFire(m,t){const ox=m.x+(m.T.bigBoss?(Math.random()-.5)*2:0),oy=m.y+(m.T.bigBoss?2.7:m.T.boom?1.9:1.5),oz=m.z,dx=t.x-ox+(Math.random()-.5)*1.4,dy=t.y+1.1-oy+(Math.random()-.5)*.8,dz=t.z-oz+(Math.random()-.5)*1.4,l=Math.hypot(dx,dy,dz)||1,v=13;
+  if(m.T.potionShot){const me=new THREE.Mesh(pearlGeo,potMat);me.position.set(ox,oy,oz);scene.add(me);
+    arrows.push({x:ox,y:oy,z:oz,vx:dx/l*v,vy:dy/l*v+10*l/v,vz:dz/l*v,owner:m,dmg:2,me,stuck:0,life:0,pot:true,src:'witch'});sfx('pop');return;}
   const me=new THREE.Mesh(fireGeo,m.T.skullShot?skullMat:fireMat);me.position.set(ox,oy,oz);if(m.T.boom)me.scale.setScalar(1.6);scene.add(me);
   arrows.push({x:ox,y:oy,z:oz,vx:dx/l*v,vy:dy/l*v,vz:dz/l*v,owner:m,dmg:5,me,stuck:0,life:0,fire:true,boom:m.T.boom||0,src:m.T.bigBoss?'wither':m.T.boom?'wailer':''});sfx(m.T.boom&&!m.T.bigBoss?'wail':'hiss');}
 function mopUse(){const cx=target?target.x:Math.floor(P.x),cy=target?target.y:Math.floor(P.y),cz=target?target.z:Math.floor(P.z);let n=0,f=0;const ch=[];
@@ -4681,13 +4727,14 @@ function updateArrows(dt){for(let i=arrows.length-1;i>=0;i--){const a=arrows[i];
     if(a.stuck<=0)killArrow(i);continue;}
   const sp=Math.hypot(a.vx,a.vy,a.vz),n=Math.max(1,Math.ceil(sp*dt/.25)),s=dt/n;let gone=false;
   for(let k=0;k<n&&!gone;k++){if(!a.fire)a.vy-=(a.pearl?16:20)*s;a.x+=a.vx*s;a.y+=a.vy*s;a.z+=a.vz*s;
-    if(SOLID[get(Math.floor(a.x),Math.floor(a.y),Math.floor(a.z))]){if(a.fire||a.pearl){projHit(a,null);killArrow(i);gone=2;break;}a.stuck=60;sfx('place');gone=true;break;}
+    if(SOLID[get(Math.floor(a.x),Math.floor(a.y),Math.floor(a.z))]){if(a.pot){burst(a.x,a.y,a.z,[.6,.3,.9],10);sfx('splash');killArrow(i);gone=2;break;}if(a.fire||a.pearl){projHit(a,null);killArrow(i);gone=2;break;}a.stuck=60;sfx('place');gone=true;break;}
     if(a.owner!=='player'&&!(a.owner&&a.owner.arena)&&!(a.owner&&a.owner.T&&a.owner.T.friendly)&&!P.dead&&!P.spec&&Math.abs(a.x-P.x)<.4&&Math.abs(a.z-P.z)<.4&&a.y>P.y&&a.y<P.y+1.85){
       if(mode==='survival'&&shieldBlocks(P.x-a.vx,P.z-a.vz)){a.vx=-a.vx*.6;a.vz=-a.vz*.6;a.vy=Math.abs(a.vy)*.3+(a.fire?0:3);a.x+=a.vx*.05;a.z+=a.vz*.05;a.owner='player';
         wearShield(1);shieldFx();burst(a.x,a.y,a.z,[.9,.9,.95],5);flash(a.fire?'Your shield knocked the fireball back!':'Your shield blocked the arrow!');continue;}
       if(a.boom){projHit(a,null);killArrow(i);gone=2;break;}
       damagePlayer(a.dmg,'Shot by a '+(a.owner&&a.owner.T?a.owner.T.n.toLowerCase():'skeleton'),{x:a.x-a.vx*.05,z:a.z-a.vz*.05});if(a.owner&&a.owner.T)P.lastAttacker=a.owner;
-      if(a.fire){P.burn=Math.max(P.burn||0,3);burst(a.x,a.y,a.z,[1,.55,.1],6);}else dropItem(171,1,P.x,P.y+.6,P.z,undefined,(Math.random()-.5)*1.5,2,(Math.random()-.5)*1.5,.7);killArrow(i);gone=2;break;}
+      if(a.pot){fx.slow=Math.max(fx.slow||0,8);fx.poison=Math.max(fx.poison||0,4);burst(a.x,a.y,a.z,[.6,.3,.9],12);sfx('splash');flash('The witch threw a potion at you! You feel slow and sick');}
+      else if(a.fire){P.burn=Math.max(P.burn||0,3);burst(a.x,a.y,a.z,[1,.55,.1],6);}else dropItem(171,1,P.x,P.y+.6,P.z,undefined,(Math.random()-.5)*1.5,2,(Math.random()-.5)*1.5,.7);killArrow(i);gone=2;break;}
     if(a.owner==='player'&&!a.pearl&&MP.others.size){let hitP=null;for(const[id,o]of MP.others){if(o.dim!==dim||o.dead)continue;if(Math.abs(a.x-o.x)<.4&&Math.abs(a.z-o.z)<.4&&a.y>o.y&&a.y<o.y+1.85){hitP=id;break;}}
       if(hitP){const o=MP.others.get(hitP);if(o.oh===SHIELD&&!o.gm&&facingFrom(o.x-a.vx,o.z-a.vz,o.yaw,o.x,o.z)){sfx('clang');burst(a.x,a.y,a.z,[.9,.9,.95],6);flash((o.n||'They')+' blocked your arrow with a shield');killArrow(i);gone=2;break;}
         mpHit(hitP,a.dmg,'Shot by '+charCfg.name);killArrow(i);gone=2;break;}}
@@ -4881,8 +4928,8 @@ function hogTrade(m){let tot=0;for(const t of HOG_TRADES)tot+=t[3];let r=Math.ra
 function specialTick(m,dt,dist){const T=m.T;
   if(T.blindHunter){m.heardT=(m.heardT||0)-dt;m.quietT=(m.quietT||0)+dt;m.boomCd=(m.boomCd||4)-dt;if(Math.random()<.05)burst(m.x,m.y+2,m.z,[.3,.9,.9],2);
     if(!inDeepDark(m.x,m.y+.5,m.z)){burst(m.x,m.y+1,m.z,[.1,.2,.25],30);m.hp=0;m.dying=.01;m.mdl.g.visible=false;watcherOut=null;return;}
-    if(m.heardT>0&&m.boomCd<=0&&dist>4&&dist<16&&!P.dead&&!P.spec&&mode==='survival'&&inDeepDark(P.x,P.y+.5,P.z)&&sees(m,P)){m.boomCd=7;sfx('sonic');for(let k=0;k<=10;k++){const f=k/10;burst(m.x+(P.x-m.x)*f,m.y+2+(P.y+1-m.y-2)*f,m.z+(P.z-m.z)*f,[.4,1,1],3);}damagePlayer(10,'Hit by the Deep Watcher’s sonic boom');}
-    if(m.quietT>90){burst(m.x,m.y+1,m.z,[.1,.2,.25],30);m.hp=0;m.dying=.01;m.mdl.g.visible=false;say('🕳️ The Deep Watcher dug back into the ground','sys');watcherOut=null;}}
+    if(m.heardT>0&&m.boomCd<=0&&dist>4&&dist<16&&!P.dead&&!P.spec&&mode==='survival'&&inDeepDark(P.x,P.y+.5,P.z)&&sees(m,P)){m.boomCd=7;sfx('sonic');for(let k=0;k<=10;k++){const f=k/10;burst(m.x+(P.x-m.x)*f,m.y+2+(P.y+1-m.y-2)*f,m.z+(P.z-m.z)*f,[.4,1,1],3);}damagePlayer(10,'Hit by the Warden’s sonic boom');}
+    if(m.quietT>90&&!m.fromEgg){burst(m.x,m.y+1,m.z,[.1,.2,.25],30);m.hp=0;m.dying=.01;m.mdl.g.visible=false;say('🕳️ The Warden dug back into the ground','sys');watcherOut=null;}}
   if(T.bigBoss){showBoss(m,T.n);if(m.hp<m.maxHp)m.hp=Math.min(m.maxHp,m.hp+dt*.6);}
   if(T.fly&&!T.noPuff){if(m.hoverY==null)m.hoverY=m.y+1.5;m.puffT=(m.puffT||0)-dt;if(m.puffT<=0&&dist<40){m.puffT=.35;burst(m.x,m.y+.6,m.z,[1,.55,.12],1);}}
   if(T.goldy){if(m.trading>0){m.trading-=dt;if(m.trading<=0)hogTrade(m);}}
@@ -5208,7 +5255,7 @@ function luckyOpen(x,y,z){const cx=x+.5,cy=y+.3,cz=z+.5,r=Math.random();burst(cx
     ()=>{spawnMob('charred',cx+2,y,cz);return'Unlucky! A charred skeleton!';},()=>{give(112,8);return'Unlucky! Just rotten flesh…';}];
   const list=r<.6?good:bad,msg=list[Math.random()*list.length|0]();flash(msg);say('🍀 Lucky block: '+msg,'sys');}
 let DD=null,ddAnger=0,watcherOut=null,ddHint=0;
-// noise wakes the Deep Watcher: running, jumping, digging, fighting and explosions near the deep dark
+// noise wakes the Warden: running, jumping, digging, fighting and explosions near the deep dark
 function inDeepDark(x,y,z){if(!DD||dim!==0)return false;const a=(x-DD.x)/(DD.r+2),b=(y-DD.y)/8,c=(z-DD.z)/(DD.r+2);return a*a+b*b+c*c<1;}
 function makeNoise(x,y,z,amt){if(!DD||dim!==0||!inDeepDark(x,y,z))return;
   if(watcherOut&&!watcherOut.dying&&mobs.includes(watcherOut)){if(Math.hypot(x-watcherOut.x,z-watcherOut.z)<26){watcherOut.heardT=Math.max(watcherOut.heardT||0,7);watcherOut.quietT=0;}return;}
@@ -5219,7 +5266,7 @@ function makeNoise(x,y,z,amt){if(!DD||dim!==0||!inDeepDark(x,y,z))return;
 function summonWatcher(){let sp=null;for(let t=0;t<60&&!sp;t++){const a=Math.random()*6.283,r=6+Math.random()*8,x=Math.floor(P.x+Math.cos(a)*r),z=Math.floor(P.z+Math.sin(a)*r);
     for(let y=DD.y+4;y>=DD.y-7;y--)if(inDeepDark(x+.5,y,z+.5)&&standOK(x,y,z,3)){sp={x:x+.5,y,z:z+.5};break;}}if(!sp)return;
   const m=spawnMob('watcher',sp.x,sp.y,sp.z);m.keep=true;m.heardT=6;watcherOut=m;burst(sp.x,sp.y+.5,sp.z,[.1,.25,.3],40);sfx('thunder');shake=Math.max(shake||0,.5);
-  flash('The Deep Watcher has woken up! It can’t see you, but it hears every sound. Walk slowly and quietly!');say('🕳️ The Deep Watcher crawled out of the ground. It is blind, so walk (don’t run or jump) and don’t dig or fight','sys');}
+  flash('The Warden has woken up! It can’t see you, but it hears every sound. Walk slowly and quietly!');say('🕳️ The Warden crawled out of the ground. It is blind, so walk (don’t run or jump) and don’t dig or fight','sys');}
 function shipSpawn(){let near=null,nd=60;for(const p of places)if(p.name==='Shipwreck'){const d=Math.hypot(p.x-P.x,p.z-P.z);if(d<nd){nd=d;near=p;}}if(!near)return;
   let n=0;for(const m of mobs)if(m.type==='drowned'&&!m.dying)n++;if(n>=5||Math.random()>.35)return;
   for(let t=0;t<14;t++){const x=Math.floor(near.x+(Math.random()-.5)*28),z=Math.floor(near.z+(Math.random()-.5)*28);if(Math.hypot(x-P.x,z-P.z)<8)continue;
@@ -5229,7 +5276,8 @@ function oneHostileSpawn(hostile){if(P.spec||mode!=='survival'||P.dead||hostile>
   for(let t=0;t<12;t++){const a=Math.random()*6.283,r=4+Math.random()*10,x=Math.floor(P.x+Math.cos(a)*r),z=Math.floor(P.z+Math.sin(a)*r);if(x<1||z<1||x>=WX-1||z>=WZ-1)continue;
     const top=colTop(x,z);if(top<1||isOnePos(x,top,z)&&false)continue;const y=top+1;if(!standOK(x,y,z,2)||ISW[get(x,y-1,z)])continue;const p=litAt(x,y,z);if(Math.max((p>>4)*daylight,p&15)>4)continue;
     const r2=Math.random(),type=r2<.06?'voidwalker':r2<.3?'spider':r2<.6?'skeleton':'zombie';const m=spawnMob(type,x+.5,y,z+.5);m.nightMob=true;return;}}
-function spawner(dt){spawnT-=dt;if(spawnT>0)return;spawnT=1.2;if(worldType==='one'&&dim!==0)return;if(dim===1){netherSpawn();return;}if(dim===2){endSpawn();return;}if(dim===0&&worldType!=='one'){shipSpawn();mushSpawn();}
+function spawner(dt){spawnT-=dt;if(spawnT>0)return;spawnT=1.2;
+  if(dim===0&&worldType==='classic'&&!peaceful)for(const h of witchHuts){if(Math.hypot(h.x-P.x,h.z-P.z)>48||Date.now()<h.next)continue;h.next=Date.now()+300000;if(!mobs.some(m=>m.type==='witch'&&!m.dying&&Math.hypot(m.x-h.x,m.z-h.z)<24))spawnMob('witch',h.x+.5,h.y,h.z+.5);}if(worldType==='one'&&dim!==0)return;if(dim===1){netherSpawn();return;}if(dim===2){endSpawn();return;}if(dim===0&&worldType!=='one'){shipSpawn();mushSpawn();}
   let animals=0,hostile=0;let fishN=0;mobs.forEach(m=>{if(m.T.fish){if(!m.keep)fishN++;}else if(m.T.hostile){if(!m.keep&&!m.jailed&&!m.raider&&Math.abs(m.x-P.x)+Math.abs(m.z-P.z)<90)hostile++;}else if(!m.T.villager&&!m.T.golem&&!m.T.soldier&&!m.tame&&!m.T.cart&&!m.T.vehicle&&!m.T.crystal&&!m.T.boss)animals++;});
   if(dim===0&&fishN<16)spawnFish();
   if(worldType==='classic'?animals<36&&Math.random()<.35:animals<8&&Math.random()<.06)spawnAnimals(3,true);
@@ -5461,7 +5509,8 @@ function survival(dt){
   while(P.exh>=4){P.exh-=4;if(P.food>0)P.food--;}
   if(P.food>=18&&P.hp<20){P.regenT+=dt;if(P.regenT>=2.5){P.regenT=0;P.hp=Math.min(20,P.hp+1);P.exh+=.8;}}else P.regenT=0;
   if(P.food<=0){P.starveT+=dt;if(P.starveT>=4){P.starveT=0;damagePlayer(1,'Starved to death');}}else P.starveT=0;
-  if(P.headWater&&!fx.water){P.airT+=dt;if(P.airT>=1.5){P.airT=0;if(P.air>0)P.air--;else damagePlayer(2,'Drowned');}}else{P.air=Math.min(10,P.air+dt*4);P.airT=0;}
+  if(P.inWater&&mobs.some(m=>m.type==='dolphin'&&!m.dying&&Math.abs(m.x-P.x)<6&&Math.abs(m.z-P.z)<6&&Math.abs(m.y-P.y)<5)){if(!(fx.swim>0))flash('A dolphin is swimming with you. You swim faster!');fx.swim=Math.max(fx.swim||0,4);}
+  if(P.headWater&&!fx.water){P.airT+=dt*(armor[0]&&armor[0].id===393?.25:1);if(P.airT>=1.5){P.airT=0;if(P.air>0)P.air--;else damagePlayer(2,'Drowned');}}else{P.air=Math.min(10,P.air+dt*4);P.airT=0;}
   {const hz=touching();P.hazT=(P.hazT||0)-dt;
     if(!P.spec&&hz===LAVA){P.burn=Math.max(P.burn||0,3);if(P.hazT<=0){P.hazT=.5;damagePlayer(4,'Tried to swim in lava');}}
     else if(!P.spec&&hz===FIRE){P.burn=Math.max(P.burn||0,2);if(P.hazT<=0){P.hazT=1;damagePlayer(1,'Burned to death');}}
@@ -5511,7 +5560,7 @@ function playerPhysics(dt){if(worldType==='one'){if(P.fly){P.fly=false;updateTou
   const sprint=!P.fly&&!P.crouch&&shift&&f>0&&(P.food>6||mode==='creative');
   if(DD&&P.ground&&!P.spec&&mode==='survival'&&Math.abs(P.vx)+Math.abs(P.vz)>1)makeNoise(P.x,P.y,P.z,sprint?dt*2.4:dt*.12);
   const trid=P.inWater&&!P.fly&&inv[sel]&&itemDef(inv[sel].id).kind==='trident';
-  let sp=(P.fly?(keys.ControlLeft?20:11):sprint?5.8:4.3)*(P.speed||1)*(fx.poison?.7:1)*(fx.speed?1.45:1)*(fx.slow?.55:1)*(P.crouch?.32:1);if((P.inWater||P.inLava)&&!P.fly)sp*=P.inLava?.35:trid?2.4:.55;
+  let sp=(P.fly?(keys.ControlLeft?20:11):sprint?5.8:4.3)*(P.speed||1)*(fx.poison?.7:1)*(fx.speed?1.45:1)*(fx.slow?.55:1)*(P.crouch?.32:1);if((P.inWater||P.inLava)&&!P.fly)sp*=P.inLava?.35:trid?2.4:fx.swim?1.5:.55;
   const ice=P.ground&&!P.fly?get(Math.floor(P.x),Math.floor(P.y-.08),Math.floor(P.z)):0,slip=ice===14||ice===173?.12:ice===174?.06:1;if(slip<1)sp*=ice===174?1.6:1.3;
   const k=Math.min(1,dt*(P.ground||P.fly?14*slip:5));
   P.vx+=(mx*sp-P.vx)*k;P.vz+=(mz*sp-P.vz)*k;if(trid&&f>0){P.vy+=(fwd.y*sp*.8-P.vy)*Math.min(1,dt*6);if(Math.random()<.3)burst(P.x,P.y+.8,P.z,[.6,.9,1],1);}
@@ -5737,6 +5786,7 @@ function useAction(){if(ui!=='play'||P.dead||P.spec)return;if(hayUse())return;co
   if(d.kind==='egg'){if(!target){flash('Look at the ground to use a spawn egg');return;}
     const t=d.mob,T=MT[t],x=target.x+target.n[0]+.5,z=target.z+target.n[2]+.5;let y=target.y+target.n[1];
     for(let k=0;k<12&&boxHits(x,y,z,T.w,T.h);k++)y+=1;
+    if(t==='wither'){summonWither(x,y,z);useOne();swing();return;}
     spawnAt(t,x,y,z);useOne();swing();sfx('pop');return;}
   if(d.kind==='food'&&!(d.place&&target&&get(target.x,target.y,target.z)===FARMLAND&&target.n[1]===1)){eat(s);return;}
   if(s.id===350&&target&&get(target.x,target.y,target.z)===SNOWBLK&&get(target.x,target.y-1,target.z)===SNOWBLK){const gx=target.x,gy=target.y-1,gz=target.z;
@@ -5951,6 +6001,7 @@ const LOOT={
   camp:[[.9,102,1,3],[.7,101,1,3],[.6,105,1,3],[.5,TORCH,3,8],[.4,162,2,5],[.4,171,3,8],[.3,170,1,1],[.35,195,1,1],[.5,131,2,5]],
   mine:[[.7,102,1,3],[.6,131,3,8],[.5,133,1,5],[.3,134,1,3],[.4,TORCH,4,12],[.15,135,1,2],[.2,166,1,2],[.1,113,1,1],[.3,140,1,1]]};
 LOOT.city=LOOT.village;
+LOOT.witch=[[1,272,2,5],[.8,309,1,2],[.7,394,1,2],[.6,313,1,1],[.5,179,2,6],[.5,163,1,3],[.4,250,1,2],[.5,114,1,3],[.3,316,1,1],[.4,262,1,3]];
 LOOT.hospital=[[1,113,1,2],[.8,231,1,1],[1,111,2,5],[.6,230,1,3],[.5,101,2,5]];LOOT.shop=[[1,102,3,8],[1,101,3,8],[.8,117,3,8],[.8,105,2,5],[.6,226,1,4],[.6,232,3,8],[.5,103,3,8]];LOOT.school=[[1,164,4,12],[.8,165,1,4],[.5,24,2,6]];
 LOOT.factory=[[1,131,6,16],[.8,21,2,6],[.6,177,3,8],[.4,22,1,4],[.4,179,4,10],[.4,180,3,8],[.12,135,1,2],[.08,166,1,2]];
 LOOT.fortress=[[1,166,4,12],[.7,'t2',1,1],[.4,'t3',1,1],[.6,123,1,1],[.5,170,1,1],[1,171,6,16],[.4,135,1,3],[.3,113,1,1],[.5,134,2,6]];
@@ -6085,7 +6136,7 @@ let craftN=2;const craftGrid=new Array(9).fill(null);
 function returnGrid(){for(let i=0;i<9;i++){if(craftGrid[i]){give(craftGrid[i]);craftGrid[i]=null;}}}
 const CAT={blocks:[87,88,85,77,75,76,1,2,12,42,3,9,28,31,8,4,17,26,13,14,1173,1174,16,5,7,18,40,6,19,73,74,1260,1254,1255,1256,1257,1258,1259,15,45,46,47,1244,1245,1246,1247,1248,1249,1250,1251,1252,1253,48,44,24,35,36,37,38,39,1218,1219,1220,1221,1222,1223,1224,1225,1226,1227,53,BED,1228,1229,1230,1231,1232,1233,1234,1235,1236,1237,1238,1239,1240,1241,1242,27,30,29,25,TORCH,GLOW,20,21,55,22,56,57,23,52,32,58,33,59,60,34,50,51,1135,1136,1145,1137,1138,1139,1140,1141,1142,1143,41,1104,1113,1114,1133,1134,1175,1176,1177,1178,1179,1180,1181,1182,1183,1188,1193,1198,1203,1208,1213,1184,1189,1194,1199,1204,1209,1214,11,10],
   combat:[367,368,369,370,371,372,373,374,375,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,176,195,120,121,122,123,124,170,171,...Array.from({length:16},(_,i)=>200+i),284,285,286,287,288,280,281,282,283,291,298,299,292,300,301,302,305,306,304,354,355,356,357,359,360,363,361,362],
-  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,270,271,272,273,274,275,276,279,164,165,264,364,365,366,376,265,266,267,259,260,1110,256,257,258,289,290,303,337,338,339,341,342,343,344,345,346,347,348,349,350,340,1155,1157,1159,1160,1161,351,1166,1167,1169,1170,1171,352,353,1162,1163,1164,1146,1147,1149,1150,1151,1152,1153,1154,...Array.from({length:30},(_,i)=>307+i)]};
+  food:[181,182,183,184,185,186,187,188,189,190,191,192,193,130,131,177,178,133,134,135,166,179,180,136,162,163,164,165,172,173,174,175,160,161,167,168,169,101,102,103,104,105,106,107,108,109,110,111,112,113,250,251,252,253,261,262,263,268,269,270,271,272,273,274,275,276,279,164,165,264,364,365,366,376,265,266,267,259,260,1110,256,257,258,289,290,303,337,338,339,341,342,343,344,345,346,347,348,349,350,340,1155,1157,1159,1160,1161,351,1166,1167,1169,1170,1171,352,353,1162,1163,1164,1146,1147,1149,1150,1151,1152,1153,1154,...Array.from({length:30},(_,i)=>307+i),393,394,395]};
 let catTab='blocks';
 function haveCount(k){let c=0;for(const s of inv)if(s&&ing(k,s.id))c+=s.count;for(const s of craftGrid)if(s&&ing(k,s.id))c+=s.count;return c;}
 function needs(r){const m=new Map();rList(r).forEach(k=>m.set(k,(m.get(k)||0)+1));return m;}
@@ -6410,11 +6461,11 @@ function renderBrew(msg){const L=$('brewList');L.innerHTML='';const water=countO
     const sp=r.querySelector('span');sp.textContent=title;const sm=document.createElement('small');sm.textContent=sub;sp.appendChild(sm);
     const b=document.createElement('button');b.type='button';b.className='btn primary';b.textContent=label;b.disabled=!ok;b.addEventListener('click',fn);r.appendChild(b);L.appendChild(r);};
   const give=id=>{if(!insertInto(inv,0,36,mk(id,1)))dropItem(id,1,P.x,P.y+1,P.z);};
-  POT_KEYS.forEach((k,i)=>{const p=POT[k],have=countOf(p.ing),sp=inv.findIndex(x=>x&&x.id===307+i);
-    row(307+i,'Potion of '+p.n.toLowerCase()+(p.bad?' (bad)':''),'Glass of water + '+itemDef(p.ing).n.toLowerCase()+' (you have '+have+')'+(p.inst?' · works at once':' · lasts '+p.t+' s'),'Brew',cr||(water>0&&have>0),()=>{
-      if(!cr){takeN(272,1);takeN(p.ing,1);}give(307+i);sfx('splash');burst(P.x,P.y+1.2,P.z,[.6,.4,.9],12);invChanged();renderBrew('You brewed a potion of '+p.n.toLowerCase()+'!');});
-    if(sp>=0)row(322+i,'Splash potion of '+p.n.toLowerCase(),'Your potion + gunpowder (you have '+countOf(262)+')','Make',cr||countOf(262)>0,()=>{
-      if(!cr)takeN(262,1);inv[sp]=mk(322+i,1);sfx('splash');invChanged();renderBrew('You made a splash potion of '+p.n.toLowerCase()+'. Right-click to throw it!');});});}
+  POT_KEYS.forEach((k,i)=>{const p=POT[k],have=countOf(p.ing),sp=inv.findIndex(x=>x&&x.id===PID(i));
+    row(PID(i),'Potion of '+p.n.toLowerCase()+(p.bad?' (bad)':''),'Glass of water + '+itemDef(p.ing).n.toLowerCase()+' (you have '+have+')'+(p.inst?' · works at once':' · lasts '+p.t+' s'),'Brew',cr||(water>0&&have>0),()=>{
+      if(!cr){takeN(272,1);takeN(p.ing,1);}give(PID(i));sfx('splash');burst(P.x,P.y+1.2,P.z,[.6,.4,.9],12);invChanged();renderBrew('You brewed a potion of '+p.n.toLowerCase()+'!');});
+    if(sp>=0)row(SID(i),'Splash potion of '+p.n.toLowerCase(),'Your potion + gunpowder (you have '+countOf(262)+')','Make',cr||countOf(262)>0,()=>{
+      if(!cr)takeN(262,1);inv[sp]=mk(SID(i),1);sfx('splash');invChanged();renderBrew('You made a splash potion of '+p.n.toLowerCase()+'. Right-click to throw it!');});});}
 const REELS=['🍒','🍋','🔔','⭐','💎','7️⃣'],REEL_PAY=[4,5,8,10,20,50];let casTab='games';
 const BLOCK_PACK=[[9,20],[7,16],[16,10],[24,8],[35,6],[38,6],[33,2],[34,1],[1159,4],[64,6],[1170,4],[1153,3],[1154,3]],ITEM_PACK=[[133,16],[134,12],[105,12],[113,4],[135,6],[166,8],[289,3],[304,1],[171,10],[351,8],[345,5],[307,4],[309,4],[311,4]];
 function rollPack(list){let tot=0;for(const t of list)tot+=t[1];let r=Math.random()*tot;for(const t of list){r-=t[1];if(r<=0)return t[0];}return list[0][0];}
@@ -7242,7 +7293,7 @@ function frame(now){voidBottom=worldType!=='classic'||dim===2;if(started)voidCle
   const sim=(ui==='play'||ui==='inv')&&!P.dead;
   if(sim){
     if(nightsOn){timeOfDay=(timeOfDay+dt/DAY)%1;if(timeOfDay<dt/DAY){dayNum++;try{loanDaily();}catch(e){}}}else timeOfDay=DAYPART*.5;
-    playerPhysics(dt);portalCheck(dt);atkCd-=dt;survival(dt);spawner(dt);growCrops(dt);fireTick(dt);waterTick(dt);evapTick(dt);lavaTick(dt);if(ui==='play'||ui==='inv')tntTick(dt);
+    playerPhysics(dt);portalCheck(dt);atkCd-=dt;survival(dt);spawner(dt);growCrops(dt);fireTick(dt);waterTick(dt);lavaTick(dt);if(ui==='play'||ui==='inv')tntTick(dt);
     autosave+=dt;if(autosave>6){autosave=0;save();}}
   else if(!started)yaw+=dt*.05;
   if(ui==='play'||ui==='inv'||!started||ui==='menu')updateMobs(sim?dt:0);
