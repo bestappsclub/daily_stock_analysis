@@ -1316,7 +1316,18 @@ shake:["...c....","..dc....",".dddd...","..aaaa..","..aaaa..","..baab..","..aaaa
 let lastPat=null;
 function patURL(pat,pal,half){const c=document.createElement('canvas');c.width=c.height=8;const x2=c.getContext('2d');lastPat=c;
   for(let y=0;y<8;y++)for(let x=0;x<8;x++){const ch=pat[y][x];if(ch==='.')continue;const P=(half&&x>=4)?half:pal;x2.fillStyle=P[ch]||P.a;x2.fillRect(x,y,1,1);}return c.toDataURL();}
-function blockIcon(id){const b=BL[id];const c=document.createElement('canvas');c.width=c.height=32;const g=c.getContext('2d');g.imageSmoothingEnabled=false;
+function shapedIcon(id){const b=BL[id];if(!b||!b.shape||typeof renderer==='undefined'||!renderer)return null;
+  try{const A={p:[],n:[],u:[],c:[],i:[]},Y=WY+4;shapeMesh(A,0,Y,0,id,b);if(!A.p.length)return null;
+    const geo=makeGeo(A),mat=matSolid.clone();mat.uniforms.map.value=tex;mat.uniforms.uDay.value=1;mat.uniforms.uNV.value=1;mat.uniforms.fogNear.value=1e6;mat.uniforms.fogFar.value=2e6;
+    const sc=new THREE.Scene(),me=new THREE.Mesh(geo,mat);me.position.set(-.5,-Y-.5,-.5);sc.add(me);
+    const cam=new THREE.OrthographicCamera(-.86,.86,.86,-.86,.1,20);cam.position.set(3,2.45,3);cam.lookAt(0,0,0);
+    const S=64,rt=new THREE.WebGLRenderTarget(S,S),pc=renderer.getClearColor(new THREE.Color()),pa=renderer.getClearAlpha(),prev=renderer.getRenderTarget();
+    renderer.setRenderTarget(rt);renderer.setClearColor(0x000000,0);renderer.clear();renderer.render(sc,cam);const px=new Uint8Array(S*S*4);renderer.readRenderTargetPixels(rt,0,0,S,S,px);
+    renderer.setRenderTarget(prev);renderer.setClearColor(pc,pa);rt.dispose();geo.dispose();mat.dispose();
+    const c=document.createElement('canvas');c.width=c.height=S;const g=c.getContext('2d'),im=g.createImageData(S,S);
+    for(let y=0;y<S;y++)im.data.set(px.subarray((S-1-y)*S*4,(S-y)*S*4),y*S*4);g.putImageData(im,0,0);
+    let any=false;for(let i=3;i<px.length;i+=4)if(px[i]){any=true;break;}if(!any)return null;iconCanvas[id]=c;return c.toDataURL();}catch(e){return null;}}
+function blockIcon(id){const b=BL[id];{const u=shapedIcon(id);if(u)return u;}const c=document.createElement('canvas');c.width=c.height=32;const g=c.getContext('2d');g.imageSmoothingEnabled=false;
   if(b.cross){g.drawImage(atlas,b.t[0]*T,0,T,T,0,0,32,32);iconCanvas[id]=c;return c.toDataURL();}
   const face=(tile,m,shade)=>{g.setTransform(m[0],m[1],m[2],m[3],m[4],m[5]);g.drawImage(atlas,tile*T,0,T,T,0,0,16,16);
     if(shade){g.globalCompositeOperation='source-atop';g.fillStyle='rgba(0,0,0,'+shade+')';g.fillRect(0,0,16,16);g.globalCompositeOperation='source-over';}};
@@ -1324,7 +1335,7 @@ function blockIcon(id){const b=BL[id];const c=document.createElement('canvas');c
   iconCanvas[id]=c;return c.toDataURL();}
 const iconCache={},iconCanvas={},iconTex={};
 function iconOf(id){if(iconCache[id])return iconCache[id];let u;
-  if(id<100)u=blockIcon(id);else if(id>=1000){u=blockIcon(id-1000);iconCanvas[id]=iconCanvas[id-1000];}else{u=patURL(PAT[ITEMS[id].p],ITEMS[id].pal);iconCanvas[id]=lastPat;}
+  if(id<100)u=blockIcon(id);else if(id>=1000&&!BL[id-1000]){u=blockIcon(1);}else if(id>=1000){u=blockIcon(id-1000);iconCanvas[id]=iconCanvas[id-1000];}else{u=patURL(PAT[ITEMS[id].p],ITEMS[id].pal);iconCanvas[id]=lastPat;}
   return iconCache[id]=u;}
 function texOf(id){if(iconTex[id])return iconTex[id];iconOf(id);const t=new THREE.CanvasTexture(iconCanvas[id]);t.magFilter=THREE.NearestFilter;t.minFilter=THREE.NearestFilter;t.generateMipmaps=false;return iconTex[id]=t;}
 const HI={
@@ -3057,6 +3068,22 @@ function witchHut(x0,z0){const gy=SEA,fl=gy+3;
   S(x0+1,fl+1,z0+5,BREWER);S(x0+3,fl+1,z0+5,30);chestAt(x0+3,fl+1,z0+3,'witch');S(x0+1,fl+1,z0+3,49);
   for(let y=gy;y<fl;y++)S(x0+2,y,z0-1,LADDER);
   addPlace('Witch hut',x0+2,fl+4,z0+4);witchHuts.push({x:x0+2,y:fl+1,z:z0+4,next:0});}
+function jungleTemple(cx,cz){const W=13,D=15,x0=cx-6,z0=cz-7;let fy=0;for(let z=z0;z<z0+D;z++)for(let x=x0;x<x0+W;x++)fy=Math.max(fy,HM[x+z*WX]);fy=Math.min(fy,WY-30);
+  for(let z=z0-2;z<z0+D+2;z++)for(let x=x0-2;x<x0+W+2;x++)for(let y=fy+1;y<=Math.min(WY-1,fy+40);y++)S(x,y,z,0);
+  foundation(x0,z0,W,D,fy+1,9);const st=(x,y,z)=>S(x,y,z,hash3(x,y,z,seed+71)<.45?28:9);
+  const layer=(o,y0,h)=>{for(let y=y0;y<y0+h;y++)for(let z=z0+o;z<z0+D-o;z++)for(let x=x0+o;x<x0+W-o;x++){const edge=x===x0+o||x===x0+W-1-o||z===z0+o||z===z0+D-1-o;if(edge||y===y0||y===y0+h-1)st(x,y,z);else S(x,y,z,0);}};
+  layer(0,fy,6);layer(2,fy+5,5);layer(4,fy+9,4);
+  for(let x=cx-1;x<=cx+1;x++)for(let y=fy+1;y<=fy+3;y++)S(x,y,z0,0);                 // front door
+  for(let y=fy+6;y<=fy+7;y++)S(cx,y,z0+2,0);for(let y=fy+10;y<=fy+11;y++)S(cx,y,z0+4,0);  // upper doors
+  for(let y=fy+1;y<=fy+9;y++)S(cx+3,y,z0+1,LADDER);for(let y=fy+6;y<=fy+12;y++)S(cx+1,y,z0+3,LADDER);
+  // hidden cellar under the floor
+  for(let z=cz;z<=cz+4;z++)for(let x=cx-3;x<=cx+3;x++)for(let y=fy-5;y<=fy-1;y++){const e=x===cx-3||x===cx+3||z===cz||z===cz+4||y===fy-5||y===fy-1;if(e)st(x,y,z);else S(x,y,z,0);}
+  for(let y=fy-4;y<=fy;y++)S(cx,y,cz+5,LADDER);S(cx,fy,cz+5,LADDER);for(let y=fy-4;y<=fy-1;y++)S(cx,y,cz+4,0);
+  chestAt(cx-4,fy+1,z0+D-3,'temple');chestAt(cx+4,fy+1,z0+D-3,'temple');chestAt(cx,fy+6,z0+D-4,'temple');chestAt(cx-2,fy-4,cz+2,'temple');chestAt(cx+2,fy-4,cz+2,'temple');
+  S(cx-2,fy+1,cz,LEVER);S(cx+2,fy+1,cz,LEVER);S(cx,fy-4,cz+1,TORCH);
+  for(let k=0;k<70;k++){const side=k%4,t=hash2(k,cx,seed+73);let x,z;if(side<2){x=x0+(t*W|0);z=side?z0-1:z0+D;}else{z=z0+(t*D|0);x=side===2?x0-1:x0+W;}
+    const top=fy+5+(hash2(cx,k,seed+75)*4|0);hangVine(x,top,z,2+(hash2(k,cz,seed+77)*6|0));}
+  addPlace('Jungle temple',cx,fy+13,cz);}
 function campsite(x0,z0,fy,rng){addPlace('Campsite',x0+2,fy+5,z0+2);foundation(x0,z0,7,5,fy,2);clearBox(x0-1,z0-1,8,6,fy,4);
   const wc=[24,35,36,37,38][rng()*5|0];
   for(let x=0;x<3;x++){S(x0+x,fy+1,z0+1,wc);S(x0+x,fy+1,z0+3,wc);S(x0+x,fy+2,z0+2,wc);}
@@ -3213,17 +3240,18 @@ const SHIP_MAP=new Map(),BURIED=[],TREASURE_DEPTH=12;
 function pickFlower(x,z,bio,s){const k=vnoise(x/11,z/11,s+733),j=hash2(x,z,s+735);
   const list=bio===1?[47,46,252,253,251,47,245,253]:bio===4?[47,46,250,252]:[47,46,47,250,251,252,246,247,248,249,245,244];
   if(j<.15)return 47;return list[Math.min(list.length-1,Math.floor(k*list.length))];}
+const JUNGLE_R=Math.round(WX*.36);const inJungle=(x,z,pad)=>Math.hypot(WX-x,WZ-z)<JUNGLE_R+(pad||0);
 function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.length=0;STRONG=dim===0?null:STRONG;if(dim===2){generateEnd();return;}if(dim===1){generateNether();return;}
   if(worldType!=='classic'){generateVoid();return;}
   world.fill(0);CHEST_T.clear();const s=seed;
   for(let z=0;z<WZ;z++)for(let x=0;x<WX;x++){
     const base=fbm(x/70,z/70,s),tmp=fbm(x/150,z/150,s+300),mst=fbm(x/120,z/120,s+600);
     let mt=Math.max(0,fbm(x/80,z/80,s+900)-.56);
-    let bio=(tmp>.58&&mst<.52)?2:tmp<.41?3:(mst>.62&&tmp<=.5)?7:(tmp>.5&&mst>.55)?5:mst>.56?1:0;
-    if(bio===5&&vnoise(x/34,z/34,s+919)>.6)bio=6;
-    let h=bio===2?19+base*12:13+base*24;if(bio===2)mt*=.3;
+    let bio=(tmp>.58&&mst<.52)?2:tmp<.41?3:(mst>.62&&tmp<=.5)?7:mst>.56?1:0;
+    if(Math.hypot(WX-x,WZ-z)+(vnoise(x/40,z/40,s+961)-.5)*44<JUNGLE_R){bio=5;if(vnoise(x/34,z/34,s+919)>.64)bio=6;}
+    let h=bio===2?19+base*12:13+base*24;if(bio===2)mt*=.3;if(bio===5||bio===6)mt*=.45;
     h+=mt*mt*420;h=clamp(Math.floor(h),6,56);
-    if(bio===7){const hm=vnoise(x/7,z/7,s+951);h=SEA+(hm>.6?1:hm>.42?0:-1);}
+    if(bio===7){const hm=vnoise(x/7,z/7,s+951);h=hm>.82?SEA:hm<.32?SEA-2:SEA-1;}
     if(h>=44&&bio!==2&&bio!==5&&bio!==6&&bio!==7)bio=4;
     HM[x+z*WX]=h;BIO[x+z*WX]=bio;
     const beach=h<=SEA+1&&bio!==7,gravelFloor=hash2(x,z,s+5)<.5;
@@ -3252,11 +3280,11 @@ function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.le
   // plants
   for(let z=3;z<WZ-3;z++)for(let x=3;x<WX-3;x++){const h=HM[x+z*WX],bio=BIO[x+z*WX],top=world[idx(x,h,z)],r=hash2(x,z,s+7);
     if(h+11>=WY)continue;
-    if(bio===7){if(top!==1||world[idx(x,h+1,z)])continue;if(r<.022)swampOak(x,h,z);else if(r<.2)S(x,h+1,z,45);else if(r<.215)S(x,h+1,z,244);continue;}
+    if(bio===7){if(top===2&&h<SEA&&h>=SEA-2){if(r<.018)swampOak(x,h,z);continue;}if(top!==1||world[idx(x,h+1,z)])continue;if(r<.03)swampOak(x,h,z);else if(r<.25)S(x,h+1,z,45);else if(r<.27)S(x,h+1,z,244);continue;}
     if(bio===5||bio===6){if((top!==1&&top!==PODZOL)||world[idx(x,h+1,z)]||h+32>=WY)continue;
       if(bio===6){if(r<.16)bambooStalk(x,h,z);else if(r<.168)jungleTree(x,h,z,false);continue;}
-      const big=hash2(x,z,s+43);if(r<.014&&big<.45&&x<WX-4&&z<WZ-4)jungleTree(x,h,z,true);else if(r<.03)jungleTree(x,h,z,false);else if(r<.07)jungleBush(x,h,z);
-      else if(r<.1)bambooStalk(x,h,z);else if(r<.115)S(x,h+1,z,pickFlower(x,z,bio,s));else if(r<.3)S(x,h+1,z,45);continue;}
+      const big=hash2(x,z,s+43);if(r<.024&&big<.55&&x<WX-4&&z<WZ-4)jungleTree(x,h,z,true);else if(r<.055)jungleTree(x,h,z,false);else if(r<.11)jungleBush(x,h,z);
+      else if(r<.13)bambooStalk(x,h,z);else if(r<.145)S(x,h+1,z,pickFlower(x,z,bio,s));else if(r<.36)S(x,h+1,z,45);continue;}
     if(bio===2){if(top===4&&h>SEA&&r<.006){const ch=1+((hash2(x,z,s+8)*3)|0);for(let i=1;i<=ch;i++)S(x,h+i,z,15);}continue;}
     if((top===1||top===12)&&!world[idx(x,h+1,z)]){const r2=hash2(x,z,s+31);
       const meadow=vnoise(x/30,z/30,s+717)>.68;
@@ -3266,7 +3294,7 @@ function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.le
     if(r>=dens||(top!==1&&top!==12&&top!==3))continue;
     if(bio===3||bio===4)spruce(x,h,z);else{const cg=vnoise(x/46,z/46,s+303),bg=vnoise(x/38,z/38,s+505);if(cg>.72)cherry(x,h,z);else if(bg>.62)birch(x,h,z);else oak(x,h,z);}}
   // mushroom fields: purple ground, giant mushrooms and mushroom cows
-  mushFields.length=0;{const RM=mulberry(s+9091);for(let t=0;t<400&&mushFields.length<Math.max(1,Math.round(2*AREA));t++){const cx=40+(RM()*(WX-80)|0),cz=40+(RM()*(WZ-80)|0),h=HM[cx+cz*WX];
+  mushFields.length=0;{const RM=mulberry(s+9091);for(let t=0;t<400&&mushFields.length<Math.max(1,Math.round(2*AREA));t++){const cx=40+(RM()*(WX-80)|0),cz=40+(RM()*(WZ-80)|0),h=HM[cx+cz*WX];if(inJungle(cx,cz,40))continue;
     if(BIO[cx+cz*WX]!==0||h<=SEA+1||world[idx(cx,h,cz)]!==1||mushFields.some(f=>Math.hypot(f.x-cx,f.z-cz)<120))continue;const r=22+(RM()*10|0);
     for(let dz=-r;dz<=r;dz++)for(let dx=-r;dx<=r;dx++){const x=cx+dx,z=cz+dz,d=Math.hypot(dx,dz)+hash2(x,z,s+3)*4;if(d>r)continue;const hh=HM[x+z*WX];
       if(world[idx(x,hh,z)]!==1)continue;world[idx(x,hh,z)]=MYCEL;const r3=RM();
@@ -3296,10 +3324,11 @@ function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.le
   const R2=mulberry(s*7+1);
   const used=[],free=(x,z,r)=>used.every(u=>Math.hypot(u[0]-x,u[1]-z)>u[2]+r),claim=(x,z,r)=>used.push([x,z,r]);
   const vstyle=b=>b===2?1:b===3?2:0;
+  claim(WX,WZ,JUNGLE_R+14);
   // one villager city somewhere a little way from spawn, on the flattest dry land we can find
   let cityPos=null;
   {let best=null,bs=1e9;for(let t=0;t<40;t++){const a=R2()*6.283,r=80+R2()*90;const cx=Math.floor(WX/2+Math.cos(a)*r),cz=Math.floor(WZ/2+Math.sin(a)*r);
-      if(cx<76||cz<76||cx>WX-76||cz>WZ-76)continue;let wet=0,sum=0,sq=0,n=0;
+      if(cx<76||cz<76||cx>WX-76||cz>WZ-76||inJungle(cx,cz,130))continue;let wet=0,sum=0,sq=0,n=0;
       for(let z=cz-32;z<=cz+32;z+=8)for(let x=cx-32;x<=cx+32;x+=8){const h=HM[x+z*WX];if(h<=SEA)wet++;sum+=h;sq+=h*h;n++;}
       const sc=wet*40+Math.sqrt(Math.max(0,sq/n-(sum/n)**2))*3+(BIO[cx+cz*WX]===4?60:0);if(sc<bs){bs=sc;best=[cx,cz];}}
     if(best&&skyCity(best[0],best[1],R2)){cityPos=best;claim(best[0],best[1],82);buildCasino(best[0],best[1]);
@@ -3350,8 +3379,11 @@ function generate(){places.length=0;bigHoles.length=0;SHIP_MAP.clear();BURIED.le
       else if(r<.93){fy=flat(x0,z0,7,7);if(fy>0){cottage(x0,z0,fy,7,5,8,'house');ok=true;}}
       else{fy=flat(x0,z0,7,5);if(fy>0){campsite(x0,z0,fy,R2);ok=true;}}}
     if(ok)claim(x0+6,z0+6,10);}
+  {let tx=Math.round(WX-JUNGLE_R*.48),tz=Math.round(WZ-JUNGLE_R*.48);const deep=(x,z)=>{if(x<24||z<24||x>WX-24||z>WZ-24)return false;for(let dz=-20;dz<=20;dz+=4)for(let dx=-20;dx<=20;dx+=4){const i=(x+dx)+(z+dz)*WX;if((BIO[i]!==5&&BIO[i]!==6)||HM[i]<=SEA+1)return false;}return true;};
+    let found=false;for(let r=0;r<=110&&!found;r+=4)for(let k=0;k<Math.max(1,r);k++){const a=k/Math.max(1,r)*6.283,x=Math.round(WX-JUNGLE_R*.5+Math.cos(a)*r),z=Math.round(WZ-JUNGLE_R*.5+Math.sin(a)*r);if(deep(x,z)){tx=x;tz=z;found=true;break;}}
+    jungleTemple(tx,tz);}
   witchHuts.length=0;{let made=0;for(let t=0;t<Math.round(600*AREA)&&made<Math.min(4,Math.max(1,Math.round(AREA)));t++){const x0=8+(R2()*(WX-20)|0),z0=8+(R2()*(WZ-20)|0);
-    if(witchHuts.some(h=>Math.hypot(h.x-x0,h.z-z0)<70))continue;if(BIO[(x0+2)+(z0+3)*WX]!==7||BIO[x0+z0*WX]!==7||BIO[(x0+4)+(z0+6)*WX]!==7||!free(x0+2,z0+3,9))continue;witchHut(x0,z0);claim(x0+2,z0+3,9);made++;}}
+    if(witchHuts.some(h=>Math.hypot(h.x-x0,h.z-z0)<70))continue;if(t<Math.round(450*AREA)&&!(ISW[get(x0+2,SEA,z0+3)]&&ISW[get(x0,SEA,z0)]&&ISW[get(x0+4,SEA,z0+6)]))continue;if(BIO[(x0+2)+(z0+3)*WX]!==7||BIO[x0+z0*WX]!==7||BIO[(x0+4)+(z0+6)*WX]!==7||!free(x0+2,z0+3,9))continue;witchHut(x0,z0);claim(x0+2,z0+3,9);made++;}}
   {let made=0;for(let t=0;t<Math.round(60*AREA)&&made<Math.round(4*AREA);t++){const x0=4+(R2()*(WX-16)|0),z0=4+(R2()*(WZ-8)|0);let deep=true,fl=99;
     for(let i=0;i<9&&deep;i++)for(let w=0;w<3;w++){const h=HM[(x0+i)+(z0+w)*WX];if(h>SEA-4)deep=false;fl=Math.min(fl,h);}
     if(deep&&free(x0+4,z0+1,8)){shipwreck(x0,z0,fl,R2);claim(x0+4,z0+1,8);made++;
@@ -4609,6 +4641,21 @@ const isPet=m=>m.tame&&!m.T.horse&&!m.T.vehicle&&!m.T.boat;
 const PET_SOUND={panda:'*munch munch*',wolf:'Woof!',cow:'Moo!',pig:'Oink!',sheep:'Baa!',chicken:'Cluck!'};
 function petSay(m,kind){const snd=PET_SOUND[m.type]||'*happy noises*';
   return kind==='stay'?'*sits down* '+snd:kind==='attack'?(m.T.wolf?pick1(['Grrr! *charges*','*growls* WOOF!']):'*looks confused* '+snd):kind==='follow'?'*follows you happily* '+snd:pick1(['*wags tail* '+snd,'*nuzzles you* '+snd,snd+' '+snd]);}
+function dogSniff(m,id){const nm=itemDef(id).n.toLowerCase(),seen=new Set(),list=[];
+  const add=k=>{if(seen.has(k))return;seen.add(k);const[x,y,z]=k.split(',').map(Number);if(get(x,y,z)!==CHEST)return;const d=Math.hypot(x+.5-m.x,z+.5-m.z,(y-m.y)*.5);if(d<=24)list.push({x,y,z,k,d});};
+  for(const k of CHEST_T.keys())add(k);for(const k in chests)add(k);list.sort((a,b)=>a.d-b.d);
+  mobSay(m,'*sniff sniff*');burst(m.x,m.y+.6,m.z,[.8,.8,.8],6);m.sit=false;
+  if(!list.length){m.sniff=null;flash('Your dog sniffs the '+nm+', but there are no chests nearby to search');mobSay(m,'*whimper*');return;}
+  m.sniff={id,nm,list:list.slice(0,8),i:0,t:0,stuck:0};flash('Your dog sniffs the '+nm+' and starts searching the chests nearby…');}
+function dogSniffTick(m,dt){const S=m.sniff,c=S.list[S.i];if(!c){m.sniff=null;mobSay(m,'*whimper*');flash('Your dog searched every chest nearby but couldn’t smell any '+S.nm);return 0;}
+  const dx=c.x+.5-m.x,dz=c.z+.5-m.z,d=Math.hypot(dx,dz);S.stuck+=dt;
+  if(d>1.7&&S.stuck<10){m.yawT=Math.atan2(-dx,-dz);return 1;}
+  if(S.stuck>=10&&d>1.7){m.x=c.x+.5-dx/d*1.2;m.z=c.z+.5-dz/d*1.2;m.y=Math.max(m.y,c.y);}
+  m.yawT=Math.atan2(-dx,-dz);S.t+=dt;if(S.t<1.2){if(Math.random()<dt*4)burst(c.x+.5,c.y+.8,c.z+.5,[.8,.8,.8],2);return 0;}
+  const arr=chestArr(c.k);const n=arr.reduce((a,s)=>a+(s&&s.id===S.id?s.count:0),0);
+  if(n>0){m.sniff=null;m.sit=true;mobSay(m,'WOOF! WOOF!');sfx('pop');for(let k=0;k<4;k++)setTimeout(()=>burst(c.x+.5,c.y+1.2,c.z+.5,[1,.85,.2],10),k*400);
+    flash('🐶 Your dog found '+n+' '+S.nm+' in a chest at '+c.x+', '+c.y+', '+c.z+'!');return 0;}
+  S.i++;S.t=0;S.stuck=0;mobSay(m,'*sniff*');return 0;}
 function tameMob(m){m.tame=true;m.anger=0;if(m.T.wolf){m.maxHp=20;m.hp=20;m.sit=false;}hearts(m);sfx('pop');}
 function feed(m){if(m.baby>0){m.baby=Math.max(0,m.baby-60);useOne();hearts(m);swing();return true;}
   if(m.love>0)return true;if(m.breedCd>0){flash('It needs a rest before having another baby');return true;}
@@ -4643,9 +4690,10 @@ function interactMob(m){const s=inv[sel],id=s&&s.id,T=m.T;if(T.boat&&id!==270&&!
   if(T.villager){if(m.jailed){mobSay(m,pick1(['Let me out! I didn\'t do it!','Hrmm... I\'ll behave, I promise.','The food in here is terrible.']));return true;}
     if(m.diner){dinerUse(m);return true;}if(m.prof==='banker'){openBank();return true;}if(m.prof==='bookie'){openBets(m);return true;}if(m.prof==='dealer'){mobSay(m,pick1(['Welcome to the casino! Feeling lucky?','Place your bets!','Slots or dice tonight?']));openCasino('games');return true;}if(m.prof==='arcadekeeper'){mobSay(m,pick1(['Ready to play? Pick a game!','High score time!','The sky games are this way!']));openCasino('arcade');return true;}openTrade(m);return true;}
   if(T.soldier&&m.errand){mobSay(m,'I\'m busy on your errand, commander!');return true;}
+  if(T.soldier&&P.crouch){openTrade(m);return true;}
   if(T.soldier&&id===166){if(mode!=='creative')takeN(166,1);m.paid=(m.paid||0)+1;m.anger=0;sfx('pop');invChanged();
     mobSay(m,pick1(['Thank you for the reward, commander! Tell me what to fetch.','An emerald! I\'ll run an errand for you. Wood, stone, coal, iron, food... just say.']));return true;}
-  if(T.soldier){m.order=m.order==='follow'?null:'follow';m.anger=0;mobSay(m,m.order?pick1(['Right behind you, commander!','Marching with you!']):pick1(['Back to my post!','Returning to base.']));return true;}
+  if(T.soldier){m.order=m.order==='follow'?null:'follow';m.anger=0;mobSay(m,m.order?pick1(['Right behind you, commander!','Marching with you!']):pick1(['Back to my post!','Returning to base.']));if(!P.toldAmmo){P.toldAmmo=true;flash('Tip: crouch (C) and right-click a soldier to buy bullets and RPG rockets');}return true;}
   if(T.golem){m.order=m.order==='follow'?null:'follow';m.anger=0;mobSay(m,m.order?'*nods and stomps after you*':'*lumbers back home*');return true;}
   if(T.cat){if(!m.tame){if(id===114||id===221){useOne();swing();if(Math.random()<1/3){tameMob(m);flash('You tamed a cat! Fusebugs are scared of cats, so keep it close');}else{burst(m.x,m.y+m.h,m.z,[.6,.6,.6],5);flash('The cat sniffs the fish… try another one');}return true;}flash('Cats love raw fish. Hold some cod or salmon');return true;}
     if(id&&FOOD_FOR.cat.includes(id)){if(m.hp<m.maxHp){m.hp=Math.min(m.maxHp,m.hp+4);useOne();hearts(m);swing();return true;}return feed(m);}
@@ -4654,6 +4702,7 @@ function interactMob(m){const s=inv[sel],id=s&&s.id,T=m.T;if(T.boat&&id!==270&&!
     if(!m.tame){if(id===173){useOne();swing();if(Math.random()<1/3){tameMob(m);flash('You tamed a wolf! Use it with an empty hand to make it sit or follow');}
         else{burst(m.x,m.y+m.h,m.z,[.5,.5,.5],5);flash('The wolf isn’t sure yet. Try another bone');}return true;}return false;}
     if(id&&FOOD_FOR.wolf.includes(id)){if(m.hp<m.maxHp){m.hp=Math.min(m.maxHp,m.hp+4);useOne();hearts(m);swing();return true;}return feed(m);}
+    if(id&&id!==173&&!['nametag','egg','leash'].includes(itemDef(id).kind)){dogSniff(m,id);return true;}
     m.sit=!m.sit;m.cmd=null;flash(m.sit?'Your wolf is sitting':'Your wolf will follow you');return true;}
   if(T.strider){if(id===1142||id===1143){if(!m.tame){useOne();swing();tameMob(m);m.saddle=true;flash('The strider loves mushrooms! Right-click it with your hand to ride it across lava');return true;}return feed(m);}
     if(m.tame&&!(m.baby>0)){mount(m);return true;}flash('Feed the strider a mushroom to tame it');return true;}
@@ -4694,7 +4743,8 @@ const fireMat=new THREE.MeshBasicMaterial({color:0xff8a20}),pearlMat=new THREE.M
 const skullMat=new THREE.MeshBasicMaterial({color:0x1a1a1e}),potMat=new THREE.MeshBasicMaterial({color:0x8a3ad8});
 function shootFire(m,t){const ox=m.x+(m.T.bigBoss?(Math.random()-.5)*2:0),oy=m.y+(m.T.bigBoss?2.7:m.T.boom?1.9:1.5),oz=m.z,dx=t.x-ox+(Math.random()-.5)*1.4,dy=t.y+1.1-oy+(Math.random()-.5)*.8,dz=t.z-oz+(Math.random()-.5)*1.4,l=Math.hypot(dx,dy,dz)||1,v=13;
   if(m.T.potionShot){const me=new THREE.Mesh(pearlGeo,potMat);me.position.set(ox,oy,oz);scene.add(me);
-    arrows.push({x:ox,y:oy,z:oz,vx:dx/l*v,vy:dy/l*v+10*l/v,vz:dz/l*v,owner:m,dmg:2,me,stuck:0,life:0,pot:true,src:'witch'});sfx('pop');return;}
+    const r=Math.random(),pk=r<.03?'doom':r<.24?'weak':r<.45?'fatigue':r<.66?'slow':r<.84?'blind':'harm';me.material=new THREE.MeshBasicMaterial({color:new THREE.Color(POT[pk].c)});
+    arrows.push({x:ox,y:oy,z:oz,vx:dx/l*v,vy:dy/l*v+10*l/v,vz:dz/l*v,owner:m,dmg:pk==='harm'?5:1,me,stuck:0,life:0,pot:pk,src:'witch'});sfx('pop');return;}
   const me=new THREE.Mesh(fireGeo,m.T.skullShot?skullMat:fireMat);me.position.set(ox,oy,oz);if(m.T.boom)me.scale.setScalar(1.6);scene.add(me);
   arrows.push({x:ox,y:oy,z:oz,vx:dx/l*v,vy:dy/l*v,vz:dz/l*v,owner:m,dmg:5,me,stuck:0,life:0,fire:true,boom:m.T.boom||0,src:m.T.bigBoss?'wither':m.T.boom?'wailer':''});sfx(m.T.boom&&!m.T.bigBoss?'wail':'hiss');}
 function mopUse(){const cx=target?target.x:Math.floor(P.x),cy=target?target.y:Math.floor(P.y),cz=target?target.z:Math.floor(P.z);let n=0,f=0;const ch=[];
@@ -4733,7 +4783,10 @@ function updateArrows(dt){for(let i=arrows.length-1;i>=0;i--){const a=arrows[i];
         wearShield(1);shieldFx();burst(a.x,a.y,a.z,[.9,.9,.95],5);flash(a.fire?'Your shield knocked the fireball back!':'Your shield blocked the arrow!');continue;}
       if(a.boom){projHit(a,null);killArrow(i);gone=2;break;}
       damagePlayer(a.dmg,'Shot by a '+(a.owner&&a.owner.T?a.owner.T.n.toLowerCase():'skeleton'),{x:a.x-a.vx*.05,z:a.z-a.vz*.05});if(a.owner&&a.owner.T)P.lastAttacker=a.owner;
-      if(a.pot){fx.slow=Math.max(fx.slow||0,8);fx.poison=Math.max(fx.poison||0,4);burst(a.x,a.y,a.z,[.6,.3,.9],12);sfx('splash');flash('The witch threw a potion at you! You feel slow and sick');}
+      if(a.pot){const pk=a.pot,c=new THREE.Color(POT[pk]?POT[pk].c:'#8a3ad8');burst(a.x,a.y,a.z,[c.r,c.g,c.b],14);sfx('splash');
+        if(pk==='doom'){if(!P.dead)damagePlayer(999,'Hit by a witch’s potion of instant death');}
+        else if(pk==='harm')flash('The witch threw a potion of harming at you!');
+        else{fx[pk]=Math.max(fx[pk]||0,pk==='blind'?10:20);flash('The witch threw a potion of '+POT[pk].n.toLowerCase()+' at you!');}}
       else if(a.fire){P.burn=Math.max(P.burn||0,3);burst(a.x,a.y,a.z,[1,.55,.1],6);}else dropItem(171,1,P.x,P.y+.6,P.z,undefined,(Math.random()-.5)*1.5,2,(Math.random()-.5)*1.5,.7);killArrow(i);gone=2;break;}
     if(a.owner==='player'&&!a.pearl&&MP.others.size){let hitP=null;for(const[id,o]of MP.others){if(o.dim!==dim||o.dead)continue;if(Math.abs(a.x-o.x)<.4&&Math.abs(a.z-o.z)<.4&&a.y>o.y&&a.y<o.y+1.85){hitP=id;break;}}
       if(hitP){const o=MP.others.get(hitP);if(o.oh===SHIELD&&!o.gm&&facingFrom(o.x-a.vx,o.z-a.vz,o.yaw,o.x,o.z)){sfx('clang');burst(a.x,a.y,a.z,[.9,.9,.95],6);flash((o.n||'They')+' blocked your arrow with a shield');killArrow(i);gone=2;break;}
@@ -4842,6 +4895,7 @@ function updateMobs(dt){
     else if((Tp.soldier||Tp.golem)&&(m.order==='follow'||m.order==='attack')&&!P.spec){
       if(dist>40&&sim){const a=Math.random()*6.283;m.x=clamp(P.x+Math.cos(a)*2.5,1,WX-1);m.z=clamp(P.z+Math.sin(a)*2.5,1,WZ-1);m.y=P.y+.3;m.vy=0;}
       else if(dist>3.4){m.yawT=Math.atan2(-dx,-dz);move=1;spd*=Tp.golem?2:1.4;}else move=0;}
+    else if(m.sniff&&m.tame&&sim){move=dogSniffTick(m,dt);if(move)spd*=1.5;}
     else if(m.cmd==='stay'){move=0;}
     else if(m.cmd==='follow'&&!P.spec){if(dist>34&&sim&&!penned(m)){const a=Math.random()*6.283;m.x=clamp(P.x+Math.cos(a)*1.5,1,WX-1);m.z=clamp(P.z+Math.sin(a)*1.5,1,WZ-1);m.y=P.y+.2;m.vy=0;}
       else if(dist>2.8){m.yawT=Math.atan2(-dx,-dz);move=1;spd*=dist>7?2:1.4;}else move=0;}
@@ -6240,16 +6294,22 @@ $('invClose').addEventListener('click',closeInv);
 let tradeMob=null;
 function countOf(id){let c=0;for(const s of inv)if(s&&s.id===id)c+=s.count;return c;}
 function takeN(id,n){for(let i=35;i>=0&&n>0;i--){const s=inv[i];if(s&&s.id===id){const k=Math.min(n,s.count);s.count-=k;n-=k;if(!s.count)inv[i]=null;}}}
-function renderTrade(){const m=tradeMob;if(!m)return;const pf=PROF[m.prof];const em=countOf(166);renderWork(m);
+let tradeThrow=false;
+const SOLDIER_SHOP={n:'Villager soldier',note:'The armoury sells ammunition for emeralds.',trades:[[[166,3],[357,4]],[[166,8],[362,2]],[[166,2],[171,16]]]};
+function renderTrade(){const m=tradeMob;if(!m)return;const pf=m.T.soldier?SOLDIER_SHOP:PROF[m.prof];const em=countOf(166);renderWork(m);
   $('tradeTitle').textContent=pf.n;
   $('tradeNote').textContent=pf.note+' You have '+em+' emerald'+(em===1?'':'s')+(mode==='creative'?'. Creative trades are free.':'. Emeralds come from mountain ore and from trading.');
   const L=$('tradeList');L.innerHTML='';
+  {const r=document.createElement('div');r.className='trow';const sp=document.createElement('span');sp.textContent=tradeThrow?'🙋 You asked them to throw what you buy on the ground in front of you':'🙋 Ask them to throw what you buy on the ground instead of handing it over';
+    const b=document.createElement('button');b.type='button';b.className='btn';b.textContent=tradeThrow?'Throwing: on':'Throwing: off';b.setAttribute('aria-pressed',tradeThrow?'true':'false');
+    b.addEventListener('click',()=>{tradeThrow=!tradeThrow;mobSay(m,tradeThrow?pick1(['Sure, I\'ll toss it to you!','Okay, heads up!','I\'ll throw it on the ground for you.']):'I\'ll hand it over then.');renderTrade();});r.appendChild(sp);r.appendChild(b);L.appendChild(r);}
   pf.trades.concat(m.prof==='librarian'?bookTrades(m):[]).forEach(t=>{const gi=t[0][0],gn=t[0][1],oi=t[1][0],on=t[1][1];const row=document.createElement('div');row.className='trow';
     row.innerHTML='<div class="titem"><img alt="" src="'+iconOf(gi)+'"><span>'+gn+' × '+itemDef(gi).n+'</span></div><span class="arrow" aria-hidden="true">→</span>'+
       '<div class="titem"><img alt="" src="'+iconOf(oi)+'"><span>'+on+' × '+(t[1][2]?'Enchanted book: '+enchText(t[1][2]):itemDef(oi).n)+'</span></div>';
     const b=document.createElement('button');b.type='button';b.className='btn primary';b.textContent='Trade';
     b.disabled=!(mode==='creative'||countOf(gi)>=gn);b.setAttribute('aria-label','Trade '+gn+' '+itemDef(gi).n+' for '+on+' '+itemDef(oi).n);
     b.addEventListener('click',()=>{if(mode!=='creative'){if(countOf(gi)<gn)return;takeN(gi,gn);}
+      if(tradeThrow){const dx=P.x-m.x,dz=P.z-m.z,l=Math.hypot(dx,dz)||1;dropItem(oi,on,m.x,m.y+1.4,m.z,undefined,dx/l*2.6,3.2,dz/l*2.6,1.2,t[1][2]&&Object.assign({},t[1][2]));m.swingT=.4;sfx('pop');mobSay(m,pick1(['Here you go!','Catch!','Heads up!']));renderTrade();return;}
       const left=addItem(oi,on,undefined,t[1][2]&&Object.assign({},t[1][2]));if(left)dropItem(oi,left,P.x,P.y+1,P.z,undefined,undefined,undefined,undefined,undefined,t[1][2]);sfx('pop');invChanged();renderTrade();});
     row.appendChild(b);L.appendChild(row);});}
 function openTrade(m){primaryUp();for(const k in keys)keys[k]=false;joy.x=joy.y=0;tradeMob=m;
